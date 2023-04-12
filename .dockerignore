@@ -1,0 +1,7 @@
+src/
+dist/
+.github/
+node_modules/
+jest*
+rollup*
+tsconfig.json

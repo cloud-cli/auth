@@ -1,0 +1,8 @@
+{
+    "extends": "@cloud-cli/typescript-config",
+    "compilerOptions": {
+      "lib": ["esnext", "dom"],
+      "outDir": "./dist"
+    },
+    "include": ["src/**/*.ts"]
+}
