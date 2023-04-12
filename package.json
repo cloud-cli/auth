@@ -2,12 +2,11 @@
   "name": "auth",
   "private": true,
   "version": "0.0.0",
-  "main": "./index.js",
+  "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "ci": "npm i && npx rollup -c rollup.config.mjs",
-    "build": "tsc",
-    "test": "echo ok"
+    "ci": "npm i && npm run build && rm -r node_modules && npm i --omit=dev",
+    "build": "tsc"
   },
   "prettier": "@cloud-cli/prettier-config",
   "repository": {
@@ -18,9 +17,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@cloud-cli/jest-config": "^1.0.0",
     "@cloud-cli/prettier-config": "^1.0.0",
-    "@cloud-cli/rollup-config": "^1.0.0",
     "@cloud-cli/typescript-config": "^1.0.0",
     "@types/express-session": "^1.17.7",
     "@types/node": "^18.15.11",
