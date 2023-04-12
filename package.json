@@ -22,7 +22,16 @@
     "@cloud-cli/prettier-config": "^1.0.0",
     "@cloud-cli/rollup-config": "^1.0.0",
     "@cloud-cli/typescript-config": "^1.0.0",
-    "@types/node": "^18.15.11"
+    "@types/express-session": "^1.17.7",
+    "@types/node": "^18.15.11",
+    "@types/passport": "^1.0.12",
+    "@types/passport-google-oauth20": "^2.0.11"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@cloud-cli/store": "^1.5.3",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "passport": "^0.6.0",
+    "passport-google-oauth20": "^2.0.0"
+  }
 }

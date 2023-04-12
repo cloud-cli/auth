@@ -1,3 +1,3 @@
-# app-template
+# Auth
 
-Node.js app template
+Node.js app to perform user authentication
