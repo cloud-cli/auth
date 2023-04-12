@@ -87,7 +87,7 @@ app.get("/success", (_req, res) => {
 });
 
 app.listen(PORT, async () => {
-  Resource.use(new SQLiteDriver());
+  Resource.use(new SQLiteDriver('/opt/data/db.sqlite'));
   await Resource.create(User);
   console.log("App is listening on port " + PORT);
 });
