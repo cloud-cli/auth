@@ -2,7 +2,7 @@ import express from "express";
 import session from "express-session";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { Model, Property, Resource, Unique } from '@cloud-cli/store';
+import { Model, Property, Resource, SQLiteDriver, Unique } from '@cloud-cli/store';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -87,6 +87,7 @@ app.get("/success", (_req, res) => {
 });
 
 app.listen(PORT, async () => {
+  Resource.use(new SQLiteDriver());
   await Resource.create(User);
   console.log("App is listening on port " + PORT);
 });
