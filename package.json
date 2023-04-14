@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "ci": "npm ci && npm run build && npm ci --only=prod",
-    "build": "tsc"
+    "build": "tsc",
+    "start": "npm update && node ./dist/index.js"
   },
   "prettier": "@cloud-cli/prettier-config",
   "repository": {
