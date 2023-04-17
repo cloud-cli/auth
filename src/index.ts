@@ -8,6 +8,7 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const CALLBACK_URL = process.env.AUTH_CALLBACK_HOST + "/auth/google/callback";
 const SESSION_SECRET = process.env.SESSION_SECRET;
+const SESSION_DOMAIN = process.env.SESSION_DOMAIN;
 const PORT = Number(process.env.PORT);
 
 @Model('auth_user')
@@ -25,9 +26,9 @@ passport.use(
       clientSecret: CLIENT_SECRET,
       callbackURL: CALLBACK_URL,
     },
-    async function (accessToken, refreshToken, profile, cb) {
-      console.log(accessToken, refreshToken, profile);
+    async function verify(accessToken, refreshToken, profile, cb) {
       const userId = profile.id;
+      console.log('Auth %s', profile.id);
       const user = new User({ userId, accessToken, refreshToken, profile });
       await user.save();
 
@@ -48,16 +49,27 @@ passport.deserializeUser((user, done) => {
 
 const app = express();
 
-app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-  })
-);
+const sessionOptions: any = {
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+};
 
+if (SESSION_DOMAIN) {
+  sessionOptions.cookie = {
+    domain: SESSION_DOMAIN,
+  };
+}
+
+app.use(session(sessionOptions));
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.get(
+  "/", 
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  (_req, res) => res.send('OK'),
+);
 
 app.get(
   "/auth/google",
@@ -66,10 +78,7 @@ app.get(
 
 app.get(
   "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  function (_req, res) {
-    res.redirect("/success");
-  }
+  passport.authenticate("google", { failureRedirect: "/login", successRedirect: "/success" }),
 );
 
 app.get("/login", (_req, res) => {
