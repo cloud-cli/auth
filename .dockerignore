@@ -1,5 +1,1 @@
 .github/
-src/
-jest*
-rollup*
-tsconfig.json
