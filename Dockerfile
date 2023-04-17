@@ -1,3 +1,3 @@
 FROM ghcr.io/cloud-cli/node:latest
-ADD . /home/app
+COPY . /home/app
 RUN npm run ci && rm -r src
