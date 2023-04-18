@@ -1,5 +1,5 @@
 import express from "express";
-import { readfileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { initUser } from './user.js';
 import session from './session.js';
 import passport from './passport.js';
