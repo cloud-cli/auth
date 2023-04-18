@@ -5,8 +5,8 @@ import session from './session.js';
 import passport from './passport.js';
 
 const PORT = Number(process.env.PORT);
-const loginPage = readFileSync('../assets/login.html', 'utf8');
-const successPage = readFileSync('../assets/success.html', 'utf8');
+const loginPage = readFileSync('./assets/login.html', 'utf8');
+const successPage = readFileSync('./assets/success.html', 'utf8');
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
