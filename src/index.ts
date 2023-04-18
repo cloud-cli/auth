@@ -1,16 +1,16 @@
 import express from "express";
 import { readfileSync } from 'fs';
-import { User, initUser } from './user.js';
+import { initUser } from './user.js';
 import session from './session.js';
 import passport from './passport.js';
 
 const PORT = Number(process.env.PORT);
-const loginPage = readfileSync('../assets/login.html', 'utf8');
-const successPage = readfileSync('../assets/success.html', 'utf8');
+const loginPage = readFileSync('../assets/login.html', 'utf8');
+const successPage = readFileSync('../assets/success.html', 'utf8');
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
-    return res.redirect('/login');
+    return res.redirect(401, '/login');
   }
 
   next();
@@ -28,15 +28,7 @@ app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get("/", protectedRoute, (req, res) => {
-  if (req.user) {
-    res.send({ id: req.user?.id });
-    return;
-  }
-
-  res.redirect(401, '/login');
-});
-
+app.get("/", protectedRoute, (req, res) => res.send(req.user));
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get("/auth/google/callback", passport.authenticate("google", scopes));
 app.get("/login", (_, res) => res.send(loginPage));

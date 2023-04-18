@@ -1,5 +1,6 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { User } from './user.js';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -13,8 +14,8 @@ passport.use(
       callbackURL: CALLBACK_URL,
     },
     async function verify(accessToken, refreshToken, profile, cb) {
+      console.log('Auth verify %s', profile);
       const userId = profile.id;
-      console.log('Auth verify %s', profile.id);
       const user = new User({ userId, accessToken, refreshToken, profile });
       await user.save();
 
