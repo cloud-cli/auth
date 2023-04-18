@@ -10,7 +10,7 @@ const successPage = readFileSync('./assets/success.html', 'utf8');
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
-    return res.redirect(401, '/login');
+    return res.send(401, loginPage);
   }
 
   next();
@@ -33,6 +33,7 @@ app.get("/auth/google", passport.authenticate("google", scopes));
 app.get("/auth/google/callback", passport.authenticate("google", scopes));
 app.get("/login", (_, res) => res.send(loginPage));
 app.get("/success", (_, res) => res.send(successPage));
+app.get("/profile", (req, res) => res.send(req.user));
 
 app.listen(PORT, async () => {
   await initUser();
