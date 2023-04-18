@@ -28,7 +28,7 @@ passport.use(
     },
     async function verify(accessToken, refreshToken, profile, cb) {
       const userId = profile.id;
-      console.log('Auth %s', profile.id);
+      console.log('Auth verify %s', profile.id);
       const user = new User({ userId, accessToken, refreshToken, profile });
       await user.save();
 
@@ -47,8 +47,6 @@ passport.deserializeUser((user, done) => {
   done(null, user);
 });
 
-const app = express();
-
 const sessionOptions: any = {
   secret: SESSION_SECRET,
   resave: false,
@@ -58,45 +56,29 @@ const sessionOptions: any = {
 if (SESSION_DOMAIN) {
   sessionOptions.cookie = {
     domain: SESSION_DOMAIN,
+    httpOnly: true,
   };
 }
+
+const scopes = { 
+  scope: ["profile", "email"],
+  failureRedirect: "/login", 
+  successRedirect: "/success",
+}
+
+const app = express();
 
 app.use(session(sessionOptions));
 app.use(passport.initialize());
 app.use(passport.session());
-
-app.get(
-  "/", 
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  (_req, res) => res.send('OK'),
-);
-
-app.get(
-  "/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-app.get(
-  "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login", successRedirect: "/success" }),
-);
-
-app.get("/login", (_req, res) => {
-  res.send(
-    `<h1>Login</h1>
-    <a href="/auth/google" onclick="s(this)">Sign in with Google</a>
-    <script>function s() {sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1]}</script>`
-  );
-});
-
-app.get("/success", (_req, res) => {
-  res.send(
-    '<h1>You are authenticated!</h1><a href="#" onclick="sessionStorage.url&&window.location=sessionStorage.url">Continue</a>'
-  );
-});
+app.get("/", passport.authenticate("google", scopes), (_req, res) => res.send('OK'));
+app.get("/auth/google", passport.authenticate("google", scopes));
+app.get("/auth/google/callback", passport.authenticate("google", scopes));
+app.get("/login", (_req, res) => res.sendFile('../assets/login.html'));
+app.get("/success", (_req, res) => res.sendFile('../assets/success.html'));
 
 app.listen(PORT, async () => {
   Resource.use(new SQLiteDriver('/opt/data/db.sqlite'));
   await Resource.create(User);
-  console.log("App is listening on port " + PORT);
+  console.log("Auth is running on port " + PORT);
 });
