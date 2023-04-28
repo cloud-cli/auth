@@ -28,12 +28,11 @@ app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get("/", protectedRoute, (req, res) => res.send(req.user));
+app.get("/", protectedRoute, (req, res) => { const { id, displayName } = req.user; res.send({ id, displayName }) });
 app.get("/auth/google", passport.authenticate("google", scopes));
-app.get("/auth/google/callback", passport.authenticate("google", scopes));
+app.get(passport.callback, passport.authenticate("google", scopes));
 app.get("/login", (_, res) => res.send(loginPage));
 app.get("/success", (_, res) => res.send(successPage));
-app.get("/profile", (req, res) => res.send(req.user));
 
 app.listen(PORT, async () => {
   await initUser();
