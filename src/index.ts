@@ -29,11 +29,12 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.head('/', protectedRoute, (_req, res) => res.status(200).send(''));
-app.get('/', protectedRoute, (_req, res) => res.status(200).send('OK'));
+app.get('/', protectedRoute, (_req, res) => res.status(200).send(true));
 app.delete('/', protectedRoute, (req, res, next) =>
   req.logout((err) => (err ? next(err) : res.status(202).send('OK'))),
 );
 
+app.head('/profile', protectedRoute, (req, res) => res.status(200).send(''));
 app.get('/profile', protectedRoute, (req, res) => res.send(req.user));
 app.get('/auth/google', passport.authenticate('google', scopes));
 app.get(callback, passport.authenticate('google', scopes));
