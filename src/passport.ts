@@ -1,6 +1,7 @@
 import passport, { Profile } from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { User } from './user.js';
+import { Query, Resource } from '@cloud-cli/store';
 
 export const callback = '/auth/google/callback';
 
@@ -30,10 +31,15 @@ passport.use(
 passport.serializeUser((user: any, done) => done(null, user.id));
 passport.deserializeUser(async (userId: string, done) => {
   try {
-    const user = await new User({ userId }).find();
-    done(null, getApiProfile(user.profile));
+    const user = await Resource.find(User, new Query<User>().where('userId').is(userId));
+
+    if (user.length) {
+      return done(null, getApiProfile(user[0].profile));
+    }
+
+    return done(new Error('Not found'));
   } catch (error) {
-    done(error);
+    done(String(error));
   }
 });
 
