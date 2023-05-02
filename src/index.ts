@@ -28,7 +28,9 @@ app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get("/", protectedRoute, (req, res) => { const { id, displayName } = req.user; res.send({ id, displayName }) });
+app.head("/", protectedRoute, (_req, res) => res.send(204));
+app.get("/", protectedRoute, (_req, res) => res.send(200));
+app.get("/profile", protectedRoute, (req, res) => { const { id, displayName } = req.user; res.send({ id, displayName }) });
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(passport.callback, passport.authenticate("google", scopes));
 app.get("/login", (_, res) => res.send(loginPage));
