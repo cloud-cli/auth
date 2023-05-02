@@ -2,7 +2,7 @@ import express from "express";
 import { readFileSync } from 'fs';
 import { initUser } from './user.js';
 import session from './session.js';
-import passport from './passport.js';
+import passport, { callback } from './passport.js';
 
 const PORT = Number(process.env.PORT);
 const loginPage = readFileSync('./assets/login.html', 'utf8');
@@ -10,7 +10,7 @@ const successPage = readFileSync('./assets/success.html', 'utf8');
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
-    return res.send(401, loginPage);
+    return res.status(401).send(loginPage);
   }
 
   next();
@@ -28,11 +28,11 @@ app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.head("/", protectedRoute, (_req, res) => res.send(204));
-app.get("/", protectedRoute, (_req, res) => res.send(200));
-app.get("/profile", protectedRoute, (req, res) => { const { id, displayName } = req.user; res.send({ id, displayName }) });
+app.head("/", protectedRoute, (_req, res) => res.status(200).send(''));
+app.get("/", protectedRoute, (_req, res) => res.status(200).send('OK'));
+app.get("/profile", protectedRoute, (req, res) => res.send(req.user));
 app.get("/auth/google", passport.authenticate("google", scopes));
-app.get(passport.callback, passport.authenticate("google", scopes));
+app.get(callback, passport.authenticate("google", scopes));
 app.get("/login", (_, res) => res.send(loginPage));
 app.get("/success", (_, res) => res.send(successPage));
 
