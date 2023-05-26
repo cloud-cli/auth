@@ -16,6 +16,16 @@ function protectedRoute(req, res, next) {
   next();
 }
 
+function protectedRouteWithRedirect(req, res, next) {
+  if (!req.isAuthenticated || !req.isAuthenticated()) {
+    const returnUrl = req.get('referrer') || req.get('referer');
+    res.set('Location', '/login?url=' + returnUrl);
+    return res.status(401).send('');
+  }
+
+  next();
+}
+
 const scopes = {
   scope: ['profile', 'email'],
   failureRedirect: '/login',
@@ -34,8 +44,9 @@ app.delete('/', protectedRoute, (req, res, next) =>
   req.logout((err) => (err ? next(err) : res.status(202).send('OK'))),
 );
 
-app.head('/profile', protectedRoute, (req, res) => res.status(200).send(''));
-app.get('/profile', protectedRoute, (req, res) => res.send(req.user));
+app.head('/profile', protectedRoute, (_, res) => res.status(200).send(''));
+app.get('/profile', protectedRouteWithRedirect, (req, res) => res.send(req.user));
+app.delete('/profile', protectedRoute, (req, res) => req.logout(() => res.status(202).send('OK')));
 app.get('/auth/google', passport.authenticate('google', scopes));
 app.get(callback, passport.authenticate('google', scopes));
 

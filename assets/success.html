@@ -18,7 +18,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             const next = sessionStorage.url || '';
             if (next) {
-                setTimeout(() => window.location = next, 3000);
+                setTimeout(() => window.location = next, 1000);
             }
 
             document.querySelector('a').href = next || '#';
