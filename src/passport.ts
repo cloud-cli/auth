@@ -1,6 +1,6 @@
 import passport, { Profile } from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { User } from './user.js';
+import { User, UserProperty } from './user.js';
 import { Query, Resource } from '@cloud-cli/store';
 
 export const callback = '/auth/google/callback';
@@ -21,7 +21,7 @@ passport.use(
       const user = new User({ userId: profile.id, accessToken, refreshToken, profile });
       await user.save();
 
-      continueAuth(null, getApiProfile(profile));
+      continueAuth(null, await getApiProfile(profile));
     },
   ),
 );
@@ -34,7 +34,7 @@ passport.deserializeUser(async (userId: string, done) => {
     const user = await Resource.find(User, new Query<User>().where('userId').is(userId));
 
     if (user.length) {
-      return done(null, getApiProfile(user[0].profile));
+      return done(null, await getApiProfile(user[0].profile));
     }
 
     return done(new Error('Not found'));
@@ -43,13 +43,15 @@ passport.deserializeUser(async (userId: string, done) => {
   }
 });
 
-function getApiProfile(profile: Profile) {
+async function getApiProfile(profile: Profile) {
   const { id, displayName, photos } = profile;
+  const properties = await Resource.find(UserProperty, new Query<UserProperty>().where('userId').is(id));
 
   return {
     id,
     displayName,
     photo: (photos.length && photos[0].value) || '',
+    properties: properties.map(p => ({ key: p.key, value: p.value })),
   };
 }
 
