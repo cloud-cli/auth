@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "ci": "npm ci && npm run build && npm i --omit=dev",
+    "ci": "npm i && npm run build && rm -r node_modules && npm i --omit=dev && rm -r src/",
     "build": "tsc",
     "start": "node ./dist/index.js"
   },
