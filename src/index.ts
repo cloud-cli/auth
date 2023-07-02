@@ -38,7 +38,7 @@ function makeProfile(user) {
       <div class="bg-gray-100 rounded-xl mx-auto p-8 border shadow-lg">
         <figure>
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
-          <figcaption class="block pt-6 text-center">${user.displayName}<br/><span class="text-sm text-gray-400">${user.id}</span></figcaption>
+          <figcaption class="block pt-4 text-center">${user.displayName}<br/><span class="text-sm text-gray-400">${user.id}</span></figcaption>
         </figure>
       </div>
     </div>
