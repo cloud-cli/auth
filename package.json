@@ -27,7 +27,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@cloud-cli/store": "^1.5.3",
+    "@cloud-cli/store": "^1.6.0",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "passport": "^0.6.0",
