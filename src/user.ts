@@ -9,7 +9,7 @@ import {
 
 @Model("auth_user")
 export class User extends Resource {
-  @Unique() @Property(Number) userId: string;
+  @Unique() @Primary() @Property(String) userId: string;
   @Property(Object) profile: any;
   @Property(String) accessToken: string;
   @Property(String) refreshToken: string;

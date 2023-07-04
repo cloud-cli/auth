@@ -35,6 +35,7 @@ passport.use(
         refreshToken,
         profile,
       });
+
       await user.save();
 
       continueAuth(null, await getApiProfile(profile));
