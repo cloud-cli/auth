@@ -56,9 +56,9 @@ function makeLoginPage() {
   return makePage(
     "Sign in to continue",
     `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center">
-      <div class="text-center">
+      <div class="text-center p-4 bg-white rounded-lg shadow">
         <h1 class="text-2xl font-bold mb-6">Hello!</h1>
-        <a href="/auth/google" class="bg-gray-200 text-gray-700 px-4 py-2 rounded shadow flex items-center justify-center">
+        <a href="/auth/google" class="bg-white border text-gray-800 px-4 py-2 rounded shadow flex items-center justify-center">
           ${googleSvg}
           Sign in with Google
         </a>
