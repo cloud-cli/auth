@@ -1,11 +1,10 @@
 import express from "express";
+import { Resource, Query } from "@cloud-cli/store";
 import { readFileSync } from "fs";
 import { UserProperty, initUser } from "./user.js";
 import session from "./session.js";
 import passport, { callback } from "./passport.js";
-import { Resource, Query } from "@cloud-cli/store";
 
-const PORT = Number(process.env.PORT);
 const googleSvg = readFileSync("./assets/google.svg", "utf8");
 
 function protectedRoute(req, res, next) {
@@ -60,7 +59,7 @@ function makeLoginPage() {
       <div class="text-center">
         <h1 class="text-2xl font-bold mb-6">Hello!</h1>
         <a href="/auth/google" class="bg-gray-200 text-gray-700 px-4 py-2 rounded shadow flex items-center justify-center">
-          <img alt="Google Logo" class="w-6 h-6 mr-2" src="/google.svg">
+          ${googleSvg}
           Sign in with Google
         </a>
       </div>
@@ -77,7 +76,8 @@ function makeProfile(user) {
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
           <figcaption class="block pt-4 text-center">Hello, ${user.displayName}!<br/><span class="text-sm text-gray-400">${user.id}</span></figcaption>
         </figure>
-        <button type="button" onclick="l()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded shadow border border-gray-800">Logout</button>
+        <hr class="mt-4" />
+        <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-800 mt-4 mx-auto">Logout</button>
       </div>
     </div>
     <script>
@@ -99,7 +99,6 @@ app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get("/google.svg", (_, res) => res.send(googleSvg));
 app.get("/login", (_, res) => res.send(makeLoginPage()));
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
 app.get("/", protectedRouteWithRedirect, (req, res) => res.send(req.user));
@@ -146,6 +145,7 @@ app.delete("/property/:key", protectedRoute, async (req, res) => {
   res.status(202).send("");
 });
 
+const PORT = Number(process.env.PORT);
 app.listen(PORT, async () => {
   await initUser();
   console.log("Auth is running on port " + PORT);
