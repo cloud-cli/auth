@@ -114,7 +114,11 @@ app.put("/property", protectedRoute, (req, res) => {
     try {
       const payload = JSON.parse(Buffer.concat(a).toString("utf8"));
       const { key, value } = payload;
-      const propertyId = await new UserProperty({ userId: req.user?.id, key, value }).save();
+      const propertyId = await new UserProperty({
+        userId: req.user?.id,
+        key,
+        value,
+      }).save();
       const property = await new UserProperty({ uid: propertyId }).find();
 
       res.status(200).send(property);
