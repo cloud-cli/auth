@@ -14,10 +14,15 @@ Node.js app to perform user authentication in multiple subdomains.
 | SESSION_SECRET        | Session secret, used to store the user session     | true     |
 | STORE_URL             | URL of store endpoint for @cloud-cli/store.        | true     |
 
-- Get the client ID and secret from [Google API console](https://console.cloud.google.com/apis/credentials)
-- Set SESSION_DOMAIN to the domain root in which authentication will be used. For example, "foo.com" will
+Get the client ID and secret from [Google API console](https://console.cloud.google.com/apis/credentials)
+
+- Authorized origin: `AUTH_DOMAIN`.
+- Authorized redirect URI's: `AUTH_DOMAIN` + "/auth/google/callback".
+
+Set SESSION_DOMAIN to the domain root in which authentication will be used. For example, "foo.com" will
 set authentication for any *.foo.com domain, using a common cookie.
-- For `fetch` requests, add `{ credentials: 'include' }` to the request options to include the session.
+
+For `fetch` requests, add `{ credentials: 'include' }` to the request options to include the session.
 
 ## Usage
 
