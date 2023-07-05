@@ -5,17 +5,13 @@ import { Query, Resource } from "@cloud-cli/store";
 
 export const callback = "/auth/google/callback";
 
-const clientId = process.env.GOOGLE_CLIENT_ID || "";
+const clientID = process.env.GOOGLE_CLIENT_ID || "";
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
-const callbackUrl = process.env.AUTH_CALLBACK_HOST + callback;
+const callbackURL = String(new URL(callback, process.env.AUTH_DOMAIN));
 
 passport.use(
   new GoogleStrategy(
-    {
-      clientID: clientId,
-      clientSecret: clientSecret,
-      callbackURL: callbackUrl,
-    },
+    { clientID, clientSecret, callbackURL },
     async function verify(accessToken, refreshToken, rawProfile, continueAuth) {
       const fields = [
         "id",
@@ -25,6 +21,7 @@ passport.use(
         "photos",
         "provider",
       ];
+
       const profile: any = {};
       fields.forEach((f) => (profile[f] = rawProfile[f]));
 
