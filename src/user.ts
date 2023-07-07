@@ -4,12 +4,11 @@ import {
   Property,
   Resource,
   StoreDriver,
-  Unique,
 } from "@cloud-cli/store";
 
 @Model("auth_user")
 export class User extends Resource {
-  @Unique() @Primary() @Property(String) userId: string;
+  @Primary() @Property(String) userId: string;
   @Property(Object) profile: any;
   @Property(String) accessToken: string;
   @Property(String) refreshToken: string;
@@ -17,8 +16,8 @@ export class User extends Resource {
 
 @Model("auth_property")
 export class UserProperty extends Resource {
-  @Primary() @Property(Number) uid: number;
-  @Unique() @Property(String) userId: string;
+  @Primary() @Property(String) uid: string;
+  @Property(String) userId: string;
   @Property(String) key: string;
   @Property(String) value: string;
 }

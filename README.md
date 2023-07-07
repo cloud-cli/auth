@@ -1,6 +1,6 @@
 # Auth
 
-Node.js app to perform user authentication in multiple subdomains.
+Node.js app for user sign in via Google authentication.
 
 ## Env
 
@@ -12,7 +12,7 @@ Node.js app to perform user authentication in multiple subdomains.
 | AUTH_DOMAIN           | Authentication host, e.g. https://auth.foo.com     | true     |
 | SESSION_DOMAIN        | Domain to use for session cookie, e.g foo.com      | false    |
 | SESSION_SECRET        | Session secret, used to store the user session     | true     |
-| STORE_URL             | URL of store endpoint for @cloud-cli/store.        | true     |
+| STORE_URL             | URL of store endpoint for [@cloud-cli/store](https://github.com/cloud-cli/store).        | true     |
 
 Get the client ID and secret from [Google API console](https://console.cloud.google.com/apis/credentials)
 
@@ -40,7 +40,7 @@ docker run --name 'auth' --detach \
   ghcr.io/cloud-cli/auth:latest
 ```
 
-## API
+## RESTful API
 
 *GET /:
 
@@ -56,8 +56,17 @@ Returns 204 if authenticated, 401 if not
 
 *GET /login?url=xxx*:
 
-Browser login page. Optionally, sets up a redirection after login
+Browser login page. Optionally, redirects after login
 
 *GET /me*:
 
-Current logged in profile
+Profile page of currently logged in user
+
+*PUT /property*:
+
+Add a property to current user.
+Request body is a JSON with `{ key, value }`
+
+*DELETE /property/:key*:
+
+Delete user property
