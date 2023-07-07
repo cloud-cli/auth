@@ -6,6 +6,7 @@ import session from "./session.js";
 import passport, { callback } from "./passport.js";
 
 const googleSvg = readFileSync("./assets/google.svg", "utf8");
+const esLibrary = readFileSync("./assets/auth.js", "utf8");
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
@@ -106,8 +107,12 @@ app.delete("/", protectedRoute, logout);
 app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
+app.get("/auth.js", (req, res) => {
+  const es = esLibrary.replace("__API_URL__", req.get("x-forwarded-for"));
+  res.set("content-type", "text/javascript").send(es);
+});
 
-app.put("/property", protectedRoute, (req, res) => {
+app.put("/properties", protectedRoute, (req, res) => {
   const a = [];
   req.on("data", (c) => a.push(c));
   req.on("end", async () => {
@@ -129,7 +134,27 @@ app.put("/property", protectedRoute, (req, res) => {
   });
 });
 
-app.delete("/property/:key", protectedRoute, async (req, res) => {
+app.get("/properties", protectedRoute, async (req, res) => {
+  const key = req.params.key;
+  const uid = req.user.id;
+
+  if (!key) {
+    res.status(400).send("");
+    return;
+  }
+
+  const entries = await Resource.find(
+    UserProperty,
+    new Query<UserProperty>().where("key").is(key).where("userId").is(uid)
+  );
+  for (const p of entries) {
+    await p.remove();
+  }
+
+  res.status(202).send("");
+});
+
+app.delete("/properties/:key", protectedRoute, async (req, res) => {
   const key = req.params.key;
   const uid = req.user.id;
 
