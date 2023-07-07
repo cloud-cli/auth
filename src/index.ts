@@ -135,23 +135,15 @@ app.put("/properties", protectedRoute, (req, res) => {
 });
 
 app.get("/properties", protectedRoute, async (req, res) => {
-  const key = req.params.key;
   const uid = req.user.id;
-
-  if (!key) {
-    res.status(400).send("");
-    return;
-  }
 
   const entries = await Resource.find(
     UserProperty,
-    new Query<UserProperty>().where("key").is(key).where("userId").is(uid)
+    new Query<UserProperty>().where("userId").is(uid)
   );
-  for (const p of entries) {
-    await p.remove();
-  }
 
-  res.status(202).send("");
+  const properties = entries.map((p) => ({ key: p.key, value: p.value }));
+  res.status(200).send(properties);
 });
 
 app.delete("/properties/:key", protectedRoute, async (req, res) => {
