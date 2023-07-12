@@ -119,11 +119,22 @@ app.put("/properties", protectedRoute, (req, res) => {
     try {
       const payload = JSON.parse(Buffer.concat(a).toString("utf8"));
       const { key, value } = payload;
+      const found = await Resource.find(UserProperty, new Query<UserProperty>().where('userId').is(req.user?.id).where('key').is(key));
+
+      if (found.length) {
+        const property = found[0];
+        property.value = value;
+        await property.save();
+        res.status(200).send(property);
+        return;
+      }
+
       const propertyId = await new UserProperty({
         userId: req.user?.id,
         key,
         value,
       }).save();
+
       const property = await new UserProperty({ uid: propertyId }).find();
 
       res.status(200).send(property);
