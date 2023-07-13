@@ -109,7 +109,10 @@ app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
 app.get("/auth.js", (req, res) => {
   const es = esLibrary.replace("__API_URL__", req.get("x-forwarded-for"));
-  res.set("content-type", "text/javascript").send(es);
+  res
+    .set("Content-Type", "text/javascript")
+    .set("Access-Control-Allow-Origin", "*")
+    .send(es);
 });
 
 app.put("/properties", protectedRoute, (req, res) => {
@@ -119,7 +122,14 @@ app.put("/properties", protectedRoute, (req, res) => {
     try {
       const payload = JSON.parse(Buffer.concat(a).toString("utf8"));
       const { key, value } = payload;
-      const found = await Resource.find(UserProperty, new Query<UserProperty>().where('userId').is(req.user?.id).where('key').is(key));
+      const found = await Resource.find(
+        UserProperty,
+        new Query<UserProperty>()
+          .where("userId")
+          .is(req.user?.id)
+          .where("key")
+          .is(key)
+      );
 
       if (found.length) {
         const property = found[0];
