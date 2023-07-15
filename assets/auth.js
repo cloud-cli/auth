@@ -22,6 +22,22 @@ export async function getProfile() {
   return toJson(r);
 }
 
+export function signIn() {
+  location.href = new URL(
+    "/login?url=" + encodeURIComponent(location.href),
+    authDomain
+  );
+}
+
+export async function signOut() {
+  const r = await fetch(authDomain, {
+    ...fetchOptions,
+    method: "DELETE",
+  });
+
+  return toBoolean(r);
+}
+
 export async function getProperties() {
   const r = await fetch(new URL("/properties", authDomain), fetchOptions);
   return await toJson(r);
@@ -51,8 +67,4 @@ export async function deleteProperty(key) {
   });
 
   return toBoolean(r);
-}
-
-export function signIn() {
-  location.href = new URL('/login?url=' + encodeURIComponent(location.href), authDomain);
 }
