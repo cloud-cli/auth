@@ -52,3 +52,7 @@ export async function deleteProperty(key) {
 
   return toBoolean(r);
 }
+
+export function signIn() {
+  location.href = new URL('/login?url=' + encodeURIComponent(location.href), authDomain);
+}
