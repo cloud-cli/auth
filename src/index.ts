@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { Resource, Query } from "@cloud-cli/store";
 import { readFileSync } from "fs";
 import { UserProperty, initUser } from "./user.js";
@@ -96,6 +97,7 @@ const scopes = {
 
 const app = express();
 
+app.use(cors());
 app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
