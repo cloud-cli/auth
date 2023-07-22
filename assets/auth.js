@@ -44,9 +44,8 @@ export async function getProperties() {
 }
 
 export async function getProperty(property) {
-  const all = await getProperties();
-  const p = all.find((p) => p.key === property);
-  return p ? p.value : "";
+  const r = await fetch(new URL("/properties/" + property, authDomain), fetchOptions);
+  return r.ok ? await toJson(r) : '';
 }
 
 export async function setProperty(key, value) {

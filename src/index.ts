@@ -1,9 +1,14 @@
 import express from "express";
-import { Resource, Query } from "@cloud-cli/store";
 import { readFileSync } from "fs";
-import { UserProperty, initUser } from "./user.js";
+import { initUser } from "./user.js";
 import session from "./session.js";
 import passport, { callback } from "./passport.js";
+import {
+  getProperties,
+  removeProperty,
+  getProperty,
+  setProperty,
+} from "./properties";
 
 const googleSvg = readFileSync("./assets/google.svg", "utf8");
 const esLibrary = readFileSync("./assets/auth.js", "utf8");
@@ -117,36 +122,12 @@ app.get("/auth.js", (req, res) => {
 
 app.put("/properties", protectedRoute, (req, res) => {
   const a = [];
-  req.on("data", (c) => a.push(c));
+  req.on("data", (c: any) => a.push(c));
   req.on("end", async () => {
     try {
       const payload = JSON.parse(Buffer.concat(a).toString("utf8"));
       const { key, value } = payload;
-      const found = await Resource.find(
-        UserProperty,
-        new Query<UserProperty>()
-          .where("userId")
-          .is(req.user?.id)
-          .where("key")
-          .is(key)
-      );
-
-      if (found.length) {
-        const property = found[0];
-        property.value = value;
-        await property.save();
-        res.status(200).send(property);
-        return;
-      }
-
-      const propertyId = await new UserProperty({
-        userId: req.user?.id,
-        key,
-        value,
-      }).save();
-
-      const property = await new UserProperty({ uid: propertyId }).find();
-
+      const property = await setProperty(req.user?.id, key, value);
       res.status(200).send(property);
     } catch (e) {
       console.log(e);
@@ -156,35 +137,49 @@ app.put("/properties", protectedRoute, (req, res) => {
 });
 
 app.get("/properties", protectedRoute, async (req, res) => {
-  const uid = req.user.id;
-
-  const entries = await Resource.find(
-    UserProperty,
-    new Query<UserProperty>().where("userId").is(uid)
-  );
-
-  const properties = entries.map((p) => ({ key: p.key, value: p.value }));
-  res.status(200).send(properties);
+  try {
+    const properties = await getProperties(req.user.id);
+    res.status(200).send(properties);
+  } catch (e) {
+    res.status(500).send("");
+    console.error(e);
+  }
 });
 
 app.delete("/properties/:key", protectedRoute, async (req, res) => {
   const key = req.params.key;
-  const uid = req.user.id;
+  const userId = req.user.id;
 
   if (!key) {
     res.status(400).send("");
     return;
   }
 
-  const entries = await Resource.find(
-    UserProperty,
-    new Query<UserProperty>().where("key").is(key).where("userId").is(uid)
-  );
-  for (const p of entries) {
-    await p.remove();
+  try {
+    await removeProperty(userId, key);
+    res.status(202).send("");
+  } catch (e) {
+    res.status(500).send("");
+    console.error(e);
+  }
+});
+
+app.get("/properties/:key", protectedRoute, async (req, res) => {
+  const key = req.params.key;
+  const userId = req.user.id;
+
+  if (!key) {
+    res.status(400).send("");
+    return;
   }
 
-  res.status(202).send("");
+  const property = await getProperty(userId, key);
+  if (property) {
+    res.status(200).send(property);
+    return;
+  }
+
+  res.status(404).send("");
 });
 
 const PORT = Number(process.env.PORT);
