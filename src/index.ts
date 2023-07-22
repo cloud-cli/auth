@@ -8,7 +8,7 @@ import {
   removeProperty,
   getProperty,
   setProperty,
-} from "./properties";
+} from "./properties.js";
 
 const googleSvg = readFileSync("./assets/google.svg", "utf8");
 const esLibrary = readFileSync("./assets/auth.js", "utf8");
