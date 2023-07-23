@@ -31,7 +31,6 @@ export async function getProperties(userId: string, key?: string) {
 
   const entries = await Resource.find(UserProperty, query);
   const properties = entries.map((p) => ({
-    uid: p.uid,
     key: p.key,
     value: p.value,
   }));
