@@ -3,6 +3,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { User, UserProperty } from "./user.js";
 import { Query, Resource } from "@cloud-cli/store";
 import { randomUUID } from "crypto";
+import { findByProfileId } from "./user.js";
 
 export const callback = "/auth/google/callback";
 
@@ -13,10 +14,22 @@ const callbackURL = String(new URL(callback, process.env.AUTH_DOMAIN));
 passport.use(
   new GoogleStrategy(
     { clientID, clientSecret, callbackURL },
-    async function verify(accessToken, refreshToken, profile, continueAuth) {
+    async function verify(
+      accessToken: string,
+      refreshToken: string,
+      profile: Profile,
+      continueAuth: any
+    ) {
       console.log("User authenticated:", profile.id);
-      const user = new User({
-        userId: randomUUID(),
+      let user = await findByProfileId(profile.id);
+
+      if (!user) {
+        user = new User({
+          userId: randomUUID(),
+        });
+      }
+
+      Object.assign(user, {
         accessToken,
         refreshToken,
         profileId: profile.id,
@@ -27,7 +40,7 @@ passport.use(
 
       await user.save();
 
-      continueAuth(null, await getApiProfile(profile));
+      continueAuth(null, await getApiProfile(user));
     }
   )
 );
@@ -52,8 +65,9 @@ passport.deserializeUser(async (profileId: string, done) => {
   }
 });
 
-async function getApiProfile(profile: User) {
-  const { userId, name, email = "", photo = "" } = profile;
+async function getApiProfile(user: User) {
+  const { userId, name, email = "", photo = "" } = user;
+
   const properties = await Resource.find(
     UserProperty,
     new Query<UserProperty>().where("userId").is(userId)
