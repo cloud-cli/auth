@@ -2,6 +2,7 @@ import passport, { Profile } from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { User, UserProperty } from "./user.js";
 import { Query, Resource } from "@cloud-cli/store";
+import { randomUUID } from 'crypto';
 
 export const callback = "/auth/google/callback";
 
@@ -27,7 +28,8 @@ passport.use(
 
       console.log("User authenticated:", profile.id);
       const user = new User({
-        userId: profile.id,
+        userId: randomUUID(),
+        profileId: profile.id,
         accessToken,
         refreshToken,
         profile,
@@ -43,11 +45,11 @@ passport.use(
 // See https://stackoverflow.com/questions/27637609/understanding-passport-serialize-deserialize
 
 passport.serializeUser((user: any, done) => done(null, user.id));
-passport.deserializeUser(async (userId: string, done) => {
+passport.deserializeUser(async (profileId: string, done) => {
   try {
     const user = await Resource.find(
       User,
-      new Query<User>().where("userId").is(userId)
+      new Query<User>().where("profileId").is(profileId)
     );
 
     if (user.length) {

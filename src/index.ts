@@ -1,6 +1,6 @@
 import express from "express";
 import { readFileSync } from "fs";
-import { initUser } from "./user.js";
+import { findByProfileId, initUser } from "./user.js";
 import session from "./session.js";
 import passport, { callback } from "./passport.js";
 import {
@@ -83,7 +83,7 @@ function makeProfile(user) {
           <figcaption class="block pt-4 text-center">Hello, ${user.displayName}!<br/><span class="text-sm text-gray-400">${user.id}</span></figcaption>
         </figure>
         <hr class="mt-4" />
-        <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-800 mt-4 mx-auto">Logout</button>
+        <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-200 mt-4 mx-auto">Logout</button>
       </div>
     </div>
     <script>
@@ -105,13 +105,16 @@ app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get("/login", (_, res) => res.send(makeLoginPage()));
+app.get("/", protectedRouteWithRedirect, async (req, res) =>
+  res.send(await findByProfileId(req.user.id))
+);
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
-app.get("/", protectedRouteWithRedirect, (req, res) => res.send(req.user));
 app.delete("/", protectedRoute, logout);
+app.get("/login", (_, res) => res.send(makeLoginPage()));
 app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
+
 app.get("/auth.js", (req, res) => {
   const es = esLibrary.replace("__API_URL__", req.get("x-forwarded-for"));
   res

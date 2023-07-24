@@ -2,6 +2,7 @@ import {
   Model,
   Primary,
   Property,
+  Query,
   Resource,
   StoreDriver,
 } from "@cloud-cli/store";
@@ -9,6 +10,7 @@ import {
 @Model("auth_user")
 export class User extends Resource {
   @Primary() @Property(String) userId: string;
+  @Property(String) profileId: string;
   @Property(Object) profile: any;
   @Property(String) accessToken: string;
   @Property(String) refreshToken: string;
@@ -26,4 +28,9 @@ export async function initUser() {
   Resource.use(new StoreDriver());
   await Resource.create(User);
   await Resource.create(UserProperty);
+}
+
+export async function findByProfileId(profileId: string) {
+  const all = await Resource.find(User, new Query<User>().where('profileId').is(profileId));
+  return all[0];
 }
