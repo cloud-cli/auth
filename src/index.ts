@@ -1,6 +1,6 @@
 import express from "express";
 import { readFileSync } from "fs";
-import { findByProfileId, initUser } from "./user.js";
+import { User, findByProfileId, initUser } from "./user.js";
 import session from "./session.js";
 import passport, { callback } from "./passport.js";
 import {
@@ -37,8 +37,8 @@ function logout(req, res) {
   );
 }
 
-function getProfile(req, res) {
-  res.send(makeProfile(req.user));
+async function getProfile(req, res) {
+  res.send(makeProfile(await findByProfileId(req.user.id)));
 }
 
 function makePage(title: string, page: string) {
@@ -73,14 +73,14 @@ function makeLoginPage() {
   );
 }
 
-function makeProfile(user) {
+function makeProfile(user: User) {
   return makePage(
     "Profile",
     `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center">
       <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg">
         <figure>
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
-          <figcaption class="block pt-4 text-center">Hello, ${user.displayName}!<br/><span class="text-sm text-gray-400">${user.id}</span></figcaption>
+          <figcaption class="block pt-4 text-center">Hello, ${user.name}!<br/><span class="text-sm text-gray-400">${user.userId}</span></figcaption>
         </figure>
         <hr class="mt-4" />
         <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-200 mt-4 mx-auto">Logout</button>
