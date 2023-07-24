@@ -18,7 +18,7 @@ passport.use(
       accessToken: string,
       refreshToken: string,
       profile: Profile,
-      continueAuth: any
+      done: any
     ) {
       console.log("User authenticated:", profile.id);
       let user = await findByProfileId(profile.id);
@@ -40,7 +40,7 @@ passport.use(
 
       await user.save();
 
-      continueAuth(null, await getApiProfile(user));
+      done(null, user);
     }
   )
 );
@@ -56,7 +56,7 @@ passport.deserializeUser(async (profileId: string, done) => {
     );
 
     if (user.length) {
-      return done(null, await getApiProfile(user[0]));
+      return done(null, user[0]);
     }
 
     return done(new Error("Not found"));
@@ -64,22 +64,5 @@ passport.deserializeUser(async (profileId: string, done) => {
     done(String(error));
   }
 });
-
-async function getApiProfile(user: User) {
-  const { userId, name, email = "", photo = "" } = user;
-
-  const properties = await Resource.find(
-    UserProperty,
-    new Query<UserProperty>().where("userId").is(userId)
-  );
-
-  return {
-    id: userId,
-    name,
-    email,
-    photo,
-    properties: properties.map((p) => ({ key: p.key, value: p.value })),
-  };
-}
 
 export default passport;
