@@ -1,6 +1,6 @@
 import express from "express";
 import { readFileSync } from "fs";
-import { User, findByProfileId, initUser } from "./user.js";
+import { User, findByProfileId, initUser, toJSON } from "./user.js";
 import session from "./session.js";
 import passport, { callback } from "./passport.js";
 import {
@@ -108,8 +108,7 @@ app.use(passport.session());
 app.get("/", protectedRouteWithRedirect, async (req, res) => {
   console.log(req.user);
   const user = await findByProfileId(req.user.id);
-  const { userId, name, email, photo } = user;
-  res.send({ id: userId, name, email, photo });
+  res.send(toJSON(user));
 });
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
 app.delete("/", protectedRoute, logout);

@@ -1,9 +1,8 @@
 import passport, { Profile } from "passport";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { User } from "./user.js";
-import { Query, Resource } from "@cloud-cli/store";
 import { randomUUID } from "crypto";
-import { findByProfileId } from "./user.js";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Query, Resource } from "@cloud-cli/store";
+import { User, toJSON, findByProfileId } from "./user.js";
 
 export const callback = "/auth/google/callback";
 
@@ -40,7 +39,7 @@ passport.use(
 
       await user.save();
 
-      done(null, { ...user });
+      done(null, toJSON(user));
     }
   )
 );
@@ -56,11 +55,12 @@ passport.deserializeUser(async (profileId: string, done: any) => {
     );
 
     if (user.length) {
-      return done(null, { ...user[0] });
+      return done(null, toJSON(user[0]));
     }
 
     return done("Not found");
   } catch (error) {
+    console.log(error);
     done(String(error));
   }
 });
