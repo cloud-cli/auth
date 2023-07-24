@@ -106,6 +106,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.get("/", protectedRouteWithRedirect, async (req, res) => {
+  console.log(req.user);
   const user = await findByProfileId(req.user.id);
   const { userId, name, email, photo } = user;
   res.send({ id: userId, name, email, photo });

@@ -1,6 +1,6 @@
 import passport, { Profile } from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { User, UserProperty } from "./user.js";
+import { User } from "./user.js";
 import { Query, Resource } from "@cloud-cli/store";
 import { randomUUID } from "crypto";
 import { findByProfileId } from "./user.js";
@@ -48,7 +48,7 @@ passport.use(
 // See https://stackoverflow.com/questions/27637609/understanding-passport-serialize-deserialize
 
 passport.serializeUser((user: any, done) => done(null, user.id));
-passport.deserializeUser(async (profileId: string, done) => {
+passport.deserializeUser(async (profileId: string, done: any) => {
   try {
     const user = await Resource.find(
       User,
@@ -59,7 +59,7 @@ passport.deserializeUser(async (profileId: string, done) => {
       return done(null, user[0]);
     }
 
-    return done(new Error("Not found"));
+    return done("Not found");
   } catch (error) {
     done(String(error));
   }
