@@ -2,7 +2,7 @@ import passport, { Profile } from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { User, UserProperty } from "./user.js";
 import { Query, Resource } from "@cloud-cli/store";
-import { randomUUID } from 'crypto';
+import { randomUUID } from "crypto";
 
 export const callback = "/auth/google/callback";
 
@@ -43,7 +43,7 @@ passport.deserializeUser(async (profileId: string, done) => {
     );
 
     if (user.length) {
-      return done(null, await getApiProfile(user[0].profile));
+      return done(null, await getApiProfile(user[0]));
     }
 
     return done(new Error("Not found"));
@@ -52,17 +52,18 @@ passport.deserializeUser(async (profileId: string, done) => {
   }
 });
 
-async function getApiProfile(profile: Profile) {
-  const { id, displayName, photos } = profile;
+async function getApiProfile(profile: User) {
+  const { userId, name, email = "", photo = "" } = profile;
   const properties = await Resource.find(
     UserProperty,
-    new Query<UserProperty>().where("userId").is(id)
+    new Query<UserProperty>().where("userId").is(userId)
   );
 
   return {
-    id,
-    displayName,
-    photo: (photos.length && photos[0].value) || "",
+    id: userId,
+    name,
+    email,
+    photo,
     properties: properties.map((p) => ({ key: p.key, value: p.value })),
   };
 }
