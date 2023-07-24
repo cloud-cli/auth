@@ -25,13 +25,13 @@ passport.use(
       if (!user) {
         user = new User({
           userId: randomUUID(),
+          profileId: profile.id,
         });
       }
 
       Object.assign(user, {
         accessToken,
         refreshToken,
-        profileId: profile.id,
         name: profile.displayName,
         email: profile.emails[0]?.value ?? "",
         photo: profile.photos[0]?.value ?? "",
@@ -49,19 +49,20 @@ passport.use(
 passport.serializeUser((user: any, done) => done(null, user.id));
 passport.deserializeUser(async (profileId: string, done: any) => {
   try {
-    const user = await Resource.find(
+    const users = await Resource.find(
       User,
       new Query<User>().where("profileId").is(profileId)
     );
 
-    if (user.length) {
-      return done(null, toJSON(user[0]));
+    console.log("found", users);
+    if (users.length) {
+      return done(null, toJSON(users[0]));
     }
 
-    return done("Not found");
+    return done(new Error("Not found"));
   } catch (error) {
-    console.log(error);
-    done(String(error));
+    console.log('desel', error);
+    done(new Error(String(error)));
   }
 });
 

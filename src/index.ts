@@ -106,7 +106,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.get("/", protectedRouteWithRedirect, async (req, res) => {
-  console.log(req.user);
+  console.log("user", req.user);
   const user = await findByProfileId(req.user.id);
   res.send(toJSON(user));
 });
