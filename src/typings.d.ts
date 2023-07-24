@@ -4,7 +4,8 @@ declare global {
   namespace Express {
       interface User {
         id: string;
-        displayName: string;
+        name: string;
+        email: string;
         photo: string;
       }
   }

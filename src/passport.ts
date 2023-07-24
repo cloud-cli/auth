@@ -40,7 +40,7 @@ passport.use(
 
       await user.save();
 
-      done(null, user);
+      done(null, { ...user });
     }
   )
 );
