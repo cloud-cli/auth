@@ -105,9 +105,11 @@ app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get("/", protectedRouteWithRedirect, async (req, res) =>
-  res.send(await findByProfileId(req.user.id))
-);
+app.get("/", protectedRouteWithRedirect, async (req, res) => {
+  const user = await findByProfileId(req.user.id);
+  const { userId, name, email, photo } = user;
+  res.send({ userId, name, email, photo });
+});
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
 app.delete("/", protectedRoute, logout);
 app.get("/login", (_, res) => res.send(makeLoginPage()));

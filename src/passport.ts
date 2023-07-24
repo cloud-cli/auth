@@ -13,26 +13,16 @@ const callbackURL = String(new URL(callback, process.env.AUTH_DOMAIN));
 passport.use(
   new GoogleStrategy(
     { clientID, clientSecret, callbackURL },
-    async function verify(accessToken, refreshToken, rawProfile, continueAuth) {
-      const fields = [
-        "id",
-        "displayName",
-        "name",
-        "emails",
-        "photos",
-        "provider",
-      ];
-
-      const profile: any = {};
-      fields.forEach((f) => (profile[f] = rawProfile[f]));
-
+    async function verify(accessToken, refreshToken, profile, continueAuth) {
       console.log("User authenticated:", profile.id);
       const user = new User({
         userId: randomUUID(),
-        profileId: profile.id,
         accessToken,
         refreshToken,
-        profile,
+        profileId: profile.id,
+        name: profile.displayName,
+        email: profile.emails[0].value,
+        photo: profile.photos[0].value,
       });
 
       await user.save();

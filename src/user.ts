@@ -14,6 +14,9 @@ export class User extends Resource {
   @Property(Object) profile: any;
   @Property(String) accessToken: string;
   @Property(String) refreshToken: string;
+  @Property(String) name: string;
+  @Property(String) email: string;
+  @Property(String) photo: string;
 }
 
 @Model("auth_property")
