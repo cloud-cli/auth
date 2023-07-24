@@ -56,7 +56,7 @@ passport.deserializeUser(async (profileId: string, done: any) => {
     );
 
     if (user.length) {
-      return done(null, user[0]);
+      return done(null, { ...user[0] });
     }
 
     return done("Not found");
