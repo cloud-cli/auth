@@ -35,6 +35,7 @@ passport.use(
         name: profile.displayName,
         email: profile.emails[0]?.value ?? "",
         photo: profile.photos[0]?.value ?? "",
+        lastSeen: new Date().toISOString(),
       });
 
       await user.save();
@@ -48,10 +49,11 @@ passport.use(
 
 passport.serializeUser((user: any, done) => done(null, user.id));
 passport.deserializeUser(async (profileId: string, done: any) => {
+  console.log("find", profileId);
   try {
     const users = await Resource.find(
       User,
-      new Query<User>().where("profileId").is(profileId)
+      new Query<User>().where("profileId").is(String(profileId))
     );
 
     console.log("found", users);
@@ -61,7 +63,7 @@ passport.deserializeUser(async (profileId: string, done: any) => {
 
     return done(new Error("Not found"));
   } catch (error) {
-    console.log('desel', error);
+    console.log("desel", error);
     done(new Error(String(error)));
   }
 });

@@ -17,6 +17,7 @@ export class User extends Resource {
   @Property(String) name: string;
   @Property(String) email: string;
   @Property(String) photo: string;
+  @Property(String) lastSeen: string;
 }
 
 @Model("auth_property")
@@ -36,7 +37,7 @@ export async function initUser() {
 export async function findByProfileId(profileId: string) {
   const all = await Resource.find(
     User,
-    new Query<User>().where("profileId").is(profileId)
+    new Query<User>().where("profileId").is(String(profileId))
   );
   return all[0];
 }
