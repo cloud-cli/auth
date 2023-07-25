@@ -48,22 +48,20 @@ passport.use(
 // See https://stackoverflow.com/questions/27637609/understanding-passport-serialize-deserialize
 
 passport.serializeUser((user: any, done) => done(null, user.id));
-passport.deserializeUser(async (profileId: string, done: any) => {
-  console.log("find", profileId);
+passport.deserializeUser(async (id: string, done: any) => {
   try {
     const users = await Resource.find(
       User,
-      new Query<User>().where("profileId").is(String(profileId))
+      new Query<User>().where("userId").is(String(id))
     );
 
-    console.log("found", users);
     if (users.length) {
       return done(null, toJSON(users[0]));
     }
 
     return done(new Error("Not found"));
   } catch (error) {
-    console.log("desel", error);
+    console.log("deserialize", error);
     done(new Error(String(error)));
   }
 });
