@@ -1,3 +1,4 @@
+import log from './log.js';
 import {
   Model,
   Primary,
@@ -35,9 +36,19 @@ export async function initUser() {
 }
 
 export async function findByProfileId(profileId: string) {
+  log('findByProfileId', profileId);
   const all = await Resource.find(
     User,
     new Query<User>().where("profileId").is(String(profileId))
+  );
+  return all[0];
+}
+
+export async function findByUserId(userId: string) {
+  log('findByUserId', userId);
+  const all = await Resource.find(
+    User,
+    new Query<User>().where("userId").is(String(userId))
   );
   return all[0];
 }

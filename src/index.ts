@@ -1,7 +1,8 @@
 import express from "express";
 import { readFileSync } from "fs";
-import { User, findByProfileId, initUser, toJSON } from "./user.js";
+import { User, findByUserId, initUser, toJSON } from "./user.js";
 import session from "./session.js";
+import log from "./log.js";
 import passport, { callback } from "./passport.js";
 import {
   getProperties,
@@ -38,7 +39,8 @@ function logout(req, res) {
 }
 
 async function getProfile(req, res) {
-  res.send(makeProfile(await findByProfileId(req.user.id)));
+  const user = await findByUserId(req.user.id);
+  res.send(makeProfile(user));
 }
 
 function makePage(title: string, page: string) {
@@ -106,8 +108,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.get("/", protectedRouteWithRedirect, async (req, res) => {
-  console.log("user", req.user);
-  const user = await findByProfileId(req.user.id);
+  const user = await findByUserId(req.user.id);
   res.send(toJSON(user));
 });
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
@@ -135,7 +136,7 @@ app.put("/properties", protectedRoute, (req, res) => {
       const property = await setProperty(req.user?.id, key, value);
       res.status(200).send(property);
     } catch (e) {
-      console.log(e);
+      log(e);
       res.status(500).send("");
     }
   });
@@ -190,5 +191,5 @@ app.get("/properties/:key", protectedRoute, async (req, res) => {
 const PORT = Number(process.env.PORT);
 app.listen(PORT, async () => {
   await initUser();
-  console.log("Auth is running on port " + PORT);
+  log("Auth is running on port " + PORT);
 });

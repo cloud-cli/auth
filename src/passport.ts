@@ -1,8 +1,8 @@
 import passport, { Profile } from "passport";
 import { randomUUID } from "crypto";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { Query, Resource } from "@cloud-cli/store";
-import { User, toJSON, findByProfileId } from "./user.js";
+import { User, toJSON, findByProfileId, findByUserId } from "./user.js";
+import log from './log.js';
 
 export const callback = "/auth/google/callback";
 
@@ -19,7 +19,7 @@ passport.use(
       profile: Profile,
       done: any
     ) {
-      console.log("User authenticated:", profile.id);
+      log("User authenticated:", profile.id);
       let user = await findByProfileId(profile.id);
 
       if (!user) {
@@ -50,18 +50,15 @@ passport.use(
 passport.serializeUser((user: any, done) => done(null, user.id));
 passport.deserializeUser(async (id: string, done: any) => {
   try {
-    const users = await Resource.find(
-      User,
-      new Query<User>().where("userId").is(String(id))
-    );
+    const user = await findByUserId(id);
 
-    if (users.length) {
-      return done(null, toJSON(users[0]));
+    if (user) {
+      return done(null, toJSON(user));
     }
 
     return done(new Error("Not found"));
   } catch (error) {
-    console.log("deserialize", error);
+    log("deserialize", error);
     done(new Error(String(error)));
   }
 });
