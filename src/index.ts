@@ -78,7 +78,8 @@ function makeLoginPage() {
 function makeProfile(user: User) {
   return makePage(
     "Profile",
-    `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center">
+    `<div class="hidden" id="r">Redirecting</div>
+    <div class="bg-gray-100 h-screen w-screen flex items-center justify-center hidden" id="p">
       <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg">
         <figure>
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
@@ -90,7 +91,14 @@ function makeProfile(user: User) {
     </div>
     <script>
     async function l(){await fetch('/',{method:'DELETE'});location.href='/login';}
-    addEventListener('DOMContentLoaded',() => {const n = sessionStorage.url || '';n&&setTimeout(()=>location.href=n,1000);})
+    addEventListener('DOMContentLoaded',() => {
+      const n = sessionStorage.url || '';
+      if (n) {
+        setTimeout(()=>location.href=n,1000);
+        return window.r.classList.add('hidden');
+      }
+      window.p.classList.remove('hidden');
+    })
     </script>`
   );
 }
