@@ -121,7 +121,8 @@ app.get("/", protectedRouteWithRedirect, async (req, res) => {
 });
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
 app.delete("/", protectedRoute, logout);
-app.get("/login", (_, res) => res.send(makeLoginPage()));
+// app.get("/login", (_, res) => res.send(makeLoginPage()));
+// app.get("/login", (_, res) => res.set('Location', '/auth/google').send('Loading <a href="/auth/google">Google Auth</a>...'));
 app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
