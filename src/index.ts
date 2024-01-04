@@ -12,7 +12,7 @@ import {
 } from "./properties.js";
 
 const googleSvg = readFileSync("./assets/google.svg", "utf8");
-const esLibrary = readFileSync("./assets/auth.js", "utf8");
+const esLibrary = readFileSync("./assets/index.mjs", "utf8");
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated()) {
@@ -126,13 +126,17 @@ app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
 
-app.get("/auth.js", (req, res) => {
+const serveEsModule = (req, res) => {
   const es = esLibrary.replace("__API_URL__", req.get("x-forwarded-for"));
   res
     .set("Content-Type", "text/javascript")
     .set("Access-Control-Allow-Origin", "*")
     .send(es);
-});
+};
+
+app.get("/auth.js", serveEsModule);
+app.get("/index.js", serveEsModule);
+app.get("/index.mjs", serveEsModule);
 
 app.put("/properties", protectedRoute, (req, res) => {
   const a = [];

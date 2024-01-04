@@ -48,12 +48,12 @@ export async function getProperty(property) {
   return r.ok ? (await toJson(r)).value : '';
 }
 
-export async function setProperty(key, value) {
+export async function setProperty(property, value) {
   const r = await fetch(new URL("/properties", authDomain), {
     ...fetchOptions,
     method: "PUT",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ key, value }),
+    body: JSON.stringify({ key: property, value }),
   });
 
   return toBoolean(r);
@@ -67,3 +67,4 @@ export async function deleteProperty(key) {
 
   return toBoolean(r);
 }
+

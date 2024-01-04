@@ -80,11 +80,11 @@ Get all user properties
 Consider this app is running at `https://auth.foo.com`:
 
 ```js
-import { getProfile, getProperties, getProperty, setProperty, deleteProperty } from 'https://auth.foo.com/auth.js';
+import { getProfile, getProperties, getProperty, setProperty, deleteProperty } from 'https://auth.foo.com/index.mjs';
 
 await setProperty('foo', 'yes');
-const foo = await getProperty('foo');
+const foo = await getProperty('foo'); // yes
 await deleteProperty('foo');
-console.log(await getProperties());
+console.log(await getProperties(), await getProfile());
 
 ```
