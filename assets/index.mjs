@@ -29,15 +29,17 @@ export function signIn(popup) {
     const {innerWidth, innerHeight} = window;
     const left = Math.round((innerWidth - 640)/2);
     const top = Math.round((innerHeight - 480)/2);
-    window.open(String(new URL("/login", authDomain)), 'signin', `popup,width=640,height=480,left=${left},top=${top}`);
+    const w = window.open(String(new URL("/login", authDomain)), 'signin', `popup,width=640,height=480,left=${left},top=${top}`);
+
     window.addEventListener('message', async (e) => {
       const event = e.data;
-
       try {
         const detail = event === 'signin' ? await getProfile() : null;
         events.dispatchEvent(new CustomEvent(event, { detail }));
+        w.close();
       } catch {
         events.dispatchEvent(new CustomEvent('signout', { detail: true }));
+        w.close();
       }
     });
     return;
