@@ -36,7 +36,9 @@ export function signIn(popup) {
       try {
         const detail = event === 'signin' ? await getProfile() : null;
         events.dispatchEvent(new CustomEvent(event, { detail }));
-        w.close();
+        if (event === 'signin') {
+          w.close();
+        }
       } catch {
         events.dispatchEvent(new CustomEvent('signout', { detail: true }));
         w.close();
