@@ -72,7 +72,7 @@ function makeLoginPage() {
         </a>
       </div>
       <script>
-      (function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})()
+      (function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})();
       (opener||window).postMessage('signinstart', '*')
       </script>`
   );
@@ -101,8 +101,8 @@ function makeProfile(user: User) {
         return window.r.classList.add('hidden');
       }
       window.p.classList.remove('hidden');
-    })
-    (opener||window).postMessage('signin', '*')
+    });
+    (opener||window).postMessage('signin', '*');
     </script>`
   );
 }
