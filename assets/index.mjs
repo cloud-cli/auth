@@ -24,27 +24,29 @@ export async function getProfile() {
   return toJson(r);
 }
 
-export function signIn() {
-  const url = new URL(
-    "/login?url=" + encodeURIComponent(location.href),
-    authDomain
-  );
-
+export function signIn(popup) {
   if (popup && !navigator.userAgentData?.mobile) {
-    const w = window.open(String(url), 'signin', 'popup');
-
-    w.onmessage = async (e) => {
+    const {innerWidth, innerHeight} = window;
+    const left = Math.round((innerWidth - 640)/2);
+    const top = Math.round((innerHeight - 480)/2);
+    window.open(String(new URL("/login", authDomain)), 'signin', `popup,width=640,height=480,left=${left},top=${top}`);
+    window.addEventListener('message', async (e) => {
       const event = e.data;
+
       try {
         const detail = event === 'signin' ? await getProfile() : null;
         events.dispatchEvent(new CustomEvent(event, { detail }));
       } catch {
         events.dispatchEvent(new CustomEvent('signout', { detail: true }));
       }
-    };
+    });
     return;
   }
 
+  const url = new URL(
+    "/login?url=" + encodeURIComponent(location.href),
+    authDomain
+  );
   location.href = String(url);
 }
 

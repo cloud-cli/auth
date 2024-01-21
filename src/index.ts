@@ -73,7 +73,7 @@ function makeLoginPage() {
       </div>
       <script>
       (function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})()
-      postMessage('signinstart', '*')
+      (opener||window).postMessage('signinstart', '*')
       </script>`
   );
 }
@@ -102,7 +102,7 @@ function makeProfile(user: User) {
       }
       window.p.classList.remove('hidden');
     })
-    postMessage('signin', '*')
+    (opener||window).postMessage('signin', '*')
     </script>`
   );
 }
