@@ -71,7 +71,10 @@ function makeLoginPage() {
           Sign in with Google
         </a>
       </div>
-      <script>(function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})()</script>`
+      <script>
+      (function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})()
+      postMessage('signinstart', '*')
+      </script>`
   );
 }
 
@@ -99,6 +102,7 @@ function makeProfile(user: User) {
       }
       window.p.classList.remove('hidden');
     })
+    postMessage('signin', '*')
     </script>`
   );
 }

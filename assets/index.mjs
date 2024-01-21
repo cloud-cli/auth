@@ -1,6 +1,8 @@
 const authDomain = "https://__API_URL__";
 const fetchOptions = { credentials: "include", mode: "cors" };
 
+export const events = new EventTarget();
+
 async function toJson(r) {
   if (r.ok) {
     return await r.json();
@@ -23,10 +25,27 @@ export async function getProfile() {
 }
 
 export function signIn() {
-  location.href = new URL(
+  const url = new URL(
     "/login?url=" + encodeURIComponent(location.href),
     authDomain
   );
+
+  if (popup && !navigator.userAgentData?.mobile) {
+    const w = window.open(String(url), 'signin', 'popup');
+
+    w.onmessage = async (e) => {
+      const event = e.data;
+      try {
+        const detail = event === 'signin' ? await getProfile() : null;
+        events.dispatchEvent(new CustomEvent(event, { detail }));
+      } catch {
+        events.dispatchEvent(new CustomEvent('signout', { detail: true }));
+      }
+    };
+    return;
+  }
+
+  location.href = String(url);
 }
 
 export async function signOut() {
@@ -35,7 +54,9 @@ export async function signOut() {
     method: "DELETE",
   });
 
-  return toBoolean(r);
+  const ok = await toBoolean(r);
+  events.dispatchEvent(new CustomEvent('signout', { detail: ok }));
+  return ok;
 }
 
 export async function getProperties() {
