@@ -24,6 +24,11 @@ export async function getProfile() {
   return toJson(r);
 }
 
+export async function isAuthenticated() {
+  const r = await fetch(authDomain, { ...fetchOptions, method: 'HEAD' });
+  return Boolean(r.ok && r.status < 300);
+}
+
 export function signIn(popup) {
   if (popup && !navigator.userAgentData?.mobile) {
     const {innerWidth, innerHeight} = window;
