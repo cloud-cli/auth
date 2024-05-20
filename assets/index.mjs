@@ -100,3 +100,16 @@ export async function deleteProperty(key) {
   return toBoolean(r);
 }
 
+const getNS = (p) => location.host + ':' + p;
+
+export function getPropertyNS(property) {
+  return getProperty(getNS(property));
+}
+
+export function setPropertyNS(property, value) {
+  return setProperty(getNS(property), value);
+}
+
+export function deletePropertyNS(property) {
+  return deleteProperty(getNS(property));
+}
