@@ -107,6 +107,20 @@ function makeProfile(user: User) {
   );
 }
 
+function makeEmbedPage() {
+  const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim());
+
+  return `<script type="module">
+  const allowedOrigins = ${JSON.stringify(allowedOrigins)};
+  window.addEventListener("message", function (event) {
+    console.log(event);
+    if (!allowedOrigins.includes(event.origin)) return;
+  }, false);
+  </script>`;
+}
+
 const scopes = {
   scope: ["profile", "email"],
   failureRedirect: "/login",
@@ -126,6 +140,7 @@ app.get("/", protectedRouteWithRedirect, async (req, res) => {
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
 app.delete("/", protectedRoute, logout);
 app.get("/login", (_, res) => res.send(makeLoginPage()));
+app.get("/embed", (_, res) => res.send(makeEmbedPage()));
 app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));

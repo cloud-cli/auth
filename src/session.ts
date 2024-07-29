@@ -1,6 +1,6 @@
-import session from 'express-session';
+import session from "express-session";
 
-const { SESSION_SECRET = '', SESSION_DOMAIN = '' } = process.env;
+const { SESSION_SECRET = "", SESSION_DOMAIN = "" } = process.env;
 
 const sessionOptions: session.SessionOptions = {
   secret: SESSION_SECRET,
@@ -10,6 +10,8 @@ const sessionOptions: session.SessionOptions = {
 
 if (SESSION_DOMAIN) {
   sessionOptions.cookie = {
+    secure: true,
+    sameSite: "none",
     domain: SESSION_DOMAIN,
     httpOnly: true,
   };

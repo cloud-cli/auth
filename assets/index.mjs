@@ -29,7 +29,20 @@ export async function isAuthenticated() {
   return Boolean(r.ok && r.status < 300);
 }
 
-export function signIn(popup) {
+export function signIn(options) {
+  if (typeof options === 'boolean') {
+    options = { popup: options };
+  }
+
+  const {popup, embed} = options;
+  if (embed) {
+    let iframe = document.createElement('iframe');
+    document.body.append(iframe);
+    iframe.src = String(new URL("/embed", authDomain));
+    let window = iframe.contentWindow;
+    debugger;
+  }
+
   if (popup && !navigator.userAgentData?.mobile) {
     const {innerWidth, innerHeight} = window;
     const left = Math.round((innerWidth - 640)/2);
