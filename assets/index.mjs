@@ -34,8 +34,8 @@ export function signIn(options) {
     options = { popup: options };
   }
 
-  const {popup, embed} = options;
-  if (embed) {
+  const { popup, embed } = options;
+  if (embed && popup) {
     const iframe = document.createElement('iframe');
     iframe.src = String(new URL("/embed", authDomain));
     document.body.append(iframe);
@@ -48,9 +48,11 @@ export function signIn(options) {
 
       const { event, detail } = e.data;
       if (event) {
-        events.dispatchEvent(new CustomEvent(event, { detail: detail }));
+        events.dispatchEvent(new CustomEvent(event, { detail }));
       }
     });
+
+    setInterval(() => iframe.contentWindow.postMessage('ping', authDomain), 1000);
   }
 
   if (popup && !navigator.userAgentData?.mobile) {
@@ -80,6 +82,7 @@ export function signIn(options) {
     "/login?url=" + encodeURIComponent(location.href),
     authDomain
   );
+
   location.href = String(url);
 }
 
