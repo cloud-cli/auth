@@ -40,7 +40,15 @@ export function signIn(options) {
     document.body.append(iframe);
     iframe.src = String(new URL("/embed", authDomain));
     let window = iframe.contentWindow;
-    debugger;
+
+    window.addEventListener('message', (e) => {
+      if (e.origin !== authDomain) {
+        console.log('Discarded event', e);
+        return;
+      }
+
+      events.dispatchEvent(new CustomEvent('embedded', { detail: e.data }));
+    });
   }
 
   if (popup && !navigator.userAgentData?.mobile) {

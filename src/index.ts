@@ -107,17 +107,23 @@ function makeProfile(user: User) {
   );
 }
 
-function makeEmbedPage() {
+async function makeEmbedPage(req) {
+  const user = await findByUserId(req.user.id);
   const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim());
 
   return `<script type="module">
   const allowedOrigins = ${JSON.stringify(allowedOrigins)};
+  const profile = ${user ? JSON.stringify(user) : 'null'};
   window.addEventListener("message", function (event) {
     console.log(event);
     if (!allowedOrigins.includes(event.origin)) return;
+
+    event.source.postMessage({ source: 'auth', type: 'signin', payload: profile }, event.origin);
+    window.reload()
   }, false);
+  setTimeout(() => window.reload(), 1000 * 60)
   </script>`;
 }
 
@@ -140,7 +146,7 @@ app.get("/", protectedRouteWithRedirect, async (req, res) => {
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
 app.delete("/", protectedRoute, logout);
 app.get("/login", (_, res) => res.send(makeLoginPage()));
-app.get("/embed", (_, res) => res.send(makeEmbedPage()));
+app.get("/embed", (req, res) => res.send(makeEmbedPage(req)));
 app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
