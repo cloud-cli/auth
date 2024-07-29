@@ -102,13 +102,14 @@ function makeProfile(user: User) {
       }
       window.p.classList.remove('hidden');
     });
-    (opener||window).postMessage('signin', '*');
+    (opener||window).postMessage({ event: 'signin' }, '*');
     </script>`
   );
 }
 
 async function makeEmbedPage(req, res) {
-  const user = await findByUserId(req.user.id);
+  const uid = req.user?.id;
+  const user = uid ? await findByUserId(req.user?.id) : null;
   const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim());
@@ -123,7 +124,7 @@ async function makeEmbedPage(req, res) {
     }
 
     console.log(event);
-    event.source.postMessage({ source: 'auth', type: 'state', payload: profile }, event.origin);
+    event.source.postMessage({ event: 'state', detail: profile }, event.origin);
   }, false);
   setTimeout(() => window.reload(), 1000 * 60);
   </script>`);

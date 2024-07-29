@@ -36,10 +36,9 @@ export function signIn(options) {
 
   const {popup, embed} = options;
   if (embed) {
-    let iframe = document.createElement('iframe');
-    document.body.append(iframe);
+    const iframe = document.createElement('iframe');
     iframe.src = String(new URL("/embed", authDomain));
-    let window = iframe.contentWindow;
+    document.body.append(iframe);
 
     window.addEventListener('message', (e) => {
       if (e.origin !== authDomain) {
@@ -47,26 +46,30 @@ export function signIn(options) {
         return;
       }
 
-      events.dispatchEvent(new CustomEvent('embedded', { detail: e.data }));
+      const { event, detail } = e.data;
+      if (event) {
+        events.dispatchEvent(new CustomEvent(event, { detail: detail }));
+      }
     });
   }
 
   if (popup && !navigator.userAgentData?.mobile) {
-    const {innerWidth, innerHeight} = window;
+    const { innerWidth, innerHeight } = window;
     const left = Math.round((innerWidth - 640)/2);
     const top = Math.round((innerHeight - 480)/2);
     const w = window.open(String(new URL("/login", authDomain)), 'signin', `popup,width=640,height=480,left=${left},top=${top}`);
 
     window.addEventListener('message', async (e) => {
-      const event = e.data;
+      const { event } = e.data;
+      let { detail = null } = e.data;
+
       try {
-        const detail = event === 'signin' ? await getProfile() : null;
+        detail = event === 'signin' ? await getProfile() : null;
         events.dispatchEvent(new CustomEvent(event, { detail }));
-        if (event === 'signin') {
-          w.close();
-        }
       } catch {
-        events.dispatchEvent(new CustomEvent('signout', { detail: true }));
+        events.dispatchEvent(new CustomEvent('signout'));
+      } finally {
+        events.dispatchEvent(new CustomEvent('state', { detail }));
         w.close();
       }
     });
