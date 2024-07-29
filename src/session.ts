@@ -10,8 +10,6 @@ const sessionOptions: session.SessionOptions = {
 
 if (SESSION_DOMAIN) {
   sessionOptions.cookie = {
-    secure: true,
-    sameSite: "none",
     domain: SESSION_DOMAIN,
     httpOnly: true,
   };
