@@ -107,24 +107,26 @@ function makeProfile(user: User) {
   );
 }
 
-async function makeEmbedPage(req) {
+async function makeEmbedPage(req, res) {
   const user = await findByUserId(req.user.id);
   const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim());
 
-  return `<script type="module">
+  res.send(`<script type="module">
   const allowedOrigins = ${JSON.stringify(allowedOrigins)};
-  const profile = ${user ? JSON.stringify(user) : 'null'};
+  const profile = ${user ? JSON.stringify(user) : "null"};
   window.addEventListener("message", function (event) {
-    console.log(event);
-    if (!allowedOrigins.includes(event.origin)) return;
+    if (!allowedOrigins.includes(event.origin)) {
+      console.log('Origin not allowed: ' + event.origin);
+      return;
+    }
 
-    event.source.postMessage({ source: 'auth', type: 'signin', payload: profile }, event.origin);
-    window.reload()
+    console.log(event);
+    event.source.postMessage({ source: 'auth', type: 'state', payload: profile }, event.origin);
   }, false);
-  setTimeout(() => window.reload(), 1000 * 60)
-  </script>`;
+  setTimeout(() => window.reload(), 1000 * 60);
+  </script>`);
 }
 
 const scopes = {
@@ -146,7 +148,7 @@ app.get("/", protectedRouteWithRedirect, async (req, res) => {
 app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
 app.delete("/", protectedRoute, logout);
 app.get("/login", (_, res) => res.send(makeLoginPage()));
-app.get("/embed", (req, res) => res.send(makeEmbedPage(req)));
+app.get("/embed", makeEmbedPage);
 app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
