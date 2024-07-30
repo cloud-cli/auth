@@ -124,11 +124,16 @@ window.addEventListener("message", async function (event) {
   }
 
   const { command, args, id } = event.data;
-  if (command in commands) {
+
+  try {
+    if (command in commands === false) {
+      throw new Error('Invalid command: ' + command);
+    }
+
     const result = await commands[command].apply(null, args);
     event.source.postMessage({ event: 'success', detail: { id, result } }, event.origin);
-  } else {
-    event.source.postMessage({ event: 'error', detail: { id, error: 'Invalid command: ' + command } }, event.origin);
+  } catch (error) {
+    event.source.postMessage({ event: 'error', detail: { id, error } }, event.origin);
   }
 }, false);
 </script>`);
