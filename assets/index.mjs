@@ -34,6 +34,7 @@ export function signIn(options) {
     options = { popup: options };
   }
 
+  let popupOpen = false;
   const { popup, embed } = options;
   if (embed && popup) {
     const iframe = document.createElement('iframe');
@@ -52,15 +53,15 @@ export function signIn(options) {
       }
     });
 
-    setInterval(() => iframe.contentWindow.postMessage('ping', authDomain), 1000);
+    setInterval(() => !popupOpen && iframe.contentWindow.postMessage('ping', authDomain), 1000);
   }
 
-  if (popup && !navigator.userAgentData?.mobile) {
+  if (popup) {
     const { innerWidth, innerHeight } = window;
     const left = Math.round((innerWidth - 640)/2);
     const top = Math.round((innerHeight - 480)/2);
     const w = window.open(String(new URL("/login", authDomain)), 'signin', `popup,width=640,height=480,left=${left},top=${top}`);
-
+    popupOpen = true;
     window.addEventListener('message', async (e) => {
       const { event } = e.data;
       let { detail = null } = e.data;
@@ -73,6 +74,7 @@ export function signIn(options) {
       } finally {
         events.dispatchEvent(new CustomEvent('state', { detail }));
         w.close();
+        popupOpen = false;
       }
     });
     return;
