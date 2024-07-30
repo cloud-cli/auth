@@ -15,7 +15,7 @@ const googleSvg = readFileSync("./assets/google.svg", "utf8");
 const esLibrary = readFileSync("./assets/index.mjs", "utf8");
 
 function protectedRoute(req, res, next) {
-  if (!req.isAuthenticated || !req.isAuthenticated()) {
+  if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
     return res.status(401).send(makeLoginPage());
   }
 
@@ -23,7 +23,7 @@ function protectedRoute(req, res, next) {
 }
 
 function protectedRouteWithRedirect(req, res, next) {
-  if (!req.isAuthenticated || !req.isAuthenticated()) {
+  if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
     const returnUrl = req.get("referrer") || req.get("referer");
     res.set("Location", "/login?url=" + returnUrl);
     return res.status(401).send("");
@@ -109,7 +109,7 @@ function makeProfile(user: User) {
 
 async function makeEmbedPage(req, res) {
   const uid = req.user?.id;
-  const user = uid ? await findByUserId(req.user?.id) : null;
+  const user = uid ? await findByUserId(uid) : null;
   const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim());
