@@ -116,7 +116,7 @@ function makeProfile(user: User) {
   );
 }
 
-async function makeEmbedPage(req, res) {
+async function makeEmbedPage(_req, res) {
   const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim());
@@ -167,7 +167,7 @@ app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
 
 const serveEsModule = (source) => (req, res) => {
-  const es = esLibrary.replace("__API_URL__", req.get("x-forwarded-for"));
+  const es = source.replace("__API_URL__", req.get("x-forwarded-for"));
   res
     .set("Content-Type", "text/javascript")
     .set("Access-Control-Allow-Origin", "*")
