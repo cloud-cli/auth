@@ -13,6 +13,7 @@ import {
 
 const googleSvg = readFileSync("./assets/google.svg", "utf8");
 const esLibrary = readFileSync("./assets/index.mjs", "utf8");
+const esHelper = readFileSync("./assets/lib.mjs", "utf8");
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
@@ -84,8 +85,14 @@ function makeProfile(user: User) {
     <div class="bg-gray-100 h-screen w-screen flex items-center justify-center hidden" id="p">
       <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg">
         <figure>
-          <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
-          <figcaption class="block pt-4 text-center">Hello, ${user.name}!<br/><span class="text-sm text-gray-400">${user.userId}</span></figcaption>
+          <img class="w-24 h-24 rounded-full mx-auto" src="${
+            user.photo
+          }" alt="" width="384" height="512" />
+          <figcaption class="block pt-4 text-center">Hello, ${
+            user.name
+          }!<br/><span class="text-sm text-gray-400">${
+      user.userId
+    }</span></figcaption>
         </figure>
         <hr class="mt-4" />
         <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-200 mt-4 mx-auto">Logout</button>
@@ -101,32 +108,37 @@ function makeProfile(user: User) {
       }
 
       window.p.classList.remove('hidden');
-      (opener||window).postMessage({ event: 'signin', detail: ${JSON.stringify(user)} }, '*');
+      (opener||window).postMessage({ event: 'signin', detail: ${JSON.stringify(
+        user
+      )} }, '*');
     });
     </script>`
   );
 }
 
 async function makeEmbedPage(req, res) {
-  const uid = req.user?.id;
-  const user = uid ? await findByUserId(uid) : null;
   const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim());
 
   res.send(`<script type="module">
-  const allowedOrigins = ${JSON.stringify(allowedOrigins)};
-  const profile = ${user ? JSON.stringify(user) : "null"};
-  window.addEventListener("message", function (event) {
-    if (!allowedOrigins.some(o => event.origin.endsWith(o))) {
-      console.log('Origin not allowed: ' + event.origin, event);
-      return;
-    }
+import { commands } from '/lib.mjs';
+const allowedOrigins = ${JSON.stringify(allowedOrigins)};
+window.addEventListener("message", async function (event) {
+  if (!allowedOrigins.some(o => event.origin.endsWith(o))) {
+    console.log('Origin not allowed: ' + event.origin, event);
+    return;
+  }
 
-    event.source.postMessage({ event: 'state', detail: profile }, event.origin);
-  }, false);
-  setTimeout(() => window.location.reload(), 1000 * 60);
-  </script>`);
+  const { command, args, id } = event.data;
+  if (command in commands) {
+    const result = await commands[command].apply(null, args);
+    event.source.postMessage({ event: 'success', detail: { id, result } }, event.origin);
+  } else {
+    event.source.postMessage({ event: 'error', detail: { id, error: 'Invalid command' } }, event.origin);
+  }
+}, false);
+</script>`);
 }
 
 const scopes = {
@@ -137,7 +149,7 @@ const scopes = {
 
 const app = express();
 
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
@@ -154,7 +166,7 @@ app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
 app.get(callback, passport.authenticate("google", scopes));
 
-const serveEsModule = (req, res) => {
+const serveEsModule = (source) => (req, res) => {
   const es = esLibrary.replace("__API_URL__", req.get("x-forwarded-for"));
   res
     .set("Content-Type", "text/javascript")
@@ -162,9 +174,10 @@ const serveEsModule = (req, res) => {
     .send(es);
 };
 
-app.get("/auth.js", serveEsModule);
-app.get("/index.js", serveEsModule);
-app.get("/index.mjs", serveEsModule);
+app.get("/auth.js", serveEsModule(esLibrary));
+app.get("/index.js", serveEsModule(esLibrary));
+app.get("/index.mjs", serveEsModule(esLibrary));
+app.get("/lib.mjs", serveEsModule(esHelper));
 
 app.put("/properties", protectedRoute, (req, res) => {
   const a = [];
