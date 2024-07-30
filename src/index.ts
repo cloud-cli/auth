@@ -73,7 +73,6 @@ function makeLoginPage() {
       </div>
       <script>
       (function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})();
-      (opener||window).postMessage('signinstart', '*')
       </script>`
   );
 }
@@ -100,9 +99,10 @@ function makeProfile(user: User) {
         setTimeout(()=>location.href=n,1000);
         return window.r.classList.add('hidden');
       }
+
       window.p.classList.remove('hidden');
+      (opener||window).postMessage({ event: 'signin', detail: ${JSON.stringify(user)} });
     });
-    (opener||window).postMessage({ event: 'signin' }, '*');
     </script>`
   );
 }
@@ -119,14 +119,13 @@ async function makeEmbedPage(req, res) {
   const profile = ${user ? JSON.stringify(user) : "null"};
   window.addEventListener("message", function (event) {
     if (!allowedOrigins.some(o => event.origin.endsWith(o))) {
-      console.log('Origin not allowed: ' + event.origin);
+      console.log('Origin not allowed: ' + event.origin, event);
       return;
     }
 
-    console.log(event);
     event.source.postMessage({ event: 'state', detail: profile }, event.origin);
   }, false);
-  setTimeout(() => window.reload(), 1000 * 60);
+  setTimeout(() => window.location.reload(), 1000 * 60);
   </script>`);
 }
 
