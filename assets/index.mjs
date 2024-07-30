@@ -29,38 +29,35 @@ export async function isAuthenticated() {
   return Boolean(r.ok && r.status < 300);
 }
 
-export function signIn(options) {
-  if (typeof options === 'boolean') {
-    options = { popup: options };
-  }
+let popupOpen = false;
 
-  let popupOpen = false;
-  const { popup, embed } = options;
-  if (embed && popup) {
-    const iframe = document.createElement('iframe');
-    iframe.src = String(new URL("/embed", authDomain));
-    document.body.append(iframe);
+export function useEmbedded() {
+  const iframe = document.createElement('iframe');
+  iframe.src = String(new URL("/embed", authDomain));
+  document.body.append(iframe);
 
-    window.addEventListener('message', (e) => {
-      if (e.origin !== authDomain) {
-        console.log('Discarded event', e);
-        return;
-      }
+  window.addEventListener('message', (e) => {
+    if (e.origin !== authDomain) {
+      console.log('Discarded event', e);
+      return;
+    }
 
-      const { event, detail } = e.data;
-      if (event) {
-        events.dispatchEvent(new CustomEvent(event, { detail }));
-      }
-    });
+    const { event, detail } = e.data;
+    if (event) {
+      events.dispatchEvent(new CustomEvent(event, { detail }));
+    }
+  });
 
-    setInterval(() => !popupOpen && iframe.contentWindow.postMessage('ping', authDomain), 1000);
-  }
+  setInterval(() => !popupOpen && iframe.contentWindow.postMessage('ping', authDomain), 1000 * 30);
+}
 
+export function signIn(popup) {
   if (popup) {
     const { innerWidth, innerHeight } = window;
     const left = Math.round((innerWidth - 640)/2);
     const top = Math.round((innerHeight - 480)/2);
     const w = window.open(String(new URL("/login", authDomain)), 'signin', `popup,width=640,height=480,left=${left},top=${top}`);
+
     popupOpen = true;
     window.addEventListener('message', async (e) => {
       const { event } = e.data;

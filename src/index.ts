@@ -118,7 +118,7 @@ async function makeEmbedPage(req, res) {
   const allowedOrigins = ${JSON.stringify(allowedOrigins)};
   const profile = ${user ? JSON.stringify(user) : "null"};
   window.addEventListener("message", function (event) {
-    if (!allowedOrigins.includes(event.origin)) {
+    if (!allowedOrigins.some(o => event.origin.endsWith(o))) {
       console.log('Origin not allowed: ' + event.origin);
       return;
     }
