@@ -101,7 +101,7 @@ function makeProfile(user: User) {
       }
 
       window.p.classList.remove('hidden');
-      (opener||window).postMessage({ event: 'signin', detail: ${JSON.stringify(user)} });
+      (opener||window).postMessage({ event: 'signin', detail: ${JSON.stringify(user)} }, '*');
     });
     </script>`
   );
