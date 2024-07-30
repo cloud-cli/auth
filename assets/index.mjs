@@ -8,11 +8,10 @@ export const events = new EventTarget();
 
 window.addEventListener("message", (e) => {
   if (e.origin !== authDomain) {
-    console.log("Discarded event", e);
-    return;
+    console.log("Unsafe event", e);
   }
 
-  const { event, detail } = e.data;
+  const { event, detail } = e.data || {};
 
   if (!event) {
     return;
@@ -37,7 +36,7 @@ window.addEventListener("message", (e) => {
         popup = null;
       }
 
-      events.dispatchEvent(new CustomEvent('state', { detail }));
+      events.dispatchEvent(new CustomEvent("state", { detail }));
       break;
 
     default:
@@ -51,13 +50,13 @@ export function useEmbedded() {
   embedded = document.createElement("iframe");
   embedded.src = String(new URL("/embed", authDomain));
   Object.assign(embedded.style, {
-    width: '1px',
-    height: '1px',
-    visibility: 'hidden',
-    zIndex: '2',
-    position: 'absolute',
-    bottom: '-10px',
-    right: '-10px',
+    width: "1px",
+    height: "1px",
+    visibility: "hidden",
+    zIndex: "2",
+    position: "absolute",
+    bottom: "-10px",
+    right: "-10px",
   });
 
   document.body.append(embedded);
@@ -68,7 +67,11 @@ export function useEmbedded() {
   );
 }
 
-window.addEventListener("DOMContentLoaded", useEmbedded);
+if (document.readyState === "complete") {
+  useEmbedded();
+} else {
+  window.addEventListener("DOMContentLoaded", useEmbedded);
+}
 
 export function signIn(usePopUp) {
   if (usePopUp) {
