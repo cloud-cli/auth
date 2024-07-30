@@ -79,20 +79,15 @@ function makeLoginPage() {
 }
 
 function makeProfile(user: User) {
+  const profile = JSON.stringify(user);
   return makePage(
     "Profile",
     `<div class="hidden" id="r">Redirecting</div>
     <div class="bg-gray-100 h-screen w-screen flex items-center justify-center hidden" id="p">
       <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg">
         <figure>
-          <img class="w-24 h-24 rounded-full mx-auto" src="${
-            user.photo
-          }" alt="" width="384" height="512" />
-          <figcaption class="block pt-4 text-center">Hello, ${
-            user.name
-          }!<br/><span class="text-sm text-gray-400">${
-      user.userId
-    }</span></figcaption>
+          <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
+          <figcaption class="block pt-4 text-center">Hello, ${user.name}!<br/><span class="text-sm text-gray-400">${user.userId}</span></figcaption>
         </figure>
         <hr class="mt-4" />
         <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-200 mt-4 mx-auto">Logout</button>
@@ -108,9 +103,7 @@ function makeProfile(user: User) {
       }
 
       window.p.classList.remove('hidden');
-      (opener||window).postMessage({ event: 'signin', detail: ${JSON.stringify(
-        user
-      )} }, '*');
+      (opener||window).postMessage({ event: 'signin', detail: ${profile} }, '*');
     });
     </script>`
   );

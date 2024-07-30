@@ -22,11 +22,13 @@ window.addEventListener("message", (e) => {
     case "error":
       if (commandQueue[detail.id]) {
         commandQueue[detail.id].reject(detail.error);
+        delete commandQueue[detail.id];
       }
       break;
     case "success":
       if (commandQueue[detail.id]) {
         commandQueue[detail.id].resolve(detail.result);
+        delete commandQueue[detail.id];
       }
       break;
     case "signin":
@@ -34,6 +36,8 @@ window.addEventListener("message", (e) => {
         popup.close();
         popup = null;
       }
+
+      events.dispatchEvent(new CustomEvent('state', { detail }));
       break;
 
     default:
@@ -46,6 +50,16 @@ export function useEmbedded() {
 
   embedded = document.createElement("iframe");
   embedded.src = String(new URL("/embed", authDomain));
+  Object.assign(embedded.style, {
+    width: '1px',
+    height: '1px',
+    visibility: 'hidden',
+    zIndex: '2',
+    position: 'absolute',
+    bottom: '-10px',
+    right: '-10px',
+  });
+
   document.body.append(embedded);
 
   setInterval(
