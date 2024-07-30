@@ -14,7 +14,7 @@ const sessionOptions: session.SessionOptions = {
 };
 
 if (SESSION_DOMAIN) {
-  const sameSite = SESSION_COOKIE_SAMESITE ? SESSION_COOKIE_SECURE as session.SessionOptions['cookie']['sameSite'] : false;
+  const sameSite = SESSION_COOKIE_SAMESITE ? SESSION_COOKIE_SAMESITE as session.SessionOptions['cookie']['sameSite'] : false;
   const secure = !!SESSION_COOKIE_SECURE;
 
   sessionOptions.cookie = {
@@ -24,5 +24,7 @@ if (SESSION_DOMAIN) {
     secure,
   };
 }
+
+console.log('Using session', sessionOptions);
 
 export default session(sessionOptions);
