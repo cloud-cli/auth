@@ -128,7 +128,7 @@ window.addEventListener("message", async function (event) {
     const result = await commands[command].apply(null, args);
     event.source.postMessage({ event: 'success', detail: { id, result } }, event.origin);
   } else {
-    event.source.postMessage({ event: 'error', detail: { id, error: 'Invalid command' } }, event.origin);
+    event.source.postMessage({ event: 'error', detail: { id, error: 'Invalid command: ' + command } }, event.origin);
   }
 }, false);
 </script>`);
