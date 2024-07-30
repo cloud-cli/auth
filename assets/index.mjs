@@ -44,33 +44,42 @@ window.addEventListener("message", (e) => {
   }
 });
 
-export function useEmbedded() {
+export function postMessage(message) {
+  embedded.then((window) => window.postMessage(message));
+}
+
+function createEmbeddedFrame() {
   if (embedded) return;
 
-  embedded = document.createElement("iframe");
-  embedded.src = String(new URL("/embed", authDomain));
-  Object.assign(embedded.style, {
-    width: "1px",
-    height: "1px",
-    visibility: "hidden",
-    zIndex: "2",
-    position: "absolute",
-    bottom: "-10px",
-    right: "-10px",
+  embedded = new Promise((resolve) => {
+    const frame = document.createElement("iframe");
+    frame.src = String(new URL("/embed", authDomain));
+
+    Object.assign(frame.style, {
+      width: "1px",
+      height: "1px",
+      visibility: "hidden",
+      zIndex: "2",
+      position: "absolute",
+      bottom: "-10px",
+      right: "-10px",
+    });
+
+    frame.onload = () => resolve(frame.contentWindow);
+
+    document.body.append(frame);
+
+    setInterval(
+      () => !popup && frame.contentWindow.postMessage("ping", authDomain),
+      1000 * 30
+    );
   });
-
-  document.body.append(embedded);
-
-  setInterval(
-    () => !popup && embedded.contentWindow.postMessage("ping", authDomain),
-    1000 * 30
-  );
 }
 
 if (document.readyState === "complete") {
-  useEmbedded();
+  createEmbeddedFrame();
 } else {
-  window.addEventListener("DOMContentLoaded", useEmbedded);
+  window.addEventListener("DOMContentLoaded", createEmbeddedFrame);
 }
 
 export function signIn(usePopUp) {
@@ -100,7 +109,7 @@ function fetchCommand(command) {
     new Promise((resolve, reject) => {
       const id = Math.random();
       commandQueue[id] = { resolve, reject };
-      embedded.contentWindow.postMessage({ id, command, args }, authDomain);
+      embedded.then((w) => w.postMessage({ id, command, args }, authDomain));
     });
 }
 
