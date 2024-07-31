@@ -115,7 +115,7 @@ async function makeEmbedPage(_req, res) {
     .map((s) => s.trim());
 
   res.send(`<script type="module">
-import { commands } from '/lib.mjs';
+import { runCommand } from '/lib.mjs';
 const allowedOrigins = ${JSON.stringify(allowedOrigins)};
 window.addEventListener("message", async function (event) {
   if (!allowedOrigins.some(o => event.origin.endsWith(o))) {
@@ -123,18 +123,7 @@ window.addEventListener("message", async function (event) {
     return;
   }
 
-  const { command, args, id } = event.data;
-
-  try {
-    if (command in commands === false) {
-      throw new Error('Invalid command: ' + command);
-    }
-
-    const result = await commands[command].apply(null, args);
-    event.source.postMessage({ event: 'success', detail: { id, result } }, event.origin);
-  } catch (error) {
-    event.source.postMessage({ event: 'error', detail: { id, error } }, event.origin);
-  }
+  runCommand(event);
 }, false);
 </script>`);
 }

@@ -71,7 +71,7 @@ async function deleteProperty(key) {
   return toBoolean(r);
 }
 
-export const commands = {
+const commands = {
   getProfile,
   isAuthenticated,
   signOut,
@@ -80,3 +80,21 @@ export const commands = {
   setProperty,
   deleteProperty,
 };
+
+/**
+ * @param {MessageEvent} event
+ */
+export async function runCommand(event) {
+  const { command, args, id } = event.data;
+
+  try {
+    if (command in commands === false) {
+      throw new Error('Invalid command: ' + command);
+    }
+
+    const result = await commands[command].apply(null, args);
+    event.source.postMessage({ event: 'success', detail: { id, result } }, event.origin);
+  } catch (error) {
+    event.source.postMessage({ event: 'error', detail: { id, error } }, event.origin);
+  }
+}
