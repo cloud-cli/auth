@@ -1,10 +1,38 @@
 const authDomain = "https://__API_URL__";
 const commandQueue = {};
-
 let popup = null;
-let embedded = null;
 
-export const events = new EventTarget();
+const embedded = new Promise((resolve, reject) => {
+  const frame = document.createElement("iframe");
+  frame.src = String(new URL("/embed", authDomain));
+
+  Object.assign(frame.style, {
+    width: "1px",
+    height: "1px",
+    visibility: "hidden",
+    zIndex: "2",
+    position: "absolute",
+    bottom: "-10px",
+    right: "-10px",
+  });
+
+  frame.onload = () => resolve(frame.contentWindow);
+  frame.onerror = (e) => reject(e);
+
+  const init = () => {
+    document.body.append(frame);
+    setInterval(
+      () => !popup && frame.contentWindow.postMessage("ping", authDomain),
+      1000 * 30
+    );
+  };
+
+  if (document.readyState === "complete") {
+    init();
+  } else {
+    window.addEventListener("DOMContentLoaded", init);
+  }
+});
 
 window.addEventListener("message", (e) => {
   if (e.origin !== authDomain) {
@@ -44,42 +72,9 @@ window.addEventListener("message", (e) => {
   }
 });
 
+export const events = new EventTarget();
 export function postMessage(message) {
   embedded.then((window) => window.postMessage(message));
-}
-
-function createEmbeddedFrame() {
-  if (embedded) return;
-
-  embedded = new Promise((resolve) => {
-    const frame = document.createElement("iframe");
-    frame.src = String(new URL("/embed", authDomain));
-
-    Object.assign(frame.style, {
-      width: "1px",
-      height: "1px",
-      visibility: "hidden",
-      zIndex: "2",
-      position: "absolute",
-      bottom: "-10px",
-      right: "-10px",
-    });
-
-    frame.onload = () => resolve(frame.contentWindow);
-
-    document.body.append(frame);
-
-    setInterval(
-      () => !popup && frame.contentWindow.postMessage("ping", authDomain),
-      1000 * 30
-    );
-  });
-}
-
-if (document.readyState === "complete") {
-  createEmbeddedFrame();
-} else {
-  window.addEventListener("DOMContentLoaded", createEmbeddedFrame);
 }
 
 export function signIn(usePopUp) {
