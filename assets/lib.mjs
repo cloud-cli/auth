@@ -33,9 +33,7 @@ async function signOut() {
     method: "DELETE",
   });
 
-  const ok = await toBoolean(r);
-  events.dispatchEvent(new CustomEvent("signout", { detail: ok }));
-  return ok;
+  return toBoolean(r);
 }
 
 async function getProperties() {

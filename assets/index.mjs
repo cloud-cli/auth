@@ -99,11 +99,14 @@ export function signIn(usePopUp) {
   location.href = String(url);
 }
 
-function fetchCommand(command) {
+function fetchCommand(command, runAfter) {
   return async (...args) =>
     new Promise((resolve, reject) => {
       const id = Math.random();
-      commandQueue[id] = { resolve, reject };
+      commandQueue[id] = { resolve: (x) => {
+        runAfter && runAfter(x);
+        resolve(x);
+      }, reject };
       embedded.then((w) => w.postMessage({ id, command, args }, authDomain));
     });
 }
@@ -133,4 +136,7 @@ export const deleteProperty = fetchCommand("deleteProperty");
 export const getProperties = fetchCommand("getProperties");
 export const getProfile = fetchCommand("getProfile");
 export const isAuthenticated = fetchCommand("isAuthenticated");
-export const signOut = fetchCommand("signOut");
+export const signOut = fetchCommand("signOut", () => {
+  events.dispatchEvent(new CustomEvent("signout"));
+  events.dispatchEvent(new CustomEvent("state", { detail: null }));
+});
