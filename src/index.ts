@@ -145,9 +145,9 @@ app.get("/", protectedRouteWithRedirect, async (req, res) => {
   const user = await findByUserId(req.user.id);
   res.send(toJSON(user));
 });
-app.head("/", protectedRoute, (_req, res) => res.status(204).send(""));
+app.head("/", protectedRoute, (_req, res) => { res.status(204).send("") });
 app.delete("/", protectedRoute, logout);
-app.get("/login", (_, res) => res.send(makeLoginPage()));
+app.get("/login", (_, res) => { res.send(makeLoginPage()) });
 app.get("/embed", makeEmbedPage);
 app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
