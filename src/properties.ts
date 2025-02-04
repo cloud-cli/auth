@@ -1,5 +1,5 @@
 import { Query, Resource } from "@cloud-cli/store";
-import { UserProperty } from "./user.js";
+import { UserProperty } from "./store.js";
 
 export async function setProperty(userId: string, key: string, value: string) {
   const found = await Resource.find(
