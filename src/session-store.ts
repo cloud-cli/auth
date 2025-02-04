@@ -48,7 +48,7 @@ class SessionStoreImpl extends session.Store {
       const s = await model.find();
       callback(null, s ? s.session : null);
     } catch (error) {
-      callback(error);
+      callback(null);
     }
   }
 
