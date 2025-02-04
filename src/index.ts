@@ -142,13 +142,25 @@ app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    const date = new Date().toISOString().slice(0, 19);
+    console.log(`[${date}] ${req.method} ${req.url} ${res.statusCode}`);
+  });
+  next();
+});
+
 app.get("/", protectedRouteWithRedirect, async (req, res) => {
   const user = await findByUserId(req.user.id);
   res.send(userAsJSON(user));
 });
-app.head("/", protectedRoute, (_req, res) => { res.status(204).send("") });
+app.head("/", protectedRoute, (_req, res) => {
+  res.status(204).send("");
+});
 app.delete("/", protectedRoute, logout);
-app.get("/login", (_, res) => { res.send(makeLoginPage()) });
+app.get("/login", (_, res) => {
+  res.send(makeLoginPage());
+});
 app.get("/embed", makeEmbedPage);
 app.get("/me", protectedRoute, getProfile);
 app.get("/auth/google", passport.authenticate("google", scopes));
