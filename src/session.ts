@@ -1,4 +1,5 @@
 import session from "express-session";
+import sessionStore from './session-store.js'
 
 const {
   SESSION_SECRET = "",
@@ -11,6 +12,7 @@ const sessionOptions: session.SessionOptions = {
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  store: sessionStore,
 };
 
 if (SESSION_DOMAIN) {

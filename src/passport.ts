@@ -1,7 +1,8 @@
 import passport, { Profile } from "passport";
 import { randomUUID } from "crypto";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { User, toJSON, findByProfileId, findByUserId } from "./user.js";
+import { userAsJSON, findByProfileId, findByUserId } from "./user.js";
+import { User } from "./store.js";
 
 export const callback = "/auth/google/callback";
 
@@ -38,7 +39,7 @@ passport.use(
 
       await user.save();
 
-      done(null, toJSON(user));
+      done(null, userAsJSON(user));
     }
   )
 );
@@ -51,7 +52,7 @@ passport.deserializeUser(async (id: string, done: any) => {
     const user = await findByUserId(id);
 
     if (user) {
-      return done(null, toJSON(user));
+      return done(null, userAsJSON(user));
     }
 
     return done(new Error("Not found"));

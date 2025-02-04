@@ -1,6 +1,7 @@
 import express from "express";
 import { readFileSync } from "fs";
-import { User, findByUserId, initUser, toJSON } from "./user.js";
+import { findByUserId, userAsJSON } from "./user.js";
+import { User, initStore } from "./store.js";
 import session from "./session.js";
 import log from "./log.js";
 import passport, { callback } from "./passport.js";
@@ -143,7 +144,7 @@ app.use(passport.session());
 
 app.get("/", protectedRouteWithRedirect, async (req, res) => {
   const user = await findByUserId(req.user.id);
-  res.send(toJSON(user));
+  res.send(userAsJSON(user));
 });
 app.head("/", protectedRoute, (_req, res) => { res.status(204).send("") });
 app.delete("/", protectedRoute, logout);
@@ -230,6 +231,6 @@ app.get("/properties/:key", protectedRoute, async (req, res) => {
 
 const PORT = Number(process.env.PORT);
 app.listen(PORT, async () => {
-  await initUser();
+  await initStore();
   log("Auth is running on port " + PORT);
 });
