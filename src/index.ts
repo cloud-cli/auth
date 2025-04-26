@@ -66,7 +66,7 @@ function makeLoginPage() {
           ${googleSvg}
           Sign in with Google
         </a>
-        <a href="/auth/github" class="bg-white border text-gray-800 px-4 py-2 rounded shadow flex items-center justify-center">
+        <a href="/auth/github" class="bg-white border mt-4 text-gray-800 px-4 py-2 rounded shadow flex items-center justify-center mt-2">
           ${githubSvg}
           Sign in with GitHub
         </a>
