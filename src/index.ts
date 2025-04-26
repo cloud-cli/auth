@@ -86,7 +86,14 @@ function makeProfile(user: User) {
       <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg">
         <figure>
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
-          <figcaption class="block pt-4 text-center">Hello, ${user.name}!<br/><span class="text-sm text-gray-400">${user.userId}</span></figcaption>
+          <figcaption class="block pt-4 text-center">
+            Hello, ${user.name}!<br/>
+            <div class="flex flex-col space-y-2 mt-2">
+              <span class="text-sm text-gray-400">${user.userId}</span>
+              <span class="text-sm text-gray-400">${user.accessToken}</span>
+              <span class="text-sm text-gray-400">${user.refreshToken}</span>
+            </div>
+          </figcaption>
         </figure>
         <hr class="mt-4" />
         <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-200 mt-4 mx-auto">Logout</button>
