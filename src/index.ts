@@ -88,10 +88,11 @@ function makeProfile(user: User) {
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
           <figcaption class="block pt-4 text-center">
             Hello, ${user.name}!<br/>
-            <div class="flex flex-col space-y-2 mt-2">
-              <span class="text-sm text-gray-400">${user.userId}</span>
-              <span class="text-sm text-gray-400">${user.accessToken}</span>
-              <span class="text-sm text-gray-400">${user.refreshToken}</span>
+            <div class="flex flex-col space-y-2 mt-2 text-sm text-gray-400">
+              <span>${user.userId}</span>
+              <span>${user.profileId}</span>
+              <span>${user.accessToken}</span>
+              <span>${user.refreshToken}</span>
             </div>
           </figcaption>
         </figure>
