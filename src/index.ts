@@ -1,20 +1,16 @@
-import express from "express";
-import { readFileSync } from "fs";
-import { findByUserId, userAsJSON } from "./user.js";
-import { User, initStore } from "./store.js";
-import session from "./session.js";
-import log from "./log.js";
-import passport, { callback } from "./passport.js";
-import {
-  getProperties,
-  removeProperty,
-  getProperty,
-  setProperty,
-} from "./properties.js";
+import express from 'express';
+import { readFileSync } from 'fs';
+import { findByUserId, userAsJSON } from './user.js';
+import { User, initStore } from './store.js';
+import session from './session.js';
+import log from './log.js';
+import passport, { googleCallback, githubCallback } from './passport.js';
+import { getProperties, removeProperty, getProperty, setProperty } from './properties.js';
 
-const googleSvg = readFileSync("./assets/google.svg", "utf8");
-const esLibrary = readFileSync("./assets/index.mjs", "utf8");
-const esHelper = readFileSync("./assets/lib.mjs", "utf8");
+const googleSvg = readFileSync('./assets/google.svg', 'utf8');
+const githubSvg = readFileSync('./assets/github.svg', 'utf8');
+const esLibrary = readFileSync('./assets/index.mjs', 'utf8');
+const esHelper = readFileSync('./assets/lib.mjs', 'utf8');
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
@@ -26,18 +22,16 @@ function protectedRoute(req, res, next) {
 
 function protectedRouteWithRedirect(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
-    const returnUrl = req.get("referrer") || req.get("referer");
-    res.set("Location", "/login?url=" + returnUrl);
-    return res.status(401).send("");
+    const returnUrl = req.get('referrer') || req.get('referer');
+    res.set('Location', '/login?url=' + returnUrl);
+    return res.status(401).send('');
   }
 
   next();
 }
 
 function logout(req, res) {
-  req.logout((err) =>
-    err ? res.status(500).send("") : res.status(202).send("OK")
-  );
+  req.logout((err) => (err ? res.status(500).send('') : res.status(202).send('OK')));
 }
 
 async function getProfile(req, res) {
@@ -59,12 +53,12 @@ function makePage(title: string, page: string) {
     page,
     `</body>
   </html>`,
-  ].join("");
+  ].join('');
 }
 
 function makeLoginPage() {
   return makePage(
-    "Sign in to continue",
+    'Sign in to continue',
     `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center">
       <div class="text-center p-4 bg-white rounded-lg shadow">
         <h1 class="text-2xl font-bold mb-6">Hello!</h1>
@@ -72,17 +66,21 @@ function makeLoginPage() {
           ${googleSvg}
           Sign in with Google
         </a>
+        <a href="/auth/github" class="bg-white border text-gray-800 px-4 py-2 rounded shadow flex items-center justify-center">
+          ${githubSvg}
+          Sign in with GitHub
+        </a>
       </div>
       <script>
       (function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})();
-      </script>`
+      </script>`,
   );
 }
 
 function makeProfile(user: User) {
   const profile = JSON.stringify(user);
   return makePage(
-    "Profile",
+    'Profile',
     `<div class="hidden" id="r">Redirecting</div>
     <div class="bg-gray-100 h-screen w-screen flex items-center justify-center hidden" id="p">
       <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg">
@@ -106,14 +104,12 @@ function makeProfile(user: User) {
       window.p.classList.remove('hidden');
       (opener||window).postMessage({ event: 'signin', detail: ${profile} }, '*');
     });
-    </script>`
+    </script>`,
   );
 }
 
 async function makeEmbedPage(_req, res) {
-  const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || "")
-    .split(",")
-    .map((s) => s.trim());
+  const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim());
 
   res.send(`<script type="module">
 import { runCommand } from '/lib.mjs';
@@ -129,106 +125,112 @@ window.addEventListener("message", async function (event) {
 </script>`);
 }
 
-const scopes = {
-  scope: ["profile", "email"],
-  failureRedirect: "/login",
-  successRedirect: "/me",
+const googleScopes = {
+  scope: ['profile', 'email'],
+  failureRedirect: '/login',
+  successRedirect: '/me',
+};
+
+const githubScopes = {
+  scope: ['repo', 'user'],
+  failureRedirect: '/login',
+  successRedirect: '/me',
 };
 
 const app = express();
 
-app.set("trust proxy", 1);
+app.set('trust proxy', 1);
 app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
 
 app.use((req, res, next) => {
-  res.on("finish", () => {
+  res.on('finish', () => {
     const date = new Date().toISOString().slice(0, 19);
     console.log(`[${date}] ${req.method} ${req.url} ${res.statusCode}`);
   });
   next();
 });
 
-app.get("/", protectedRouteWithRedirect, async (req, res) => {
+app.get('/', protectedRouteWithRedirect, async (req, res) => {
   const user = await findByUserId(req.user.id);
   res.send(userAsJSON(user));
 });
-app.head("/", protectedRoute, (_req, res) => {
-  res.status(204).send("");
+app.head('/', protectedRoute, (_req, res) => {
+  res.status(204).send('');
 });
-app.delete("/", protectedRoute, logout);
-app.get("/login", (_, res) => {
+app.delete('/', protectedRoute, logout);
+app.get('/login', (_, res) => {
   res.send(makeLoginPage());
 });
-app.get("/embed", makeEmbedPage);
-app.get("/me", protectedRoute, getProfile);
-app.get("/auth/google", passport.authenticate("google", scopes));
-app.get(callback, passport.authenticate("google", scopes));
+app.get('/embed', makeEmbedPage);
+app.get('/me', protectedRoute, getProfile);
+app.get('/auth/google', passport.authenticate('google', googleScopes));
+app.get(googleCallback, passport.authenticate('google', googleScopes));
+
+app.get('/auth/github', passport.authenticate('github', githubScopes));
+app.get(githubCallback, passport.authenticate('github', githubScopes));
 
 const serveEsModule = (source) => (req, res) => {
-  const es = source.replace("__API_URL__", req.get("x-forwarded-for"));
-  res
-    .set("Content-Type", "text/javascript")
-    .set("Access-Control-Allow-Origin", "*")
-    .send(es);
+  const es = source.replace('__API_URL__', req.get('x-forwarded-for'));
+  res.set('Content-Type', 'text/javascript').set('Access-Control-Allow-Origin', '*').send(es);
 };
 
-app.get("/auth.js", serveEsModule(esLibrary));
-app.get("/index.js", serveEsModule(esLibrary));
-app.get("/index.mjs", serveEsModule(esLibrary));
-app.get("/lib.mjs", serveEsModule(esHelper));
+app.get('/auth.js', serveEsModule(esLibrary));
+app.get('/index.js', serveEsModule(esLibrary));
+app.get('/index.mjs', serveEsModule(esLibrary));
+app.get('/lib.mjs', serveEsModule(esHelper));
 
-app.put("/properties", protectedRoute, (req, res) => {
+app.put('/properties', protectedRoute, (req, res) => {
   const a = [];
-  req.on("data", (c: any) => a.push(c));
-  req.on("end", async () => {
+  req.on('data', (c: any) => a.push(c));
+  req.on('end', async () => {
     try {
-      const payload = JSON.parse(Buffer.concat(a).toString("utf8"));
+      const payload = JSON.parse(Buffer.concat(a).toString('utf8'));
       const { key, value } = payload;
       const property = await setProperty(req.user?.id, key, value);
       res.status(200).send(property);
     } catch (e) {
       log(e);
-      res.status(500).send("");
+      res.status(500).send('');
     }
   });
 });
 
-app.get("/properties", protectedRoute, async (req, res) => {
+app.get('/properties', protectedRoute, async (req, res) => {
   try {
     const properties = await getProperties(req.user.id);
     res.status(200).send(properties);
   } catch (e) {
-    res.status(500).send("");
+    res.status(500).send('');
     console.error(e);
   }
 });
 
-app.delete("/properties/:key", protectedRoute, async (req, res) => {
+app.delete('/properties/:key', protectedRoute, async (req, res) => {
   const key = req.params.key;
   const userId = req.user.id;
 
   if (!key) {
-    res.status(400).send("");
+    res.status(400).send('');
     return;
   }
 
   try {
     await removeProperty(userId, key);
-    res.status(202).send("");
+    res.status(202).send('');
   } catch (e) {
-    res.status(500).send("");
+    res.status(500).send('');
     console.error(e);
   }
 });
 
-app.get("/properties/:key", protectedRoute, async (req, res) => {
+app.get('/properties/:key', protectedRoute, async (req, res) => {
   const key = req.params.key;
   const userId = req.user.id;
 
   if (!key) {
-    res.status(400).send("");
+    res.status(400).send('');
     return;
   }
 
@@ -238,11 +240,11 @@ app.get("/properties/:key", protectedRoute, async (req, res) => {
     return;
   }
 
-  res.status(404).send("");
+  res.status(404).send('');
 });
 
 const PORT = Number(process.env.PORT);
 app.listen(PORT, async () => {
   await initStore();
-  log("Auth is running on port " + PORT);
+  log('Auth is running on port ' + PORT);
 });
