@@ -79,6 +79,11 @@ function makeLoginPage() {
 
 function makeProfile(user: User) {
   const profile = JSON.stringify(user);
+  const fields = [user.userId, user.profileId, user.accessToken, user.refreshToken]
+    .filter(Boolean)
+    .map(s => `<span>${s}</span>`)
+    .join('\n');
+
   return makePage(
     'Profile',
     `<div class="hidden" id="r">Redirecting</div>
@@ -86,13 +91,10 @@ function makeProfile(user: User) {
       <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg">
         <figure>
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
-          <figcaption class="block pt-4 text-center">
-            Hello, ${user.name}!<br/>
-            <div class="flex flex-col space-y-2 mt-2 text-sm text-gray-400">
-              <span>${user.userId}</span>
-              <span>${user.profileId}</span>
-              <span>${user.accessToken}</span>
-              <span>${user.refreshToken}</span>
+          <figcaption class="block">
+            <div class="text-center pt-4">Hello, ${user.name}!</div>
+            <div class="flex flex-col space-y-2 mt-2 text-sm text-gray-400 pt-4">
+              ${fields}
             </div>
           </figcaption>
         </figure>
