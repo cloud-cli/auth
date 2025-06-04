@@ -103,10 +103,13 @@ function fetchCommand(command, runAfter) {
   return async (...args) =>
     new Promise((resolve, reject) => {
       const id = Math.random();
-      commandQueue[id] = { resolve: (x) => {
-        runAfter && runAfter(x);
-        resolve(x);
-      }, reject };
+      commandQueue[id] = {
+        resolve: (x) => {
+          runAfter && runAfter(x);
+          resolve(x);
+        },
+        reject,
+      };
       embedded.then((w) => w.postMessage({ id, command, args }, authDomain));
     });
 }
@@ -140,3 +143,20 @@ export const signOut = fetchCommand("signOut", () => {
   events.dispatchEvent(new CustomEvent("signout"));
   events.dispatchEvent(new CustomEvent("state", { detail: null }));
 });
+
+async function onload() {
+  try {
+    const profile = await getProfile();
+    events.dispatchEvent(new CustomEvent("signin"));
+    events.dispatchEvent(new CustomEvent("state", { detail: profile }));
+  } catch {
+    events.dispatchEvent(new CustomEvent("signout"));
+    events.dispatchEvent(new CustomEvent("state", { detail: null }));
+  }
+}
+
+if (document.readyState === "complete") {
+  onload();
+} else {
+  window.addEventListener("DOMContentLoaded", onload);
+}
