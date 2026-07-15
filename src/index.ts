@@ -101,7 +101,7 @@ async function makeProfile(user: User) {
     'Profile',
     `<div class="hidden" id="r">Redirecting</div>
     <div class="bg-gray-100 h-screen w-screen flex items-center justify-center p-4 hidden" id="p">
-      <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg max-w-full md:max-w-3xl max-h-full overflow-auto">
+      <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg max-w-full md:max-w-5xl max-h-full overflow-auto">
         <figure>
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
           <figcaption class="block space-y-1">
@@ -113,8 +113,6 @@ async function makeProfile(user: User) {
         <hr class="mt-4" />
         <div class="text-sm text-gray-400 space-y-1">
           ${fieldsText}
-        </div>
-        <div class="text-sm text-gray-400 space-y-1">
           ${propertiesText}
         </div>
       </div>
