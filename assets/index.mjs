@@ -22,7 +22,7 @@ const embedded = new Promise((resolve, reject) => {
   const init = () => {
     document.body.append(frame);
     setInterval(
-      () => !popup && frame.contentWindow.postMessage({ event: "ping" }, authDomain),
+      () => !popup && frame.contentWindow.postMessage({ command: "ping" }, authDomain),
       1000 * 30
     );
   };
