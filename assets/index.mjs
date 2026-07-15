@@ -22,12 +22,12 @@ const embedded = new Promise((resolve, reject) => {
   const init = () => {
     document.body.append(frame);
     setInterval(
-      () => !popup && frame.contentWindow.postMessage("ping", authDomain),
+      () => !popup && frame.contentWindow.postMessage({ event: "ping" }, authDomain),
       1000 * 30
     );
   };
 
-  if (document.readyState === "complete") {
+  if (['complete', 'interactive'].includes(document.readyState)) {
     init();
   } else {
     window.addEventListener("DOMContentLoaded", init);
@@ -155,7 +155,7 @@ async function onload() {
   }
 }
 
-if (document.readyState === "complete") {
+if (['complete', 'interactive'].includes(document.readyState)) {
   onload();
 } else {
   window.addEventListener("DOMContentLoaded", onload);

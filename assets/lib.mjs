@@ -69,6 +69,10 @@ async function deleteProperty(key) {
   return toBoolean(r);
 }
 
+function ping() {
+  return 'pong';
+}
+
 const commands = {
   getProfile,
   isAuthenticated,
@@ -77,6 +81,7 @@ const commands = {
   getProperty,
   setProperty,
   deleteProperty,
+  ping,
 };
 
 /**

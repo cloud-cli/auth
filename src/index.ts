@@ -36,7 +36,7 @@ function logout(req, res) {
 
 async function getProfile(req, res) {
   const user = await findByUserId(req.user.id);
-  res.send(makeProfile(user));
+  res.send(await makeProfile(user));
 }
 
 function makePage(title: string, page: string) {
@@ -59,7 +59,7 @@ function makePage(title: string, page: string) {
 function makeLoginPage() {
   return makePage(
     'Sign in to continue',
-    `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center">
+    `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4">
       <div class="text-center p-4 bg-white rounded-lg shadow">
         <h1 class="text-2xl font-bold mb-6">Hello!</h1>
         <a href="/auth/google" class="bg-white border text-gray-800 px-4 py-2 rounded shadow flex items-center justify-center">
@@ -77,24 +77,39 @@ function makeLoginPage() {
   );
 }
 
-function makeProfile(user: User) {
+async function makeProfile(user: User) {
   const profile = JSON.stringify(user);
-  const fields = [user.userId, user.profileId, user.accessToken, user.refreshToken]
-    .filter(Boolean)
-    .map(s => `<span>${s}</span>`)
+  const fields = ['userId', 'profileId', 'accessToken', 'refreshToken'] as Array<keyof User>;
+  const fieldsText = fields
+    .map((key) => ({ key, value: user[key] || '' }))
+    .map(({ key, value }) => `<div class="flex items-center font-mono">
+        <span class="w-1/3 p-1">${key}</span>
+        <span class="truncate p-1" onclick="$event.target.classList.toggle('truncate')">${value}</span>
+      </div>`)
     .join('\n');
+
+  const properties = await getProperties(user.userId);
+  const propertiesText = properties.map(({ key, value }) => {
+    return `<div class="flex items-center font-mono border-b">
+      <span class="w-1/3 p-1">${key}</span>
+      <span class="flex-1 text-red-500 p-1">${value}</span>
+    </div>`
+  })
 
   return makePage(
     'Profile',
     `<div class="hidden" id="r">Redirecting</div>
-    <div class="bg-gray-100 h-screen w-screen flex items-center justify-center hidden" id="p">
-      <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg">
+    <div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4 hidden" id="p">
+      <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg max-w-full md:max-w-3xl">
         <figure>
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
           <figcaption class="block">
             <div class="text-center pt-4">Hello, ${user.name}!</div>
-            <div class="flex flex-col space-y-2 mt-2 text-sm text-gray-400 pt-4">
-              ${fields}
+            <div class="text-sm text-gray-400 py-4 space-y-2">
+              ${fieldsText}
+            </div>
+            <div class="text-sm text-gray-400 py-4 space-y-2">
+              ${propertiesText}
             </div>
           </figcaption>
         </figure>
