@@ -82,9 +82,9 @@ async function makeProfile(user: User) {
   const fields = ['userId', 'profileId', 'accessToken', 'refreshToken'] as Array<keyof User>;
   const fieldsText = fields
     .map((key) => ({ key, value: user[key] || '' }))
-    .map(({ key, value }) => `<div class="flex items-center font-mono">
+    .map(({ key, value }) => `<div class="flex items-center font-mono border-b">
         <span class="w-1/3 p-1">${key}</span>
-        <span class="truncate p-1" onclick="$event.target.classList.toggle('truncate')">${value}</span>
+        <span class="w-2/3 truncate p-1" onclick="$event.target.classList.toggle('truncate')">${value}</span>
       </div>`)
     .join('\n');
 
@@ -92,29 +92,31 @@ async function makeProfile(user: User) {
   const propertiesText = properties.map(({ key, value }) => {
     return `<div class="flex items-center font-mono border-b">
       <span class="w-1/3 p-1">${key}</span>
-      <span class="flex-1 text-red-500 p-1">${value}</span>
+      <span class="w-2/3 flex-1 text-red-500 p-1">${value}</span>
     </div>`
   })
+  .join('\n');
 
   return makePage(
     'Profile',
     `<div class="hidden" id="r">Redirecting</div>
-    <div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4 hidden" id="p">
-      <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg max-w-full md:max-w-3xl">
+    <div class="bg-gray-100 h-screen w-screen flex items-center justify-center p-4 hidden" id="p">
+      <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg max-w-full md:max-w-3xl max-h-full overflow-auto">
         <figure>
           <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
-          <figcaption class="block">
-            <div class="text-center pt-4">Hello, ${user.name}!</div>
-            <div class="text-sm text-gray-400 py-4 space-y-2">
-              ${fieldsText}
-            </div>
-            <div class="text-sm text-gray-400 py-4 space-y-2">
-              ${propertiesText}
-            </div>
+          <figcaption class="block space-y-1">
+            <div class="text-center py-4">Hello, ${user.name}!</div>
           </figcaption>
         </figure>
         <hr class="mt-4" />
         <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-200 mt-4 mx-auto">Logout</button>
+        <hr class="mt-4" />
+        <div class="text-sm text-gray-400 space-y-1">
+          ${fieldsText}
+        </div>
+        <div class="text-sm text-gray-400 space-y-1">
+          ${propertiesText}
+        </div>
       </div>
     </div>
     <script>
