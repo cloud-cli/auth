@@ -48,6 +48,12 @@ function makePage(title: string, page: string) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>${title}</title>
       <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet" />
+      <script type="module">
+      async function load() {
+        globalThis.Auth = await import('/index.mjs');
+      }
+      load();
+      </script>
   </head>
   <body>`,
     page,
@@ -92,7 +98,8 @@ async function makeProfile(user: User) {
   const propertiesText = properties.map(({ key, value }) => {
     return `<div class="flex items-center font-mono border-b">
       <span class="w-1/3 p-1">${key}</span>
-      <span class="w-2/3 flex-1 text-red-500 p-1">${value}</span>
+      <span class="w-2/3 flex-1 text-red-500 p-1 truncate">${value}</span>
+      <button class="flex-1" onclick="if(confirm('Sure?')){Auth.deleteProperty('${key}');$event.target.parentNode.remove();}">&times;</button>
     </div>`
   })
   .join('\n');
@@ -114,6 +121,9 @@ async function makeProfile(user: User) {
         <div class="text-sm text-gray-400 space-y-1">
           ${fieldsText}
           ${propertiesText}
+        </div>
+        <div class="flex items-centers justify-center p-2">
+          <button onclick="Auth.setProperty( prompt('Key', ''), prompt('Value', '') );window.location.relaod()">Add</button>
         </div>
       </div>
     </div>
@@ -197,7 +207,8 @@ app.get('/auth/github', passport.authenticate('github', githubScopes));
 app.get(githubCallback, passport.authenticate('github', githubScopes));
 
 const serveEsModule = (source) => (req, res) => {
-  const es = source.replace('__API_URL__', req.get('x-forwarded-for'));
+  const host = req.get('x-forwarded-host') || req.get('x-forwarded-for') || 'localhost';
+  const es = source.replace('__API_URL__', 'https://' + host);
   res.set('Content-Type', 'text/javascript').set('Access-Control-Allow-Origin', '*').send(es);
 };
 

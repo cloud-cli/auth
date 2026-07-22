@@ -1,4 +1,4 @@
-const authDomain = "https://__API_URL__";
+const authDomain = "__API_URL__";
 const fetchOptions = { credentials: "include", mode: "cors" };
 
 async function toJson(r) {
