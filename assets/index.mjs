@@ -1,6 +1,10 @@
-const authDomain = "https://__API_URL__";
+const authDomain = "__API_URL__";
 const commandQueue = {};
 let popup = null;
+
+if (!authDomain) {
+  throw new Error('Failed to load authentication endpoint!');
+}
 
 const embedded = new Promise((resolve, reject) => {
   const frame = document.createElement("iframe");
