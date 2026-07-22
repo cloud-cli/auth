@@ -207,7 +207,8 @@ app.get('/auth/github', passport.authenticate('github', githubScopes));
 app.get(githubCallback, passport.authenticate('github', githubScopes));
 
 const serveEsModule = (source) => (req, res) => {
-  const host = req.get('x-forwarded-host') || req.get('x-forwarded-for') || 'localhost';
+  console.log(req.headers);
+  const host = req.headers['x-forwarded-host'] || req.headers['x-forwarded-for'] || 'localhost';
   const es = source.replace('__API_URL__', 'https://' + host);
   res.set('Content-Type', 'text/javascript').set('Access-Control-Allow-Origin', '*').send(es);
 };
