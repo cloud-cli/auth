@@ -1,10 +1,12 @@
-import { Query, Resource } from "@cloud-cli/store";
-import { UserProperty } from "./store.js";
+import { Query, Resource } from '@cloud-cli/store';
+import { UserProperty } from './store.js';
 
-export async function setProperty(userId: string, key: string, value: string) {
+export async function setProperty(userId: string | undefined, key: string, value: string) {
+  if (!userId) return;
+
   const found = await Resource.find(
     UserProperty,
-    new Query<UserProperty>().where("userId").is(userId).where("key").is(key)
+    new Query<UserProperty>().where('userId').is(userId).where('key').is(key),
   );
 
   if (found.length) {
@@ -23,10 +25,12 @@ export async function setProperty(userId: string, key: string, value: string) {
   return await new UserProperty({ uid: propertyId }).find();
 }
 
-export async function getProperties(userId: string, key?: string) {
-  const query = new Query<UserProperty>().where("userId").is(userId);
+export async function getProperties(userId?: string, key?: string) {
+  if (!userId) return [];
+
+  const query = new Query<UserProperty>().where('userId').is(userId);
   if (key) {
-    query.where("key").is(key);
+    query.where('key').is(key);
   }
 
   const entries = await Resource.find(UserProperty, query);
@@ -38,10 +42,12 @@ export async function getProperties(userId: string, key?: string) {
   return properties;
 }
 
-export async function removeProperty(userId: string, key: string) {
+export async function removeProperty(userId: string | undefined, key: string) {
+  if (!userId) return;
+
   const entries = await Resource.find(
     UserProperty,
-    new Query<UserProperty>().where("key").is(key).where("userId").is(userId)
+    new Query<UserProperty>().where('key').is(key).where('userId').is(userId),
   );
 
   for (const p of entries) {
@@ -49,7 +55,8 @@ export async function removeProperty(userId: string, key: string) {
   }
 }
 
-export async function getProperty(userId: string, key: string) {
+export async function getProperty(userId: string | undefined, key: string) {
+  if (!userId) return null;
   const p = await getProperties(userId, key);
   return p.length ? p[0] : null;
 }

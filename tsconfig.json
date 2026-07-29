@@ -1,9 +1,14 @@
 {
-    "extends": "@cloud-cli/typescript-config",
-    "compilerOptions": {
-      "lib": ["esnext", "dom"],
-      "outDir": "./dist",
-      "experimentalDecorators": true
-    },
-    "include": ["src/**/*.ts"]
+  "extends": "@cloud-cli/typescript-config",
+  "compilerOptions": {
+    "moduleResolution": "nodenext",
+    "module": "nodenext",
+    "lib": ["esnext", "dom"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "experimentalDecorators": true,
+    "strictPropertyInitialization": false,
+    "noImplicitAny": false
+  },
+  "include": ["src/"]
 }

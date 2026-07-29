@@ -35,8 +35,14 @@ function logout(req, res) {
 }
 
 async function getProfile(req, res) {
-  const user = await findByUserId(req.user.id);
-  res.send(await makeProfile(user));
+  const user = await findByUserId(req.user?.id);
+
+  if (user) {
+    res.send(await makeProfile(user));
+    return;
+  }
+
+  res.status(404).send('{}');
 }
 
 function makePage(title: string, page: string) {
@@ -88,21 +94,24 @@ async function makeProfile(user: User) {
   const fields = ['userId', 'profileId', 'accessToken', 'refreshToken'] as Array<keyof User>;
   const fieldsText = fields
     .map((key) => ({ key, value: user[key] || '' }))
-    .map(({ key, value }) => `<div class="flex items-center font-mono border-b">
+    .map(
+      ({ key, value }) => `<div class="flex items-center font-mono border-b">
         <span class="w-1/3 p-1">${key}</span>
         <span class="w-2/3 truncate p-1" onclick="$event.target.classList.toggle('truncate')">${value}</span>
-      </div>`)
+      </div>`,
+    )
     .join('\n');
 
   const properties = await getProperties(user.userId);
-  const propertiesText = properties.map(({ key, value }) => {
-    return `<div class="flex items-center font-mono border-b">
+  const propertiesText = properties
+    .map(({ key, value }) => {
+      return `<div class="flex items-center font-mono border-b">
       <span class="w-1/3 p-1">${key}</span>
       <span class="w-2/3 flex-1 text-red-500 p-1 truncate">${value}</span>
       <button class="flex-1" onclick="if(confirm('Sure?')){Auth.deleteProperty('${key}');$event.target.parentNode.remove();}">&times;</button>
-    </div>`
-  })
-  .join('\n');
+    </div>`;
+    })
+    .join('\n');
 
   return makePage(
     'Profile',
@@ -188,8 +197,13 @@ app.use((req, res, next) => {
 });
 
 app.get('/', protectedRouteWithRedirect, async (req, res) => {
-  const user = await findByUserId(req.user.id);
-  res.send(userAsJSON(user));
+  const user = await findByUserId(req.user?.id);
+  if (user) {
+    res.send(userAsJSON(user));
+    return;
+  }
+
+  res.status(404).send('{}');
 });
 app.head('/', protectedRoute, (_req, res) => {
   res.status(204).send('');
@@ -218,25 +232,23 @@ app.get('/index.js', serveEsModule(esLibrary));
 app.get('/index.mjs', serveEsModule(esLibrary));
 app.get('/lib.mjs', serveEsModule(esHelper));
 
-app.put('/properties', protectedRoute, (req, res) => {
-  const a = [];
-  req.on('data', (c: any) => a.push(c));
-  req.on('end', async () => {
-    try {
-      const payload = JSON.parse(Buffer.concat(a).toString('utf8'));
-      const { key, value } = payload;
-      const property = await setProperty(req.user?.id, key, value);
-      res.status(200).send(property);
-    } catch (e) {
-      log(e);
-      res.status(500).send('');
-    }
-  });
+app.put('/properties', protectedRoute, async (req, res) => {
+  const buffer = Buffer.concat(await req.toArray()).toString('utf8');
+
+  try {
+    const payload = JSON.parse(buffer);
+    const { key, value } = payload;
+    const property = await setProperty(req.user?.id, key, value);
+    res.status(200).send(property);
+  } catch (e) {
+    log(e);
+    res.status(500).send('');
+  }
 });
 
 app.get('/properties', protectedRoute, async (req, res) => {
   try {
-    const properties = await getProperties(req.user.id);
+    const properties = await getProperties(req.user?.id);
     res.status(200).send(properties);
   } catch (e) {
     res.status(500).send('');
@@ -246,7 +258,7 @@ app.get('/properties', protectedRoute, async (req, res) => {
 
 app.delete('/properties/:key', protectedRoute, async (req, res) => {
   const key = req.params.key;
-  const userId = req.user.id;
+  const userId = req.user?.id;
 
   if (!key) {
     res.status(400).send('');
@@ -264,7 +276,7 @@ app.delete('/properties/:key', protectedRoute, async (req, res) => {
 
 app.get('/properties/:key', protectedRoute, async (req, res) => {
   const key = req.params.key;
-  const userId = req.user.id;
+  const userId = req.user?.id;
 
   if (!key) {
     res.status(400).send('');

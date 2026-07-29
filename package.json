@@ -5,7 +5,6 @@
   "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "ci": "npm i && npm run build && rm -r node_modules && npm i --omit=dev && rm -r src/",
     "build": "tsc",
     "start": "node ./dist/index.js"
   },
@@ -20,11 +19,13 @@
   "devDependencies": {
     "@cloud-cli/prettier-config": "^1.0.0",
     "@cloud-cli/typescript-config": "^1.0.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.6",
     "@types/express-session": "^1.17.7",
-    "@types/node": "^18.15.11",
+    "@types/node": "^26.1.2",
     "@types/passport": "^1.0.12",
     "@types/passport-google-oauth20": "^2.0.11",
-    "typescript": "^5.0.4"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "@cloud-cli/store": "^2.0.4",

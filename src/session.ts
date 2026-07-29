@@ -1,11 +1,12 @@
-import session from "express-session";
-import sessionStore from './session-store.js'
+import session from 'express-session';
+import sessionStore from './session-store.js';
+import express from 'express';
 
 const {
-  SESSION_SECRET = "",
-  SESSION_DOMAIN = "",
-  SESSION_COOKIE_SAMESITE = "",
-  SESSION_COOKIE_SECURE = ""
+  SESSION_SECRET = '',
+  SESSION_DOMAIN = '',
+  SESSION_COOKIE_SAMESITE = '',
+  SESSION_COOKIE_SECURE = '',
 } = process.env;
 
 const sessionOptions: session.SessionOptions = {
@@ -16,7 +17,7 @@ const sessionOptions: session.SessionOptions = {
 };
 
 if (SESSION_DOMAIN) {
-  const sameSite = SESSION_COOKIE_SAMESITE ? SESSION_COOKIE_SAMESITE as session.SessionOptions['cookie']['sameSite'] : false;
+  const sameSite = SESSION_COOKIE_SAMESITE ? (SESSION_COOKIE_SAMESITE as session.CookieOptions['sameSite']) : false;
   const secure = !!SESSION_COOKIE_SECURE;
 
   sessionOptions.cookie = {
@@ -29,4 +30,4 @@ if (SESSION_DOMAIN) {
 
 console.log('Using session', sessionOptions);
 
-export default session(sessionOptions);
+export default session(sessionOptions) as express.RequestHandler;
