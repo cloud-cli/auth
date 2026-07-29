@@ -28,6 +28,4 @@ if (SESSION_DOMAIN) {
   };
 }
 
-console.log('Using session', sessionOptions);
-
 export default session(sessionOptions) as express.RequestHandler;

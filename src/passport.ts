@@ -32,13 +32,14 @@ async function onUserSignIn(accessToken: string, refreshToken: string, profile: 
 export const googleCallback = '/auth/google/callback';
 export const githubCallback = '/auth/github/callback';
 
+const authDomain = process.env.AUTH_DOMAIN;
 const githubClientID = process.env.GITHUB_CLIENT_ID || '';
 const githubClientSecret = process.env.GITHUB_CLIENT_SECRET || '';
-const githubCallbackURL = String(new URL(githubCallback, process.env.AUTH_DOMAIN));
+const githubCallbackURL = String(new URL(githubCallback, authDomain));
 
 const googleClientID = process.env.GOOGLE_CLIENT_ID || '';
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
-const googleCallbackURL = String(new URL(googleCallback, process.env.AUTH_DOMAIN));
+const googleCallbackURL = String(new URL(googleCallback, authDomain));
 
 if (googleClientID && googleClientSecret) {
   passport.use(
