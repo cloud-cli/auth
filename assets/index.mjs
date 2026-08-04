@@ -11,13 +11,13 @@ const embedded = new Promise((resolve, reject) => {
   frame.src = String(new URL("/embed", authDomain));
 
   Object.assign(frame.style, {
-    width: "1px",
-    height: "1px",
-    visibility: "hidden",
-    zIndex: "2",
+    width: "0px",
+    height: "0px",
+    display: "none",
+    zIndex: "-1",
     position: "absolute",
-    bottom: "-10px",
-    right: "-10px",
+    left: "-10px",
+    top: "-10px",
   });
 
   frame.onload = () => resolve(frame.contentWindow);
