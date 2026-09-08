@@ -19,6 +19,9 @@
     },
     {
       "name": "Browser client"
+    },
+    {
+      "name": "Node client"
     }
   ],
   "paths": {
@@ -339,6 +342,191 @@
           }
         }
       }
+    },
+    "/session/token": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Issue a short-lived access token for an allowed audience",
+        "description": "Requires an authenticated browser session and an Origin listed in AUTH_ALLOWED_ORIGINS.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["audience"],
+                "properties": {
+                  "audience": {
+                    "type": "string",
+                    "description": "A value configured in JWT_AUDIENCES"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bearer access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid audience"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "description": "Origin is not allowed"
+          },
+          "503": {
+            "description": "JWT service is not configured"
+          }
+        }
+      }
+    },
+    "/authorize": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Start an OIDC authorization-code flow",
+        "parameters": [
+          { "name": "response_type", "in": "query", "required": true, "schema": { "type": "string", "const": "code" } },
+          { "name": "client_id", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "redirect_uri", "in": "query", "required": true, "schema": { "type": "string", "format": "uri" } },
+          { "name": "state", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "code_challenge", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "code_challenge_method", "in": "query", "required": true, "schema": { "type": "string", "const": "S256" } }
+        ],
+        "responses": {
+          "302": { "description": "Redirect to sign-in or the registered callback with code and state" },
+          "400": { "description": "Invalid or unregistered client request" }
+        }
+      }
+    },
+    "/token": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Exchange an OIDC authorization code",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["grant_type", "code", "client_id", "client_secret", "redirect_uri", "code_verifier"],
+                "properties": {
+                  "grant_type": { "type": "string", "const": "authorization_code" },
+                  "code": { "type": "string" },
+                  "client_id": { "type": "string" },
+                  "client_secret": { "type": "string" },
+                  "redirect_uri": { "type": "string", "format": "uri" },
+                  "code_verifier": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Access and identity tokens",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OidcTokenResponse" } }
+            }
+          },
+          "400": { "description": "Invalid request or authorization code" },
+          "503": { "description": "JWT service is not configured" }
+        }
+      }
+    },
+    "/.well-known/jwks.json": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get public JWT signing keys",
+        "responses": {
+          "200": {
+            "description": "JSON Web Key Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["keys"],
+                  "properties": {
+                    "keys": {
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "JWT service is not configured"
+          }
+        }
+      }
+    },
+    "/userinfo": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get a user's profile from a verified JWT",
+        "parameters": [
+          {
+            "name": "X-Auth-Audience",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated user's profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid, expired, or incorrectly-audienced bearer token"
+          },
+          "404": {
+            "description": "User no longer exists"
+          }
+        }
+      }
+    },
+    "/node.mjs": {
+      "get": {
+        "tags": ["Node client"],
+        "summary": "Serve the Node.js OIDC and JWT client",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module",
+            "content": {
+              "text/javascript": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -391,6 +579,43 @@
             }
           }
         ]
+      },
+      "AccessToken": {
+        "type": "object",
+        "required": ["access_token", "token_type", "expires_in"],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string",
+            "const": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 900
+          }
+        }
+      },
+      "OidcTokenResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/AccessToken" },
+          {
+            "type": "object",
+            "required": ["id_token"],
+            "properties": {
+              "id_token": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
       }
     },
     "responses": {

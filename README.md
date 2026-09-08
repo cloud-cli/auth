@@ -13,6 +13,12 @@ Node.js app for user sign in via Google authentication.
 | SESSION_DOMAIN        | Domain to use for session cookie, e.g foo.com      | false    |
 | SESSION_SECRET        | Session secret, used to store the user session     | true     |
 | STORE_URL             | URL of store endpoint for [@cloud-cli/store](https://github.com/cloud-cli/store).        | true     |
+| JWT_PRIVATE_KEY       | PEM-encoded RSA private key used for JWT signing   | for JWTs |
+| JWT_AUDIENCES         | Comma-separated allowed JWT audiences               | for JWTs |
+| JWT_KEY_ID            | Signing key ID, defaults to `auth-1`               | false    |
+| JWT_TTL_SECONDS       | JWT lifetime from 60 to 900 seconds, defaults to 300 | false |
+| AUTH_ALLOWED_ORIGINS  | Comma-separated browser origins allowed to request JWTs | for browser JWTs |
+| OIDC_CLIENTS          | JSON client registry with `id`, `secret`, and `redirectUris` | for OIDC |
 
 Get the client ID and secret from [Google API console](https://console.cloud.google.com/apis/credentials)
 
@@ -43,6 +49,118 @@ docker run --name 'auth' --detach \
 ## RESTful API
 
 The OpenAPI 3.1 document is served at `GET /api`.
+
+`POST /session/token` exchanges an authenticated browser session for a short-lived RS256 JWT. Its JSON body must include an audience configured in `JWT_AUDIENCES`; browser callers must originate from `AUTH_ALLOWED_ORIGINS`. Public signing keys are available at `GET /.well-known/jwks.json`.
+
+OIDC clients are registered through `OIDC_CLIENTS`, for example `[{"id":"todo","secret":"...","redirectUris":["https://todo.example.com/auth/callback"]}]`. `GET /authorize` creates a one-time authorization code for an authenticated user. The client exchanges it at `POST /token` using its client secret and PKCE verifier.
+
+Authorization codes are held in this server's memory for one minute. Run a single auth-server instance or use session affinity until the backing store supports atomic one-time code consumption.
+
+`GET /node.mjs` provides `createAuthClient({ clientId })` for Node.js services. It creates PKCE authorization requests, exchanges callbacks, verifies JWTs locally through the JWKS endpoint, and obtains the user's public profile.
+
+For sibling domains that receive the shared auth cookie, it also provides `getSessionProfile(request)`, `isSessionAuthenticated(request)`, and `requireSession(request, response)`. These forward only the configured session cookie to the auth API. They do not work across unrelated domains; use the OIDC authorization-code flow there.
+
+### Node.js HTTP server
+
+This minimal server works on an unrelated domain such as `todo.example.com`. It imports the hosted module without an npm dependency, redirects users through OIDC, and creates its own host-only session cookie. Set `TODO_CLIENT_SECRET` to the secret for the `todo` entry in `OIDC_CLIENTS`.
+
+```js
+import { createServer } from 'node:http';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
+
+const authSource = await (await fetch('https://auth.api.apphor.de/node.mjs')).text();
+const { createAuthClient } = await import(`data:text/javascript,${encodeURIComponent(authSource)}`);
+
+const redirectUri = 'https://todo.example.com/auth/callback';
+const auth = createAuthClient({ clientId: 'todo' });
+const sessions = new Map(); // Use a persistent session store in production.
+
+function setCookie(response, name, value, maxAge) {
+  response.setHeader('Set-Cookie', `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`);
+}
+
+function redirect(response, url) {
+  response.writeHead(302, { Location: url }).end();
+}
+
+function sameValue(left, right) {
+  const a = Buffer.from(left || '');
+  const b = Buffer.from(right || '');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+createServer(async (request, response) => {
+  const url = new URL(request.url, `https://${request.headers.host}`);
+  const cookies = auth.getCookies(request);
+
+  if (url.pathname === '/login') {
+    const loginId = randomBytes(32).toString('base64url');
+    const authorization = auth.createAuthorizationRequest({ redirectUri });
+    sessions.set(loginId, authorization);
+    setCookie(response, 'todo.login', loginId, 600);
+    return redirect(response, authorization.url);
+  }
+
+  if (url.pathname === '/auth/callback') {
+    const login = sessions.get(cookies['todo.login']);
+    sessions.delete(cookies['todo.login']);
+    if (!login || !sameValue(url.searchParams.get('state'), login.state)) {
+      response.writeHead(400).end('Invalid login state');
+      return;
+    }
+
+    try {
+      const tokens = await auth.exchangeCode({
+        code: url.searchParams.get('code') || '',
+        codeVerifier: login.codeVerifier,
+        redirectUri,
+        clientSecret: process.env.TODO_CLIENT_SECRET || '',
+      });
+      await auth.verifyToken(tokens.id_token);
+      const user = await auth.getProfile(tokens.access_token);
+      const sessionId = randomBytes(32).toString('base64url');
+      sessions.set(sessionId, user);
+      setCookie(response, 'todo.sid', sessionId, 60 * 60 * 24 * 7);
+      return redirect(response, '/');
+    } catch {
+      response.writeHead(401).end('Sign-in failed');
+      return;
+    }
+  }
+
+  if (url.pathname === '/shared-only') {
+    // For *.apphor.de only: validates the central connect.sid session cookie.
+    const user = await auth.requireSession(request, response);
+    if (!user) return;
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(user));
+    return;
+  }
+
+  if (url.pathname === '/central-session') {
+    // These three helpers are alternatives to requireSession when custom handling is needed.
+    const centralCookie = auth.getSessionCookie(request);
+    const authenticated = centralCookie && await auth.isSessionAuthenticated(request);
+    const user = authenticated ? await auth.getSessionProfile(request) : null;
+    if (!user) {
+      response.writeHead(401).end('Authentication required');
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(user));
+    return;
+  }
+
+  if (url.pathname === '/') {
+    const user = sessions.get(cookies['todo.sid']);
+    if (!user) return redirect(response, '/login');
+    response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' }).end(`Hello, ${user.name}`);
+    return;
+  }
+
+  response.writeHead(404).end('Not found');
+}).listen(3000);
+```
+
+`auth.getSessionCookie(request)` returns the central `connect.sid` cookie value that `getSessionProfile`, `isSessionAuthenticated`, and `requireSession` forward to the auth API. These helpers are only useful when the incoming request already contains the shared auth cookie. The example's `todo.sid` is an application-owned session cookie and cannot be forwarded to the auth API.
 
 *GET /:
 

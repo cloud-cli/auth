@@ -31,6 +31,7 @@
     "@cloud-cli/store": "^2.0.4",
     "express": "^4.21.2",
     "express-session": "^1.18.0",
+    "jose": "^6.2.12",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0"
   }

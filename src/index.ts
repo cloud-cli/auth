@@ -6,10 +6,13 @@ import session from './session.js';
 import log from './log.js';
 import passport, { googleCallback } from './passport.js';
 import { getProperties, removeProperty, getProperty, setProperty } from './properties.js';
+import { accessTokenTtl, createAccessToken, getJwks, isAllowedAudience, isTokenServiceConfigured, verifyAccessToken } from './token.js';
+import { createAuthorizationCode, exchangeAuthorizationCode, getClient, isOidcClient, tokenResponse } from './oidc.js';
 
 const googleSvg = readFileSync('./assets/google.svg', 'utf8');
 const esLibrary = readFileSync('./assets/index.mjs', 'utf8');
 const esHelper = readFileSync('./assets/lib.mjs', 'utf8');
+const nodeLibrary = readFileSync('./assets/node.mjs', 'utf8');
 const openApiSpec = readFileSync('./assets/openapi.json', 'utf8');
 
 function protectedRoute(req, res, next) {
@@ -32,6 +35,44 @@ function protectedRouteWithRedirect(req, res, next) {
 
 function logout(req, res) {
   req.logout((err) => (err ? res.status(500).send('') : res.status(202).send('OK')));
+}
+
+function bearerToken(req) {
+  const authorization = req.get('authorization') || '';
+  return authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : '';
+}
+
+async function tokenUser(req, res, next) {
+  const token = bearerToken(req);
+  const audience = req.get('x-auth-audience') || '';
+
+  if (!token || !audience || (!isAllowedAudience(audience) && !isOidcClient(audience))) {
+    return res.status(401).send('');
+  }
+
+  try {
+    const { payload } = await verifyAccessToken(token, audience);
+    if (!payload.sub) return res.status(401).send('');
+
+    req.tokenUserId = payload.sub;
+    next();
+  } catch {
+    res.status(401).send('');
+  }
+}
+
+function sessionTokenCors(req, res, next) {
+  const origin = req.get('origin');
+  const allowedOrigins = new Set((process.env.AUTH_ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean));
+
+  if (!origin || !allowedOrigins.has(origin)) return res.status(403).send('');
+
+  res.vary('Origin');
+  res.set('Access-Control-Allow-Origin', origin);
+  res.set('Access-Control-Allow-Credentials', 'true');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  next();
 }
 
 async function getProfile(req, res) {
@@ -205,6 +246,60 @@ app.get('/login', (_, res) => {
 app.get('/api', (_req, res) => {
   res.type('application/json').send(openApiSpec);
 });
+app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
+app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
+  const audience = typeof req.body?.audience === 'string' ? req.body.audience : '';
+  if (!isTokenServiceConfigured()) return res.status(503).send('JWT service is not configured');
+  if (!isAllowedAudience(audience)) return res.status(400).send('Invalid audience');
+
+  res.json({ access_token: await createAccessToken(req.user!.id, audience), token_type: 'Bearer', expires_in: accessTokenTtl() });
+});
+app.get('/authorize', (req, res) => {
+  const { response_type, client_id, redirect_uri, state, code_challenge, code_challenge_method } = req.query;
+  const clientId = typeof client_id === 'string' ? client_id : '';
+  const redirectUri = typeof redirect_uri === 'string' ? redirect_uri : '';
+  const client = getClient(clientId);
+
+  if (response_type !== 'code' || !client || !client.redirectUris.includes(redirectUri) || typeof state !== 'string' || typeof code_challenge !== 'string' || code_challenge_method !== 'S256') {
+    return res.status(400).send('Invalid authorization request');
+  }
+  if (!req.isAuthenticated?.() || !req.user?.id) {
+    return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
+  }
+
+  const code = createAuthorizationCode(client, redirectUri, req.user.id, code_challenge);
+  const callback = new URL(redirectUri);
+  callback.searchParams.set('code', code);
+  callback.searchParams.set('state', state);
+  res.redirect(String(callback));
+});
+app.post('/token', express.urlencoded({ extended: false }), async (req, res) => {
+  const { grant_type, code, client_id, client_secret, redirect_uri, code_verifier } = req.body || {};
+  if (grant_type !== 'authorization_code' || [code, client_id, client_secret, redirect_uri, code_verifier].some((value) => typeof value !== 'string')) {
+    return res.status(400).json({ error: 'invalid_request' });
+  }
+  if (!isTokenServiceConfigured()) return res.status(503).json({ error: 'temporarily_unavailable' });
+
+  const authorizationCode = await exchangeAuthorizationCode({ code, clientId: client_id, clientSecret: client_secret, redirectUri: redirect_uri, codeVerifier: code_verifier });
+  if (!authorizationCode) return res.status(400).json({ error: 'invalid_grant' });
+
+  const user = await findByUserId(authorizationCode.userId);
+  if (!user) return res.status(400).json({ error: 'invalid_grant' });
+
+  res.json(await tokenResponse(user, client_id));
+});
+app.get('/.well-known/jwks.json', async (_req, res) => {
+  const jwks = await getJwks();
+  if (!jwks) return res.status(503).send('JWT service is not configured');
+
+  res.set('Cache-Control', 'public, max-age=3600').json(jwks);
+});
+app.get('/userinfo', tokenUser, async (req, res) => {
+  const user = await findByUserId(req.tokenUserId);
+  if (!user) return res.status(404).send('{}');
+
+  res.json(userAsJSON(user));
+});
 app.get('/embed', makeEmbedPage);
 app.get('/me', protectedRoute, getProfile);
 app.get('/auth/google', passport.authenticate('google', googleScopes));
@@ -220,6 +315,7 @@ const serveEsModule = (source) => (req, res) => {
 app.get('/auth.js', serveEsModule(esLibrary));
 app.get('/index.js', serveEsModule(esLibrary));
 app.get('/index.mjs', serveEsModule(esLibrary));
+app.get('/node.mjs', serveEsModule(nodeLibrary));
 app.get('/lib.mjs', serveEsModule(esHelper));
 
 app.put('/properties', protectedRoute, async (req, res) => {

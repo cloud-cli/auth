@@ -119,6 +119,7 @@ function fetchCommand(command, runAfter) {
 }
 
 let ns = location.host;
+const tokens = new Map();
 const getNS = (p) => ns + ":" + p;
 
 export function setNS(newNS) {
@@ -147,6 +148,30 @@ export const signOut = fetchCommand("signOut", () => {
   events.dispatchEvent(new CustomEvent("signout"));
   events.dispatchEvent(new CustomEvent("state", { detail: null }));
 });
+
+export async function getAccessToken(audience) {
+  const cached = tokens.get(audience);
+  if (cached && cached.expiresAt > Date.now() + 30_000) return cached.token;
+
+  const response = await fetch(new URL("/session/token", authDomain), {
+    credentials: "include",
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ audience }),
+  });
+  if (!response.ok) throw new Error(response.status + ": " + response.statusText);
+
+  const result = await response.json();
+  tokens.set(audience, { token: result.access_token, expiresAt: Date.now() + result.expires_in * 1000 });
+  return result.access_token;
+}
+
+export async function authFetch(input, init = {}, { audience }) {
+  const token = await getAccessToken(audience);
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", "Bearer " + token);
+  return fetch(input, { ...init, headers });
+}
 
 async function onload() {
   try {
