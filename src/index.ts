@@ -4,13 +4,13 @@ import { findByUserId, userAsJSON } from './user.js';
 import { User, initStore } from './store.js';
 import session from './session.js';
 import log from './log.js';
-import passport, { googleCallback, githubCallback } from './passport.js';
+import passport, { googleCallback } from './passport.js';
 import { getProperties, removeProperty, getProperty, setProperty } from './properties.js';
 
 const googleSvg = readFileSync('./assets/google.svg', 'utf8');
-const githubSvg = readFileSync('./assets/github.svg', 'utf8');
 const esLibrary = readFileSync('./assets/index.mjs', 'utf8');
 const esHelper = readFileSync('./assets/lib.mjs', 'utf8');
+const openApiSpec = readFileSync('./assets/openapi.json', 'utf8');
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
@@ -77,10 +77,6 @@ function makeLoginPage() {
         <a href="/auth/google" class="bg-white border text-gray-800 px-4 py-2 rounded shadow flex items-center justify-center">
           ${googleSvg}
           Sign in with Google
-        </a>
-        <a href="/auth/github" class="bg-white border mt-4 text-gray-800 px-4 py-2 rounded shadow flex items-center justify-center mt-2">
-          ${githubSvg}
-          Sign in with GitHub
         </a>
       </div>
       <script>
@@ -175,12 +171,6 @@ const googleScopes = {
   successRedirect: '/me',
 };
 
-const githubScopes = {
-  scope: ['repo', 'user'],
-  failureRedirect: '/login',
-  successRedirect: '/me',
-};
-
 const app = express();
 
 app.set('trust proxy', 1);
@@ -212,13 +202,13 @@ app.delete('/', protectedRoute, logout);
 app.get('/login', (_, res) => {
   res.send(makeLoginPage());
 });
+app.get('/api', (_req, res) => {
+  res.type('application/json').send(openApiSpec);
+});
 app.get('/embed', makeEmbedPage);
 app.get('/me', protectedRoute, getProfile);
 app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
-
-app.get('/auth/github', passport.authenticate('github', githubScopes));
-app.get(githubCallback, passport.authenticate('github', githubScopes));
 
 const serveEsModule = (source) => (req, res) => {
   console.log(req.headers);

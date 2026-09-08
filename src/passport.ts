@@ -1,7 +1,6 @@
 import passport, { Profile } from 'passport';
 import { randomUUID } from 'crypto';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as GitHubStrategy } from 'passport-github2';
 import { userAsJSON, findByProfileId, findByUserId } from './user.js';
 import { User } from './store.js';
 
@@ -30,13 +29,8 @@ async function onUserSignIn(accessToken: string, refreshToken: string, profile: 
 }
 
 export const googleCallback = '/auth/google/callback';
-export const githubCallback = '/auth/github/callback';
 
 const authDomain = process.env.AUTH_DOMAIN;
-const githubClientID = process.env.GITHUB_CLIENT_ID || '';
-const githubClientSecret = process.env.GITHUB_CLIENT_SECRET || '';
-const githubCallbackURL = String(new URL(githubCallback, authDomain));
-
 const googleClientID = process.env.GOOGLE_CLIENT_ID || '';
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 const googleCallbackURL = String(new URL(googleCallback, authDomain));
@@ -45,15 +39,6 @@ if (googleClientID && googleClientSecret) {
   passport.use(
     new GoogleStrategy(
       { clientID: googleClientID, clientSecret: googleClientSecret, callbackURL: googleCallbackURL },
-      onUserSignIn,
-    ),
-  );
-}
-
-if (githubClientID && githubClientSecret) {
-  passport.use(
-    new GitHubStrategy(
-      { clientID: githubClientID, clientSecret: githubClientSecret, callbackURL: githubCallbackURL },
       onUserSignIn,
     ),
   );

@@ -1,0 +1,402 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Cloud CLI Auth API",
+    "version": "1.0.0",
+    "description": "Google-authenticated session and user-property API. Browser requests must include session cookies."
+  },
+  "servers": [
+    {
+      "url": "https://auth.api.apphor.de"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Properties"
+    },
+    {
+      "name": "Browser client"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get the current user",
+        "responses": {
+          "200": {
+            "description": "Current authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Authenticated user no longer exists"
+          }
+        }
+      },
+      "head": {
+        "tags": ["Authentication"],
+        "summary": "Check whether the current session is authenticated",
+        "responses": {
+          "204": {
+            "description": "Authenticated"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Authentication"],
+        "summary": "Sign out the current user",
+        "responses": {
+          "202": {
+            "description": "Signed out"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "description": "Sign-out failed"
+          }
+        }
+      }
+    },
+    "/login": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Show the Google sign-in page",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "description": "Optional URL to return to after sign-in",
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML sign-in page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Show the current user's profile page",
+        "responses": {
+          "200": {
+            "description": "HTML profile page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
+        }
+      }
+    },
+    "/auth/google": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Start Google OAuth sign-in",
+        "responses": {
+          "302": {
+            "description": "Redirect to Google"
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Handle the Google OAuth callback",
+        "responses": {
+          "302": {
+            "description": "Redirect to the profile page after a successful sign-in"
+          }
+        }
+      }
+    },
+    "/properties": {
+      "get": {
+        "tags": ["Properties"],
+        "summary": "List the current user's properties",
+        "responses": {
+          "200": {
+            "description": "Properties",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Property"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Properties"],
+        "summary": "Create or update a property for the current user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PropertyInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved property",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Property"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "description": "Invalid input or storage failure"
+          }
+        }
+      }
+    },
+    "/properties/{key}": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": ["Properties"],
+        "summary": "Get a property for the current user",
+        "responses": {
+          "200": {
+            "description": "Property",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Property"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Property not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Properties"],
+        "summary": "Delete a property for the current user",
+        "responses": {
+          "202": {
+            "description": "Property deleted"
+          },
+          "400": {
+            "description": "Missing property key"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "description": "Storage failure"
+          }
+        }
+      }
+    },
+    "/embed": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Serve the hidden-frame browser RPC bridge",
+        "responses": {
+          "200": {
+            "description": "JavaScript module",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/index.mjs": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Serve the browser authentication ES module",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module",
+            "content": {
+              "text/javascript": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/index.js": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Alias for the browser authentication ES module",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module"
+          }
+        }
+      }
+    },
+    "/auth.js": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Alias for the browser authentication ES module",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module"
+          }
+        }
+      }
+    },
+    "/lib.mjs": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Serve the browser RPC helper module",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module"
+          }
+        }
+      }
+    },
+    "/api": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Get this OpenAPI document",
+        "responses": {
+          "200": {
+            "description": "OpenAPI document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "email", "photo"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "photo": {
+            "type": "string"
+          }
+        }
+      },
+      "PropertyInput": {
+        "type": "object",
+        "required": ["key", "value"],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "Property": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PropertyInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "uid": {
+                "type": "string"
+              },
+              "userId": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "responses": {
+      "Unauthenticated": {
+        "description": "No authenticated session"
+      }
+    }
+  }
+}

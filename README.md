@@ -42,6 +42,8 @@ docker run --name 'auth' --detach \
 
 ## RESTful API
 
+The OpenAPI 3.1 document is served at `GET /api`.
+
 *GET /:
 
 Returns a JSON with `{ id, displayName, photo, properties }`
