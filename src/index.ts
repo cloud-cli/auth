@@ -6,18 +6,53 @@ import session from './session.js';
 import log from './log.js';
 import passport, { googleCallback } from './passport.js';
 import { getProperties, removeProperty, getProperty, setProperty } from './properties.js';
-import { accessTokenTtl, createAccessToken, getJwks, isAllowedAudience, isTokenServiceConfigured, verifyAccessToken } from './token.js';
+import {
+  accessTokenTtl,
+  createAccessToken,
+  getJwks,
+  isAllowedAudience,
+  isTokenServiceConfigured,
+  verifyAccessToken,
+} from './token.js';
 import { createAuthorizationCode, exchangeAuthorizationCode, getClient, isOidcClient, tokenResponse } from './oidc.js';
-import { authenticate, authenticationOptions, listAuthenticators, registrationOptions, registerAuthenticator, revokeAuthenticator } from './webauthn.js';
+import {
+  authenticate,
+  authenticationOptions,
+  listAuthenticators,
+  registrationOptions,
+  registerAuthenticator,
+  revokeAuthenticator,
+} from './webauthn.js';
 import { consumeRecoveryCode, replaceRecoveryCodes } from './recovery.js';
-import { approveQrLogin, completeQrLogin, denyQrLogin, qrLoginDetails, qrLoginOrigin, qrLoginPage } from './qr-login.js';
+import {
+  approveQrLogin,
+  completeQrLogin,
+  denyQrLogin,
+  qrLoginDetails,
+  qrLoginOrigin,
+  qrLoginPage,
+} from './qr-login.js';
 
 const esLibrary = readFileSync('./assets/index.mjs', 'utf8');
 const esHelper = readFileSync('./assets/lib.mjs', 'utf8');
 const nodeLibrary = readFileSync('./assets/node.mjs', 'utf8');
 const openApiSpec = readFileSync('./assets/openapi.json', 'utf8');
 const pwaServiceWorker = readFileSync('./assets/pwa-sw.js', 'utf8');
-const uiAssets = Object.fromEntries(['login.html', 'passkey.html', 'recovery.html', 'profile.html', 'qr-login.html', 'pwa.html', 'app.mjs', 'pwa.mjs', 'styles.css', 'embed.html', 'embed.mjs'].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]));
+const uiAssets = Object.fromEntries(
+  [
+    'login.html',
+    'passkey.html',
+    'recovery.html',
+    'profile.html',
+    'qr-login.html',
+    'pwa.html',
+    'app.mjs',
+    'pwa.mjs',
+    'styles.css',
+    'embed.html',
+    'embed.mjs',
+  ].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]),
+);
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
@@ -75,7 +110,12 @@ async function tokenUser(req, res, next) {
 
 function sessionTokenCors(req, res, next) {
   const origin = req.get('origin');
-  const allowedOrigins = new Set((process.env.AUTH_ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean));
+  const allowedOrigins = new Set(
+    (process.env.AUTH_ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
 
   if (!origin || !allowedOrigins.has(origin)) return res.status(403).send('');
 
@@ -181,14 +221,32 @@ app.post('/qr-login/deny', express.json(), protectedRoute, (req, res) => {
   }
 });
 app.get('/pwa/', serveUi('pwa.html'));
-app.get('/pwa/sw.js', (_req, res) => res.type('javascript').set('Service-Worker-Allowed', '/pwa/').send(pwaServiceWorker));
-app.get('/pwa/manifest.webmanifest', (_req, res) => res.type('application/manifest+json').json({ name: 'Auth', short_name: 'Auth', start_url: '/pwa/', display: 'standalone', background_color: '#f3f4f6', theme_color: '#111827', scope: '/pwa/' }));
+app.get('/pwa/sw.js', (_req, res) =>
+  res.type('javascript').set('Service-Worker-Allowed', '/pwa/').send(pwaServiceWorker),
+);
+app.get('/pwa/manifest.webmanifest', (_req, res) =>
+  res
+    .type('application/manifest+json')
+    .json({
+      name: 'Auth',
+      short_name: 'Auth',
+      start_url: '/pwa/',
+      display: 'standalone',
+      background_color: '#f3f4f6',
+      theme_color: '#111827',
+      scope: '/pwa/',
+    }),
+);
 app.get('/webauthn/register/options', protectedRoute, async (req, res) => {
   res.json(await registrationOptions(req.user!.id));
 });
 app.post('/webauthn/register/verify', express.json(), protectedRoute, async (req, res) => {
   try {
-    const authenticator = await registerAuthenticator(req.user!.id, req.body, typeof req.body?.label === 'string' ? req.body.label : 'Passkey');
+    const authenticator = await registerAuthenticator(
+      req.user!.id,
+      req.body,
+      typeof req.body?.label === 'string' ? req.body.label : 'Passkey',
+    );
     res.status(201).json({ credentialId: authenticator.credentialId, label: authenticator.label });
   } catch (error) {
     res.status(400).json({ error: String(error) });
@@ -196,7 +254,11 @@ app.post('/webauthn/register/verify', express.json(), protectedRoute, async (req
 });
 app.get('/webauthn/authentication/options', async (req, res) => {
   const loginHint = typeof req.query.login_hint === 'string' ? req.query.login_hint : '';
-  const user = loginHint ? (loginHint.includes('@') ? await findByEmail(loginHint) : await findByUserId(loginHint)) : null;
+  const user = loginHint
+    ? loginHint.includes('@')
+      ? await findByEmail(loginHint)
+      : await findByUserId(loginHint)
+    : null;
   res.json(await authenticationOptions(user?.userId));
 });
 app.post('/webauthn/authentication/verify', express.json(), async (req, res) => {
@@ -214,7 +276,16 @@ app.post('/webauthn/authentication/verify', express.json(), async (req, res) => 
 });
 app.get('/webauthn/credentials', protectedRoute, async (req, res) => {
   const authenticators = await listAuthenticators(req.user!.id);
-  res.json(authenticators.map(({ credentialId, label, transports, createdAt, lastUsedAt, revokedAt }) => ({ credentialId, label, transports, createdAt, lastUsedAt, revokedAt })));
+  res.json(
+    authenticators.map(({ credentialId, label, transports, createdAt, lastUsedAt, revokedAt }) => ({
+      credentialId,
+      label,
+      transports,
+      createdAt,
+      lastUsedAt,
+      revokedAt,
+    })),
+  );
 });
 app.post('/recovery-codes', express.json(), protectedRoute, async (req, res) => {
   const user = await findByUserId(req.user!.id);
@@ -225,8 +296,9 @@ app.delete('/webauthn/credentials/:credentialId', protectedRoute, async (req, re
   const revoked = await revokeAuthenticator(req.user!.id, req.params.credentialId);
   res.sendStatus(revoked ? 204 : 404);
 });
-app.get('/api', (_req, res) => {
-  res.type('application/json').send(openApiSpec);
+app.get('/api', (req, res) => {
+  const host = req.headers['x-forwarded-host'] || req.host;
+  res.type('application/json').send(openApiSpec.replace('__HOSTNAME__', host));
 });
 app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
 app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
@@ -234,7 +306,11 @@ app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, asy
   if (!isTokenServiceConfigured()) return res.status(503).send('JWT service is not configured');
   if (!isAllowedAudience(audience)) return res.status(400).send('Invalid audience');
 
-  res.json({ access_token: await createAccessToken(req.user!.id, audience), token_type: 'Bearer', expires_in: accessTokenTtl() });
+  res.json({
+    access_token: await createAccessToken(req.user!.id, audience),
+    token_type: 'Bearer',
+    expires_in: accessTokenTtl(),
+  });
 });
 app.get('/authorize', (req, res) => {
   const { response_type, client_id, redirect_uri, state, code_challenge, code_challenge_method } = req.query;
@@ -242,7 +318,14 @@ app.get('/authorize', (req, res) => {
   const redirectUri = typeof redirect_uri === 'string' ? redirect_uri : '';
   const client = getClient(clientId);
 
-  if (response_type !== 'code' || !client || !client.redirectUris.includes(redirectUri) || typeof state !== 'string' || typeof code_challenge !== 'string' || code_challenge_method !== 'S256') {
+  if (
+    response_type !== 'code' ||
+    !client ||
+    !client.redirectUris.includes(redirectUri) ||
+    typeof state !== 'string' ||
+    typeof code_challenge !== 'string' ||
+    code_challenge_method !== 'S256'
+  ) {
     return res.status(400).send('Invalid authorization request');
   }
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -257,12 +340,21 @@ app.get('/authorize', (req, res) => {
 });
 app.post('/token', express.urlencoded({ extended: false }), async (req, res) => {
   const { grant_type, code, client_id, client_secret, redirect_uri, code_verifier } = req.body || {};
-  if (grant_type !== 'authorization_code' || [code, client_id, client_secret, redirect_uri, code_verifier].some((value) => typeof value !== 'string')) {
+  if (
+    grant_type !== 'authorization_code' ||
+    [code, client_id, client_secret, redirect_uri, code_verifier].some((value) => typeof value !== 'string')
+  ) {
     return res.status(400).json({ error: 'invalid_request' });
   }
   if (!isTokenServiceConfigured()) return res.status(503).json({ error: 'temporarily_unavailable' });
 
-  const authorizationCode = await exchangeAuthorizationCode({ code, clientId: client_id, clientSecret: client_secret, redirectUri: redirect_uri, codeVerifier: code_verifier });
+  const authorizationCode = await exchangeAuthorizationCode({
+    code,
+    clientId: client_id,
+    clientSecret: client_secret,
+    redirectUri: redirect_uri,
+    codeVerifier: code_verifier,
+  });
   if (!authorizationCode) return res.status(400).json({ error: 'invalid_grant' });
 
   const user = await findByUserId(authorizationCode.userId);
@@ -303,7 +395,19 @@ app.get('/ui/google.svg', (_req, res) => res.type('image/svg+xml').send(readFile
 app.get('/ui/:asset', (req, res) => {
   const asset = uiAssets[req.params.asset];
   if (!asset) return res.sendStatus(404);
-  res.type(req.params.asset.endsWith('.css') ? 'text/css' : 'text/javascript').send(req.params.asset === 'embed.mjs' ? asset.replace('__EMBED_ALLOWED_ORIGINS__', JSON.stringify((process.env.EMBED_ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean))) : asset);
+  res.type(req.params.asset.endsWith('.css') ? 'text/css' : 'text/javascript').send(
+    req.params.asset === 'embed.mjs'
+      ? asset.replace(
+          '__EMBED_ALLOWED_ORIGINS__',
+          JSON.stringify(
+            (process.env.EMBED_ALLOWED_ORIGINS || '')
+              .split(',')
+              .map((value) => value.trim())
+              .filter(Boolean),
+          ),
+        )
+      : asset,
+  );
 });
 
 app.put('/properties', protectedRoute, async (req, res) => {

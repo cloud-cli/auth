@@ -4,22 +4,22 @@ Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved p
 
 ## Env
 
-| name                  | description                                        | required |
-|-----------------------|----------------------------------------------------|----------|
-| PORT                  | http server port                                   | true     |
-| GOOGLE_CLIENT_ID      | OAuth client id                                    | true     |
-| GOOGLE_CLIENT_SECRET  | OAuth client secret                                | true     |
-| AUTH_DOMAIN           | Authentication host, e.g. https://auth.foo.com     | true     |
-| SESSION_DOMAIN        | Domain to use for session cookie, e.g foo.com      | false    |
-| SESSION_SECRET        | Session secret, used to store the user session     | true     |
-| STORE_URL             | URL of store endpoint for [@cloud-cli/store](https://github.com/cloud-cli/store).        | true     |
-| JWT_PRIVATE_KEY       | PEM-encoded RSA private key used for JWT signing   | for JWTs |
-| JWT_AUDIENCES         | Comma-separated allowed JWT audiences               | for JWTs |
-| JWT_KEY_ID            | Signing key ID, defaults to `auth-1`               | false    |
-| JWT_TTL_SECONDS       | JWT lifetime from 60 to 900 seconds, defaults to 300 | false |
-| AUTH_ALLOWED_ORIGINS  | Comma-separated browser origins allowed to request JWTs | for browser JWTs |
-| OIDC_CLIENTS          | JSON client registry with `id`, `secret`, and `redirectUris` | for OIDC |
-| AUTH_NAME             | Relying-party name shown during passkey registration | false |
+| name                 | description                                                                       | required         |
+| -------------------- | --------------------------------------------------------------------------------- | ---------------- |
+| PORT                 | http server port                                                                  | true             |
+| GOOGLE_CLIENT_ID     | OAuth client id                                                                   | true             |
+| GOOGLE_CLIENT_SECRET | OAuth client secret                                                               | true             |
+| AUTH_DOMAIN          | Authentication host, e.g. https://auth.foo.com                                    | true             |
+| SESSION_DOMAIN       | Domain to use for session cookie, e.g foo.com                                     | false            |
+| SESSION_SECRET       | Session secret, used to store the user session                                    | true             |
+| STORE_URL            | URL of store endpoint for [@cloud-cli/store](https://github.com/cloud-cli/store). | true             |
+| JWT_PRIVATE_KEY      | PEM-encoded RSA private key used for JWT signing                                  | for JWTs         |
+| JWT_AUDIENCES        | Comma-separated allowed JWT audiences                                             | for JWTs         |
+| JWT_KEY_ID           | Signing key ID, defaults to `auth-1`                                              | false            |
+| JWT_TTL_SECONDS      | JWT lifetime from 60 to 900 seconds, defaults to 300                              | false            |
+| AUTH_ALLOWED_ORIGINS | Comma-separated browser origins allowed to request JWTs                           | for browser JWTs |
+| OIDC_CLIENTS         | JSON client registry with `id`, `secret`, and `redirectUris`                      | for OIDC         |
+| AUTH_NAME            | Relying-party name shown during passkey registration                              | false            |
 
 `AUTH_DOMAIN` must use HTTPS in production. WebAuthn, camera access, and the installable PWA require a secure context.
 
@@ -29,7 +29,7 @@ Get the client ID and secret from [Google API console](https://console.cloud.goo
 - Authorized redirect URI's: `AUTH_DOMAIN` + "/auth/google/callback".
 
 Set SESSION_DOMAIN to the domain root in which authentication will be used. For example, "foo.com" will
-set authentication for any *.foo.com domain, using a common cookie.
+set authentication for any \*.foo.com domain, using a common cookie.
 
 For `fetch` requests, add `{ credentials: 'include' }` to the request options to include the session.
 
@@ -89,7 +89,7 @@ This minimal server works on an unrelated domain such as `todo.example.com`. It 
 import { createServer } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
-const authSource = await (await fetch('https://auth.api.apphor.de/node.mjs')).text();
+const authSource = await (await fetch('https://auth.example.com/node.mjs')).text();
 const { createAuthClient } = await import(`data:text/javascript,${encodeURIComponent(authSource)}`);
 
 const redirectUri = 'https://todo.example.com/auth/callback';
@@ -97,7 +97,10 @@ const auth = createAuthClient({ clientId: 'todo' });
 const sessions = new Map(); // Use a persistent session store in production.
 
 function setCookie(response, name, value, maxAge) {
-  response.setHeader('Set-Cookie', `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`);
+  response.setHeader(
+    'Set-Cookie',
+    `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`,
+  );
 }
 
 function redirect(response, url) {
@@ -150,7 +153,7 @@ createServer(async (request, response) => {
   }
 
   if (url.pathname === '/shared-only') {
-    // For *.apphor.de only: validates the central connect.sid session cookie.
+    // For *.example.com only: validates the central connect.sid session cookie.
     const user = await auth.requireSession(request, response);
     if (!user) return;
     response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(user));
@@ -160,7 +163,7 @@ createServer(async (request, response) => {
   if (url.pathname === '/central-session') {
     // These three helpers are alternatives to requireSession when custom handling is needed.
     const centralCookie = auth.getSessionCookie(request);
-    const authenticated = centralCookie && await auth.isSessionAuthenticated(request);
+    const authenticated = centralCookie && (await auth.isSessionAuthenticated(request));
     const user = authenticated ? await auth.getSessionProfile(request) : null;
     if (!user) {
       response.writeHead(401).end('Authentication required');
@@ -183,36 +186,36 @@ createServer(async (request, response) => {
 
 `auth.getSessionCookie(request)` returns the central `connect.sid` cookie value that `getSessionProfile`, `isSessionAuthenticated`, and `requireSession` forward to the auth API. These helpers are only useful when the incoming request already contains the shared auth cookie. The example's `todo.sid` is an application-owned session cookie and cannot be forwarded to the auth API.
 
-*GET /:
+\*GET /:
 
 Returns a JSON with `{ id, displayName, photo, properties }`
 
-*DELETE /*:
+_DELETE /_:
 
 Deletes the current session
 
-*HEAD /*:
+_HEAD /_:
 
 Returns 204 if authenticated, 401 if not
 
-*GET /login?url=xxx*:
+_GET /login?url=xxx_:
 
 Browser login page. Optionally, redirects after login
 
-*GET /me*:
+_GET /me_:
 
 Profile page of currently logged in user
 
-*PUT /properties*:
+_PUT /properties_:
 
 Add a property to current user.
 Request body is a JSON with `{ key, value }`
 
-*DELETE /properties/:key*:
+_DELETE /properties/:key_:
 
 Delete user property
 
-*GET /properties*:
+_GET /properties_:
 
 Get all user properties
 
@@ -227,5 +230,4 @@ await setProperty('foo', 'yes');
 const foo = await getProperty('foo'); // yes
 await deleteProperty('foo');
 console.log(await getProperties(), await getProfile());
-
 ```

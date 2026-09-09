@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://auth.api.apphor.de"
+      "url": "__HOSTNAME__"
     }
   ],
   "tags": [
@@ -401,7 +401,12 @@
           { "name": "redirect_uri", "in": "query", "required": true, "schema": { "type": "string", "format": "uri" } },
           { "name": "state", "in": "query", "required": true, "schema": { "type": "string" } },
           { "name": "code_challenge", "in": "query", "required": true, "schema": { "type": "string" } },
-          { "name": "code_challenge_method", "in": "query", "required": true, "schema": { "type": "string", "const": "S256" } }
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "const": "S256" }
+          }
         ],
         "responses": {
           "302": { "description": "Redirect to sign-in or the registered callback with code and state" },
@@ -554,9 +559,7 @@
       "get": {
         "tags": ["Authentication"],
         "summary": "Create passkey authentication options",
-        "parameters": [
-          { "name": "login_hint", "in": "query", "required": false, "schema": { "type": "string" } }
-        ],
+        "parameters": [{ "name": "login_hint", "in": "query", "required": false, "schema": { "type": "string" } }],
         "responses": { "200": { "description": "WebAuthn authentication options" } }
       }
     },
@@ -576,7 +579,10 @@
         "tags": ["Authentication"],
         "summary": "List the current user's passkeys",
         "responses": {
-          "200": { "description": "Registered passkeys", "content": { "application/json": { "schema": { "type": "array" } } } },
+          "200": {
+            "description": "Registered passkeys",
+            "content": { "application/json": { "schema": { "type": "array" } } }
+          },
           "401": { "$ref": "#/components/responses/Unauthenticated" }
         }
       }
@@ -585,9 +591,7 @@
       "delete": {
         "tags": ["Authentication"],
         "summary": "Revoke one of the current user's passkeys",
-        "parameters": [
-          { "name": "credentialId", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
+        "parameters": [{ "name": "credentialId", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
           "204": { "description": "Passkey revoked" },
           "404": { "description": "Passkey not found" },
@@ -600,7 +604,17 @@
         "tags": ["Authentication"],
         "summary": "Generate a new set of one-time recovery codes",
         "responses": {
-          "200": { "description": "Recovery codes, shown once", "content": { "application/json": { "schema": { "type": "object", "properties": { "codes": { "type": "array", "items": { "type": "string" } } } } } } },
+          "200": {
+            "description": "Recovery codes, shown once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "codes": { "type": "array", "items": { "type": "string" } } }
+                }
+              }
+            }
+          },
           "401": { "$ref": "#/components/responses/Unauthenticated" }
         }
       }
@@ -609,9 +623,7 @@
       "get": {
         "tags": ["Authentication"],
         "summary": "Create a QR login approval transaction",
-        "parameters": [
-          { "name": "url", "in": "query", "required": false, "schema": { "type": "string" } }
-        ],
+        "parameters": [{ "name": "url", "in": "query", "required": false, "schema": { "type": "string" } }],
         "responses": { "200": { "description": "Transaction token, QR data URL, and PWA URL" } }
       }
     },
@@ -619,36 +631,69 @@
       "get": {
         "tags": ["Authentication"],
         "summary": "Poll a laptop QR login transaction",
-        "parameters": [
-          { "name": "transaction", "in": "query", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": { "200": { "description": "Pending, denied, or approved transaction" }, "410": { "description": "Expired transaction" } }
+        "parameters": [{ "name": "transaction", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Pending, denied, or approved transaction" },
+          "410": { "description": "Expired transaction" }
+        }
       }
     },
     "/qr-login/details": {
       "get": {
         "tags": ["Authentication"],
         "summary": "Read a QR login transaction from an authenticated phone",
-        "parameters": [
-          { "name": "transaction", "in": "query", "required": true, "schema": { "type": "string" } }
-        ],
-        "responses": { "200": { "description": "Login details" }, "401": { "$ref": "#/components/responses/Unauthenticated" }, "410": { "description": "Expired transaction" } }
+        "parameters": [{ "name": "transaction", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Login details" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "410": { "description": "Expired transaction" }
+        }
       }
     },
     "/qr-login/approve": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Approve a QR login from the authenticated phone",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["transaction"], "properties": { "transaction": { "type": "string" } } } } } },
-        "responses": { "204": { "description": "Approved" }, "401": { "$ref": "#/components/responses/Unauthenticated" }, "410": { "description": "Expired transaction" } }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["transaction"],
+                "properties": { "transaction": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Approved" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "410": { "description": "Expired transaction" }
+        }
       }
     },
     "/qr-login/deny": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Deny a QR login from the authenticated phone",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["transaction"], "properties": { "transaction": { "type": "string" } } } } } },
-        "responses": { "204": { "description": "Denied" }, "401": { "$ref": "#/components/responses/Unauthenticated" }, "410": { "description": "Expired transaction" } }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["transaction"],
+                "properties": { "transaction": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Denied" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "410": { "description": "Expired transaction" }
+        }
       }
     },
     "/pwa/": {

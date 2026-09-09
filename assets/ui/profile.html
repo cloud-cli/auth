@@ -1,1 +1,55 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your account</title><link rel="stylesheet" href="/ui/styles.css"><script type="importmap">{"imports":{"@li3/":"https://cdn.li3.dev/@li3/"}}</script><script type="module" src="/ui/app.mjs"></script></head><body data-page="profile"><template app><main class="shell profile"><header><a class="brand" href="/me">apphor<span>auth</span></a><button class="text-button" on-click="signOut()">Sign out</button></header><section class="identity"><img attr-src="user.photo" alt="" class="avatar"><div><span class="eyebrow">ACCOUNT SECURITY</span><h1>Hello, {{ user.name }}</h1><p>{{ user.email }}</p></div></section><section class="panel"><div><h2>Passkeys</h2><p class="muted">Add a passkey to sign in without Google.</p></div><button class="button dark small" on-click="addPasskey()">Add passkey</button><div class="list"><template for="key of passkeys"><article><div><strong>{{ key.label }}</strong><span>Last used {{ key.lastUsedAt || 'never' }}</span></div><button class="text-button danger" on-click="revoke(key.credentialId)">Revoke</button></article></template></div></section><section class="panel"><div><h2>Recovery codes</h2><p class="muted">Generate ten offline backup codes. New codes replace the old set.</p></div><button class="button light small" on-click="recoveryCodes()">Generate codes</button><pre class-codes="codes">{{ codes }}</pre></section></main><script setup src="/ui/app.mjs"></script></template></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Your account</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+    <script type="importmap">
+      { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
+    </script>
+    <script type="module" src="/ui/app.mjs"></script>
+  </head>
+  <body data-page="profile">
+    <template app
+      ><main class="shell profile">
+        <header>
+          <a class="brand" href="/me"><span>auth</span></a
+          ><button class="text-button" on-click="signOut()">Sign out</button>
+        </header>
+        <section class="identity">
+          <img attr-src="user.photo" alt="" class="avatar" />
+          <div>
+            <span class="eyebrow">ACCOUNT SECURITY</span>
+            <h1>Hello, {{ user.name }}</h1>
+            <p>{{ user.email }}</p>
+          </div>
+        </section>
+        <section class="panel">
+          <div>
+            <h2>Passkeys</h2>
+            <p class="muted">Add a passkey to sign in without Google.</p>
+          </div>
+          <button class="button dark small" on-click="addPasskey()">Add passkey</button>
+          <div class="list">
+            <template for="key of passkeys"
+              ><article>
+                <div><strong>{{ key.label }}</strong><span>Last used {{ key.lastUsedAt || 'never' }}</span></div>
+                <button class="text-button danger" on-click="revoke(key.credentialId)">Revoke</button>
+              </article></template
+            >
+          </div>
+        </section>
+        <section class="panel">
+          <div>
+            <h2>Recovery codes</h2>
+            <p class="muted">Generate ten offline backup codes. New codes replace the old set.</p>
+          </div>
+          <button class="button light small" on-click="recoveryCodes()">Generate codes</button>
+          <pre class-codes="codes">{{ codes }}</pre>
+        </section>
+      </main>
+      <script setup src="/ui/app.mjs"></script
+    ></template>
+  </body>
+</html>
