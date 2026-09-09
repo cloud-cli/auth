@@ -4,6 +4,7 @@ import { deleteProperty, generateRecoveryCodes, getPasskeys, getProperties, regi
 
 const page = document.body.dataset.page;
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
+document.querySelectorAll('lucide-icon[icon="trash-2"]').forEach((icon) => icon.setAttribute('icon', 'trash'));
 
 export default function () {
   const busy = ref(false);
@@ -50,6 +51,13 @@ export default function () {
     const [keys, storedProperties] = await Promise.all([getPasskeys(), getProperties()]);
     passkeys.value = keys.filter((key) => !key.revokedAt);
     properties.value = storedProperties;
+    setTimeout(() => {
+      document.querySelectorAll('button').forEach((button) => {
+        if (button.textContent.trim() !== 'Revoke') return;
+        button.className = 'grid h-10 w-10 place-items-center rounded-xl text-rose-600 hover:bg-rose-50';
+        button.innerHTML = '<lucide-icon icon="trash" size="18"></lucide-icon><span class="sr-only">Revoke passkey</span>';
+      });
+    }, 10);
   }
 
   async function addPasskey() {
