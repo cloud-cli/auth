@@ -292,6 +292,17 @@
         }
       }
     },
+    "/dashboard.mjs": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Serve the Auth dashboard WebAuthn management module",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module"
+          }
+        }
+      }
+    },
     "/index.js": {
       "get": {
         "tags": ["Browser client"],

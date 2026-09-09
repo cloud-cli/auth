@@ -34,6 +34,7 @@ import {
 } from './qr-login.js';
 
 const esLibrary = readFileSync('./assets/index.mjs', 'utf8');
+const dashboardLibrary = readFileSync('./assets/dashboard.mjs', 'utf8');
 const esHelper = readFileSync('./assets/lib.mjs', 'utf8');
 const nodeLibrary = readFileSync('./assets/node.mjs', 'utf8');
 const openApiSpec = readFileSync('./assets/openapi.json', 'utf8');
@@ -411,6 +412,7 @@ const serveEsModule = (source) => (req, res) => {
 app.get('/auth.js', serveEsModule(esLibrary));
 app.get('/index.js', serveEsModule(esLibrary));
 app.get('/index.mjs', serveEsModule(esLibrary));
+app.get('/dashboard.mjs', serveEsModule(dashboardLibrary));
 app.get('/node.mjs', serveEsModule(nodeLibrary));
 app.get('/lib.mjs', serveEsModule(esHelper));
 app.get('/ui/google.svg', (_req, res) => res.type('image/svg+xml').send(readFileSync('./assets/google.svg', 'utf8')));

@@ -80,6 +80,8 @@ The API server contains no HTML. Pages are static Li3 apps under `assets/ui/` an
 
 `GET /node.mjs` provides `createAuthClient({ clientId })` for Node.js services. It creates PKCE authorization requests, exchanges callbacks, verifies JWTs locally through the JWKS endpoint, and obtains the user's public profile.
 
+`GET /index.mjs` is the consumer browser client: sign-in state, profile, user properties, and temporary API tokens. WebAuthn credential management is intentionally isolated in `GET /dashboard.mjs` for the Auth dashboard UI.
+
 For sibling domains that receive the shared auth cookie, it also provides `getSessionProfile(request)`, `isSessionAuthenticated(request)`, and `requireSession(request, response)`. These forward only the configured session cookie to the auth API. They do not work across unrelated domains; use the OIDC authorization-code flow there.
 
 ### Node.js HTTP server

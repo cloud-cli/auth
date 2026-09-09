@@ -1,6 +1,6 @@
 import '@li3/web';
 import { ref, templateRef } from '@li3/web';
-import { generateRecoveryCodes, getPasskeys, registerPasskey, revokePasskey, signInWithPasskey } from '/index.mjs';
+import { generateRecoveryCodes, getPasskeys, registerPasskey, revokePasskey, signInWithPasskey } from '/dashboard.mjs';
 
 const page = document.body.dataset.page;
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
