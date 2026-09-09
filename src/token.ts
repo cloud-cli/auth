@@ -44,7 +44,23 @@ function decryptPrivateKey(value: string) {
 }
 
 export async function initializeSigningKeys() {
-  const keys = await Resource.find(SigningKey, new Query<SigningKey>());
+  let keys = await Resource.find(SigningKey, new Query<SigningKey>());
+  const now = Date.now();
+  const activeKeys = keys.filter((key) => key.status === 'active').sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  if (activeKeys.length > 1) {
+    for (const duplicate of activeKeys.slice(1)) {
+      duplicate.status = 'retiring';
+      await duplicate.save();
+    }
+  }
+  for (const key of keys.filter((item) => item.status === 'retiring' && Date.parse(item.createdAt) + Math.max(ttl, 900) * 1000 < now)) {
+    await key.remove();
+  }
+  keys = await Resource.find(SigningKey, new Query<SigningKey>());
+  if (!keys.some((key) => key.status === 'active') && keys.length) {
+    const newest = keys.filter((key) => key.status !== 'revoked').sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+    if (newest) { newest.status = 'active'; await newest.save(); }
+  }
   if (!keys.length && privateKeyPem && encryptionKey?.length === 32) {
     const publicKey = createPublicKey(privateKeyPem.replace(/\\n/g, '\n')).export({ type: 'spki', format: 'pem' }).toString();
     await new SigningKey({ kid: keyId, encryptedPrivateKey: encryptPrivateKey(privateKeyPem), publicKey, status: 'active', createdAt: new Date().toISOString() }).save();
@@ -52,16 +68,16 @@ export async function initializeSigningKeys() {
   const stored = await Resource.find(SigningKey, new Query<SigningKey>());
   verificationKeys.clear();
   for (const key of stored.filter((item) => item.status !== 'revoked')) verificationKeys.set(key.kid, await importSPKI(key.publicKey, 'RS256'));
-  const active = stored.find((item) => item.status === 'active');
-  if (active) {
-    signingKey = await importPKCS8(decryptPrivateKey(active.encryptedPrivateKey), 'RS256');
-    verificationKey = verificationKeys.get(active.kid);
+  const activeKey = stored.find((item) => item.status === 'active');
+  if (activeKey) {
+    signingKey = await importPKCS8(decryptPrivateKey(activeKey.encryptedPrivateKey), 'RS256');
+    verificationKey = verificationKeys.get(activeKey.kid);
   }
 }
 
 export async function listSigningKeys() {
   const keys = await Resource.find(SigningKey, new Query<SigningKey>());
-  return keys.map(({ kid, status, createdAt }) => ({ kid, status, createdAt }));
+  return keys.map(({ kid, status, createdAt }) => ({ kid, status, createdAt })).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
 export async function rotateSigningKey() {

@@ -188,7 +188,7 @@ export default function () {
     getAuditEvents().then((value) => audit.value = value).catch(() => {});
     getOidcClients().then((value) => clients.value = value).catch(() => {});
   }
-  if (page === 'profile') mountNavigation().catch((reason) => setMessage(reason.message, true));
+  // The profile document declares the navigation component directly.
   if (page === 'oidc') getOidcClients().then((value) => clients.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'audit') getAuditEvents().then((value) => audit.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
