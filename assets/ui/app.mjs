@@ -55,6 +55,19 @@ export default function () {
     const [keys, storedProperties] = await Promise.all([getPasskeys(), getProperties()]);
     passkeys.value = keys.filter((key) => !key.revokedAt);
     properties.value = storedProperties;
+    const access = await fetch('/oidc/access', { credentials: 'include' });
+    if (access.ok && (await access.json()).admin) {
+      setTimeout(() => {
+        const header = document.querySelector('header');
+        if (!header || header.querySelector('[data-oidc-link]')) return;
+        const link = document.createElement('a');
+        link.href = '/oidc';
+        link.dataset.oidcLink = 'true';
+        link.className = 'font-semibold text-violet';
+        link.textContent = 'OIDC apps';
+        header.prepend(link);
+      }, 10);
+    }
     setTimeout(() => {
       document.querySelectorAll('button').forEach((button) => {
         if (button.textContent.trim() !== 'Revoke') return;

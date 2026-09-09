@@ -147,9 +147,12 @@ function browserCors(req, res, next) {
 }
 
 function adminRoute(req, res, next) {
-  const admins = (process.env.OIDC_ADMIN_USER_IDS || '').split(',').map((value) => value.trim()).filter(Boolean);
-  if (!req.isAuthenticated?.() || !req.user?.id || !admins.includes(req.user.id)) return res.status(403).send('');
+  if (!req.isAuthenticated?.() || !isOidcAdmin(req.user?.id)) return res.status(403).send('');
   next();
+}
+
+function isOidcAdmin(userId: string | undefined) {
+  return Boolean(userId && (process.env.OIDC_ADMIN_USER_IDS || '').split(',').map((value) => value.trim()).includes(userId));
 }
 
 function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
@@ -214,6 +217,7 @@ app.get('/login', (req, res) => {
 app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
 app.get('/oidc', adminRoute, serveUi('oidc.html'));
+app.get('/oidc/access', protectedRoute, (req, res) => res.json({ admin: isOidcAdmin(req.user!.id) }));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
   if (!user) return res.status(401).send('Invalid recovery code');

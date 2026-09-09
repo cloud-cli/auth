@@ -409,6 +409,13 @@
         "responses": { "201": { "description": "Client and one-time secret" }, "400": { "description": "Invalid client" }, "403": { "description": "Administrator access required" } }
       }
     },
+    "/oidc/access": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Check whether the current user can manage OIDC clients",
+        "responses": { "200": { "description": "Administrator access state" }, "401": { "$ref": "#/components/responses/Unauthenticated" } }
+      }
+    },
     "/oidc/clients/{id}": {
       "delete": {
         "tags": ["Authentication"],

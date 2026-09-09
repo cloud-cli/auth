@@ -30,9 +30,12 @@ function matchesSecret(secret: string, stored: string) {
 }
 
 export async function getClient(clientId: string) {
-  const stored = await new OidcClient({ id: clientId }).find();
-  if (stored) return { id: stored.id, redirectUris: stored.redirectUris, secretHash: stored.secretHash } as Client;
-  return undefined;
+  try {
+    const stored = await new OidcClient({ id: clientId }).find();
+    return stored ? { id: stored.id, redirectUris: stored.redirectUris, secretHash: stored.secretHash } as Client : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function isOidcClient(clientId: string) {
