@@ -76,6 +76,16 @@ export class AuditEvent extends Resource {
   @Property(String) redirectUri: string;
 }
 
+@Model("auth_signing_key")
+export class SigningKey extends Resource {
+  @Primary() @Property(String) kid: string;
+  @Property(String) encryptedPrivateKey: string;
+  @Property(String) publicKey: string;
+  @Property(String) status: string;
+  @Property(String) createdAt: string;
+}
+
+
 export async function initStore() {
   Resource.use(new StoreDriver());
   await Resource.create(User);
@@ -85,4 +95,5 @@ export async function initStore() {
   await Resource.create(QrLoginTransaction);
   await Resource.create(OidcClient);
   await Resource.create(AuditEvent);
+  await Resource.create(SigningKey);
 }

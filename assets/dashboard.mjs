@@ -104,3 +104,15 @@ export async function getAuditEvents() {
   if (!response.ok) throw new Error('Could not load authentication history');
   return response.json();
 }
+
+export async function getSigningKeys() {
+  const response = await fetch(new URL('/keys', authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load signing keys');
+  return response.json();
+}
+
+export async function rotateSigningKey() {
+  const response = await fetch(new URL('/keys/rotate', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  if (!response.ok) throw new Error('Could not rotate signing key');
+  return response.json();
+}

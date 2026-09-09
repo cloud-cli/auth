@@ -10,8 +10,11 @@ import {
   accessTokenTtl,
   createAccessToken,
   getJwks,
+  initializeSigningKeys,
   isAllowedAudience,
   isTokenServiceConfigured,
+  listSigningKeys,
+  rotateSigningKey,
   verifyAccessToken,
 } from './token.js';
 import { createAuthorizationCode, createManagedClient, exchangeAuthorizationCode, getClient, isOidcClient, listManagedClients, removeManagedClient, tokenResponse } from './oidc.js';
@@ -49,6 +52,7 @@ const uiAssets = Object.fromEntries(
     'properties.html',
     'activity.html',
     'oidc-apps.html',
+    'keys.html',
     'passkey.html',
     'recovery.html',
     'profile.html',
@@ -228,6 +232,10 @@ app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
 app.get('/oidc', adminRoute, (_req, res) => res.redirect('/me#oidc'));
 app.get('/oidc/access', protectedRoute, (req, res) => res.json({ admin: isOidcAdmin(req.user!.id) }));
+app.get('/keys', adminRoute, async (_req, res) => res.json(await listSigningKeys()));
+app.post('/keys/rotate', express.json(), adminRoute, async (_req, res) => {
+  try { res.status(201).json(await rotateSigningKey()); } catch (error) { res.status(503).json({ error: String(error) }); }
+});
 app.get('/audit', protectedRoute, async (req, res) => res.json(await getAuditEvents(req.user!.id)));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
@@ -477,8 +485,8 @@ app.get('/ui/:asset', (req, res) => {
   const dashboardUrl = new URL('/dashboard.mjs', process.env.AUTH_DOMAIN || `https://${req.get('host')}`);
   const source = req.params.asset === 'profile.html'
     ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
-    : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html'].includes(req.params.asset)
-      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`)
+    : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html'].includes(req.params.asset)
+      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replace('<template component="dashboard-oidc">', '<template component="dashboard-oidc"><link rel="component" href="/ui/keys.html">').replace('</section><script setup>', '</section><dashboard-keys></dashboard-keys><script setup>')
       : asset;
   res.type(type).send(
     req.params.asset === 'embed.mjs'
@@ -558,5 +566,6 @@ app.get('/properties/:key', protectedRoute, async (req, res) => {
 const PORT = Number(process.env.PORT);
 app.listen(PORT, async () => {
   await initStore();
+  await initializeSigningKeys();
   log('Auth is running on port ' + PORT);
 });
