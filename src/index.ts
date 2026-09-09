@@ -180,7 +180,7 @@ function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
 function serveUi(name: string) {
   return (_req, res) => {
     const source = name === 'profile.html'
-      ? uiAssets[name].replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
+      ? uiAssets[name].replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"').replace('<link rel="component" href="/ui/oidc-apps.html">', '<link rel="component" href="/ui/oidc-apps.html"><link rel="component" href="/ui/keys.html">').replace('<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template>', '<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template><template if="section === \'keys\'"><signing-key-manager></signing-key-manager></template>')
       : uiAssets[name];
     res.type('html').send(source);
   };
@@ -486,7 +486,7 @@ app.get('/ui/:asset', (req, res) => {
   const source = req.params.asset === 'profile.html'
     ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
     : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html'].includes(req.params.asset)
-      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replace('<template component="dashboard-oidc">', '<template component="dashboard-oidc"><link rel="component" href="/ui/keys.html">').replace('</section><script setup>', '</section><dashboard-keys></dashboard-keys><script setup>')
+      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`)
       : asset;
   res.type(type).send(
     req.params.asset === 'embed.mjs'
