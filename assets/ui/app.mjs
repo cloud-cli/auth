@@ -120,6 +120,12 @@ export default function () {
     location.href = '/login';
   }
 
+  async function copyUserId() {
+    await navigator.clipboard.writeText(user.value.id);
+    setMessage('User ID copied.');
+    setTimeout(() => setMessage(''), 1800);
+  }
+
   async function loadQr() {
     const response = await fetch('/qr-login/start?url=' + encodeURIComponent(value('url')), { credentials: 'include' });
     if (!response.ok) throw new Error('Could not start phone approval.');
@@ -166,5 +172,5 @@ export default function () {
   if (page === 'oidc') getOidcClients().then((value) => clients.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
 
-  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, signOut };
+  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyUserId, signOut };
 }
