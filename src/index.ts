@@ -14,7 +14,7 @@ import {
   isTokenServiceConfigured,
   verifyAccessToken,
 } from './token.js';
-import { createAuthorizationCode, exchangeAuthorizationCode, getClient, isOidcClient, tokenResponse } from './oidc.js';
+import { createAuthorizationCode, createManagedClient, exchangeAuthorizationCode, getClient, isOidcClient, listManagedClients, removeManagedClient, tokenResponse } from './oidc.js';
 import {
   authenticate,
   authenticationOptions,
@@ -43,6 +43,7 @@ const uiAssets = Object.fromEntries(
   [
     'login.html',
     'landing.html',
+    'oidc.html',
     'passkey.html',
     'recovery.html',
     'profile.html',
@@ -97,7 +98,7 @@ async function tokenUser(req, res, next) {
   const token = bearerToken(req);
   const audience = req.get('x-auth-audience') || '';
 
-  if (!token || !audience || (!isAllowedAudience(audience) && !isOidcClient(audience))) {
+  if (!token || !audience || (!isAllowedAudience(audience) && !(await isOidcClient(audience)))) {
     return res.status(401).send('');
   }
 
@@ -142,6 +143,12 @@ function browserCors(req, res, next) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Access-Control-Allow-Credentials', 'true');
   }
+  next();
+}
+
+function adminRoute(req, res, next) {
+  const admins = (process.env.OIDC_ADMIN_USER_IDS || '').split(',').map((value) => value.trim()).filter(Boolean);
+  if (!req.isAuthenticated?.() || !req.user?.id || !admins.includes(req.user.id)) return res.status(403).send('');
   next();
 }
 
@@ -206,6 +213,7 @@ app.get('/login', (req, res) => {
 });
 app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
+app.get('/oidc', adminRoute, serveUi('oidc.html'));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
   if (!user) return res.status(401).send('Invalid recovery code');
@@ -329,6 +337,16 @@ app.get('/api', (req, res) => {
   const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.host;
   res.type('application/json').send(openApiSpec.replace('__HOSTNAME__', host));
 });
+app.get('/oidc/clients', adminRoute, async (_req, res) => res.json(await listManagedClients()));
+app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
+  try {
+    const result = await createManagedClient(String(req.body?.id || ''), Array.isArray(req.body?.redirectUris) ? req.body.redirectUris.filter((value) => typeof value === 'string') : []);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
+});
+app.delete('/oidc/clients/:id', adminRoute, async (req, res) => res.sendStatus((await removeManagedClient(req.params.id)) ? 204 : 404));
 app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
 app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
   const audience = typeof req.body?.audience === 'string' ? req.body.audience : '';
@@ -341,11 +359,11 @@ app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, asy
     expires_in: accessTokenTtl(),
   });
 });
-app.get('/authorize', (req, res) => {
+app.get('/authorize', async (req, res) => {
   const { response_type, client_id, redirect_uri, state, code_challenge, code_challenge_method } = req.query;
   const clientId = typeof client_id === 'string' ? client_id : '';
   const redirectUri = typeof redirect_uri === 'string' ? redirect_uri : '';
-  const client = getClient(clientId);
+  const client = await getClient(clientId);
 
   if (
     response_type !== 'code' ||

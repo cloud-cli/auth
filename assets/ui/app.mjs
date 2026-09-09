@@ -1,6 +1,6 @@
 import '@li3/web';
 import { ref, templateRef } from '@li3/web';
-import { deleteProperty, generateRecoveryCodes, getPasskeys, getProperties, registerPasskey, revokePasskey, setProperty, signInWithPasskey } from '/dashboard.mjs';
+import { createOidcClient, deleteProperty, generateRecoveryCodes, getOidcClients, getPasskeys, getProperties, registerPasskey, removeOidcClient as removeManagedOidcClient, revokePasskey, setProperty, signInWithPasskey } from '/dashboard.mjs';
 
 const page = document.body.dataset.page;
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
@@ -22,6 +22,10 @@ export default function () {
   const status = ref('Preparing a secure connection...');
   const approved = ref(false);
   const account = templateRef('account');
+  const clientId = templateRef('clientId');
+  const redirectUris = templateRef('redirectUris');
+  const clients = ref([]);
+  const createdSecret = ref('');
   const propertyKey = templateRef('propertyKey');
   const propertyValue = templateRef('propertyValue');
 
@@ -97,6 +101,20 @@ export default function () {
     properties.value = await getProperties();
   }
 
+  async function addOidcClient() {
+    const result = await createOidcClient(clientId.value.value.trim(), redirectUris.value.value.split('\n').map((value) => value.trim()).filter(Boolean));
+    createdSecret.value = `Secret for ${result.id} (copy now): ${result.secret}`;
+    clientId.value.value = '';
+    redirectUris.value.value = '';
+    clients.value = await getOidcClients();
+  }
+
+  async function removeOidcClient(id) {
+    if (!confirm('Remove this OIDC client? Existing sessions will stop working.')) return;
+    await removeManagedOidcClient(id);
+    clients.value = await getOidcClients();
+  }
+
   async function signOut() {
     await fetch('/profile', { method: 'DELETE', credentials: 'include' });
     location.href = '/login';
@@ -145,7 +163,8 @@ export default function () {
     }
     loadProfile().catch((reason) => setMessage(reason.message, true));
   }
+  if (page === 'oidc') getOidcClients().then((value) => clients.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
 
-  return { account, propertyKey, propertyValue, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, signOut };
+  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, signOut };
 }

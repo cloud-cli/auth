@@ -396,6 +396,27 @@
         }
       }
     },
+    "/oidc/clients": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "List managed OIDC clients",
+        "responses": { "200": { "description": "Managed clients without secrets" }, "403": { "description": "Administrator access required" } }
+      },
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Create a managed OIDC client",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["id", "redirectUris"], "properties": { "id": { "type": "string" }, "redirectUris": { "type": "array", "items": { "type": "string", "format": "uri" } } } } } } },
+        "responses": { "201": { "description": "Client and one-time secret" }, "400": { "description": "Invalid client" }, "403": { "description": "Administrator access required" } }
+      }
+    },
+    "/oidc/clients/{id}": {
+      "delete": {
+        "tags": ["Authentication"],
+        "summary": "Remove a managed OIDC client",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Removed" }, "403": { "description": "Administrator access required" }, "404": { "description": "Not found" } }
+      }
+    },
     "/authorize": {
       "get": {
         "tags": ["Authentication"],

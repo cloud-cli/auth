@@ -80,3 +80,21 @@ export async function deleteProperty(key) {
   const response = await fetch(new URL('/properties/' + encodeURIComponent(key), authDomain), { credentials: 'include', method: 'DELETE' });
   if (!response.ok) throw new Error('Could not remove property');
 }
+
+export async function getOidcClients() {
+  const response = await fetch(new URL('/oidc/clients', authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load OIDC clients');
+  return response.json();
+}
+
+export async function createOidcClient(id, redirectUris) {
+  const response = await fetch(new URL('/oidc/clients', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, redirectUris }) });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not create OIDC client');
+  return result;
+}
+
+export async function removeOidcClient(id) {
+  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id), authDomain), { credentials: 'include', method: 'DELETE' });
+  if (!response.ok) throw new Error('Could not remove OIDC client');
+}
