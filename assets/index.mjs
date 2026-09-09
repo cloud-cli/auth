@@ -41,6 +41,7 @@ const embedded = new Promise((resolve, reject) => {
 window.addEventListener("message", (e) => {
   if (e.origin !== authDomain) {
     console.log("Unsafe event", e);
+    return;
   }
 
   const { event, detail } = e.data || {};
@@ -142,8 +143,23 @@ export const getProperty = fetchCommand("getProperty");
 export const setProperty = fetchCommand("setProperty");
 export const deleteProperty = fetchCommand("deleteProperty");
 export const getProperties = fetchCommand("getProperties");
-export const getProfile = fetchCommand("getProfile");
-export const isAuthenticated = fetchCommand("isAuthenticated");
+export async function getProfile() {
+  try {
+    const response = await fetch(authDomain, { credentials: "include", mode: "cors" });
+    if (!response.ok) throw new Error(response.status + ": " + response.statusText);
+    return response.json();
+  } catch {
+    return fetchCommand("getProfile")();
+  }
+}
+export async function isAuthenticated() {
+  try {
+    const response = await fetch(authDomain, { credentials: "include", mode: "cors", method: "HEAD" });
+    return response.ok && response.status < 300;
+  } catch {
+    return fetchCommand("isAuthenticated")();
+  }
+}
 export const signOut = fetchCommand("signOut", () => {
   events.dispatchEvent(new CustomEvent("signout"));
   events.dispatchEvent(new CustomEvent("state", { detail: null }));

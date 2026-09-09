@@ -131,6 +131,33 @@ function sessionTokenCors(req, res, next) {
   next();
 }
 
+function browserCors(req, res, next) {
+  const origin = req.get('origin');
+  const configuredOrigins = [process.env.AUTH_ALLOWED_ORIGINS, process.env.EMBED_ALLOWED_ORIGINS]
+    .flatMap((value) => (value || '').split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (origin && isAllowedBrowserOrigin(origin, configuredOrigins)) {
+    res.vary('Origin');
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Access-Control-Allow-Credentials', 'true');
+  }
+  next();
+}
+
+function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
+  try {
+    const hostname = new URL(origin).hostname;
+    return configuredOrigins.some((value) => {
+      if (value === origin) return true;
+      const domain = value.replace(/^https?:\/\//, '').replace(/^\./, '').split('/')[0];
+      return hostname === domain || hostname.endsWith('.' + domain);
+    });
+  } catch {
+    return false;
+  }
+}
+
 function serveUi(name: string) {
   return (_req, res) => res.type('html').send(uiAssets[name]);
 }
@@ -156,7 +183,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/', protectedRouteWithRedirect, async (req, res) => {
+app.get('/', browserCors, protectedRouteWithRedirect, async (req, res) => {
   const user = await findByUserId(req.user?.id);
   if (user) {
     res.send(userAsJSON(user));
@@ -165,7 +192,7 @@ app.get('/', protectedRouteWithRedirect, async (req, res) => {
 
   res.status(404).send('{}');
 });
-app.head('/', protectedRoute, (_req, res) => {
+app.head('/', browserCors, protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
 app.delete('/', protectedRoute, logout);
