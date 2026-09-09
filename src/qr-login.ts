@@ -11,7 +11,8 @@ type Transaction = {
 };
 
 const transactions = new Map<string, Transaction>();
-const lifetime = 120_000;
+const configuredLifetime = Number(process.env.QR_LOGIN_TTL_SECONDS || 300);
+const lifetime = (Number.isInteger(configuredLifetime) && configuredLifetime >= 60 && configuredLifetime <= 600 ? configuredLifetime : 300) * 1000;
 
 function clean() {
   const expiry = Date.now() - lifetime;

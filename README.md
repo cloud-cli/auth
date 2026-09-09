@@ -20,6 +20,7 @@ Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved p
 | AUTH_ALLOWED_ORIGINS | Comma-separated browser origins allowed to request JWTs                           | for browser JWTs |
 | OIDC_CLIENTS         | JSON client registry with `id`, `secret`, and `redirectUris`                      | for OIDC         |
 | AUTH_NAME            | Relying-party name shown during passkey registration                              | false            |
+| QR_LOGIN_TTL_SECONDS | QR approval lifetime from 60 to 600 seconds, defaults to 300                     | false            |
 
 `AUTH_DOMAIN` must use HTTPS in production. WebAuthn, camera access, and the installable PWA require a secure context.
 
@@ -69,7 +70,7 @@ Keep at least one recovery method, such as Google sign-in, offline recovery code
 
 The `/me` page can generate ten one-time recovery codes. They are stored hashed and shown only once; generating a new set invalidates the previous set. Store them offline and do not put them in source control.
 
-The login page also offers **Approve on phone with QR**. The laptop creates a two-minute, single-use transaction and polls for approval. Open `/pwa/` on the phone, install it if desired, tap **Scan QR code**, scan the laptop's code, and approve the displayed login. The PWA does not use push notifications and does not copy the phone's session cookie; the laptop receives its own session.
+The login page also offers **Approve on phone with QR**. The laptop creates a five-minute, single-use transaction and polls for approval. Open `/pwa/` on the phone, install it if desired, tap **Scan QR code**, scan the laptop's code, and approve the displayed login. The PWA does not use push notifications and does not copy the phone's session cookie; the laptop receives its own session.
 
 QR login transactions are currently held in memory, so use one auth-server instance or session affinity. Before running multiple replicas, move transactions to a shared store with atomic single-use consumption.
 

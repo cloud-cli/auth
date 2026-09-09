@@ -24,7 +24,7 @@ export default function () {
       stream.getTracks().forEach((track) => track.stop());
       const detail = await fetch('/qr-login/details?transaction=' + encodeURIComponent(token), { credentials: 'include' });
       if (detail.status === 401) return location.href = '/login?url=/pwa/';
-      if (!detail.ok) throw new Error('This QR code expired.');
+      if (!detail.ok) throw new Error('This QR code expired. Return to the laptop and start a new approval.');
       const login = await detail.json();
       if (!confirm('Approve sign-in to ' + login.returnUrl + '?')) return;
       const response = await fetch('/qr-login/approve', { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ transaction: token }) });

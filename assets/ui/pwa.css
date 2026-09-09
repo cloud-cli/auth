@@ -1,0 +1,6 @@
+body[data-page="pwa"] .card video { width: min(66vw, 22rem); max-width: 100%; height: min(42dvh, 22rem); margin: 0 auto; border-radius: 1rem; object-fit: cover; background: #16172b; }
+body[data-page="pwa"] .card video[hidden] { display: none; }
+body[data-page="pwa"] .notice { order: 0; }
+body[data-page="pwa"] .card video { order: 1; }
+body[data-page="pwa"] .card .button { order: 2; }
+@media (max-width: 700px) { body[data-page="pwa"] .card video { width: min(66vw, 20rem); height: min(38dvh, 20rem); } }

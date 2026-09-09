@@ -49,6 +49,7 @@ const uiAssets = Object.fromEntries(
     'app.mjs',
     'pwa.mjs',
     'styles.css',
+    'pwa.css',
     'embed.html',
     'embed.mjs',
   ].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]),
