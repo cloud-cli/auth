@@ -182,12 +182,24 @@ function decode(value) {
 }
 
 function credentialJSON(credential) {
+  const response = credential.response;
+  const isRegistration = 'attestationObject' in response;
   return {
     id: credential.id,
     rawId: encode(credential.rawId),
     type: credential.type,
-    transports: credential.response.getTransports?.() || [],
-    response: Object.fromEntries(Object.entries(credential.response).filter(([key]) => typeof credential.response[key] !== 'function').map(([key, value]) => [key, value instanceof ArrayBuffer ? encode(value) : value])),
+    transports: response.getTransports?.() || [],
+    response: isRegistration
+      ? {
+          clientDataJSON: encode(response.clientDataJSON),
+          attestationObject: encode(response.attestationObject),
+        }
+      : {
+          clientDataJSON: encode(response.clientDataJSON),
+          authenticatorData: encode(response.authenticatorData),
+          signature: encode(response.signature),
+          userHandle: response.userHandle ? encode(response.userHandle) : null,
+        },
   };
 }
 

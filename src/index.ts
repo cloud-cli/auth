@@ -297,7 +297,8 @@ app.delete('/webauthn/credentials/:credentialId', protectedRoute, async (req, re
   res.sendStatus(revoked ? 204 : 404);
 });
 app.get('/api', (req, res) => {
-  const host = req.headers['x-forwarded-host'] || req.host;
+  const forwardedHost = req.headers['x-forwarded-host'];
+  const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.host;
   res.type('application/json').send(openApiSpec.replace('__HOSTNAME__', host));
 });
 app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
