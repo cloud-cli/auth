@@ -197,7 +197,13 @@ app.head('/profile', browserCors, protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
 app.delete('/profile', protectedRoute, logout);
-app.get('/login', serveUi('login.html'));
+app.get('/login', (req, res) => {
+  const returnUrl = typeof req.query.url === 'string' ? req.query.url : '/me';
+  if (req.isAuthenticated?.() && req.user?.id && returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
+    return res.redirect(302, returnUrl);
+  }
+  serveUi('login.html')(req, res);
+});
 app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
