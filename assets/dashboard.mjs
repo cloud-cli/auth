@@ -64,3 +64,19 @@ export async function generateRecoveryCodes() {
   if (!response.ok) throw new Error('Could not generate recovery codes');
   return (await response.json()).codes;
 }
+
+export async function getProperties() {
+  const response = await fetch(new URL('/properties', authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load properties');
+  return response.json();
+}
+
+export async function setProperty(key, value) {
+  const response = await fetch(new URL('/properties', authDomain), { credentials: 'include', method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, value }) });
+  if (!response.ok) throw new Error('Could not save property');
+}
+
+export async function deleteProperty(key) {
+  const response = await fetch(new URL('/properties/' + encodeURIComponent(key), authDomain), { credentials: 'include', method: 'DELETE' });
+  if (!response.ok) throw new Error('Could not remove property');
+}

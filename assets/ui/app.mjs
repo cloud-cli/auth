@@ -1,6 +1,6 @@
 import '@li3/web';
 import { ref, templateRef } from '@li3/web';
-import { generateRecoveryCodes, getPasskeys, registerPasskey, revokePasskey, signInWithPasskey } from '/dashboard.mjs';
+import { deleteProperty, generateRecoveryCodes, getPasskeys, getProperties, registerPasskey, revokePasskey, setProperty, signInWithPasskey } from '/dashboard.mjs';
 
 const page = document.body.dataset.page;
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
@@ -11,6 +11,7 @@ export default function () {
   const error = ref(false);
   const user = ref({ name: '', email: '', photo: '' });
   const passkeys = ref([]);
+  const properties = ref([]);
   const codes = ref('');
   const qr = ref('');
   const pwaUrl = ref('/pwa/');
@@ -20,6 +21,8 @@ export default function () {
   const status = ref('Preparing a secure connection...');
   const approved = ref(false);
   const account = templateRef('account');
+  const propertyKey = templateRef('propertyKey');
+  const propertyValue = templateRef('propertyValue');
 
   const setMessage = (text, isError = false) => {
     message.value = text;
@@ -44,8 +47,9 @@ export default function () {
     const profile = await fetch('/', { credentials: 'include' }).then((response) => response.json());
     user.value = profile;
     if (window.opener) window.opener.postMessage({ event: 'signin', detail: profile }, location.origin);
-    const keys = await getPasskeys();
+    const [keys, storedProperties] = await Promise.all([getPasskeys(), getProperties()]);
     passkeys.value = keys.filter((key) => !key.revokedAt);
+    properties.value = storedProperties;
   }
 
   async function addPasskey() {
@@ -64,6 +68,25 @@ export default function () {
   async function recoveryCodes() {
     if (!confirm('This invalidates any existing recovery codes. Continue?')) return;
     codes.value = (await generateRecoveryCodes()).join('\n');
+  }
+
+  async function saveProperty(property) {
+    await setProperty(property.key, property.value);
+  }
+
+  async function removeProperty(property) {
+    if (!confirm('Remove ' + property.key + '?')) return;
+    await deleteProperty(property.key);
+    properties.value = properties.value.filter((item) => item !== property);
+  }
+
+  async function addProperty() {
+    const key = propertyKey.value?.value.trim();
+    if (!key) return;
+    await setProperty(key, propertyValue.value?.value || '');
+    propertyKey.value.value = '';
+    propertyValue.value.value = '';
+    properties.value = await getProperties();
   }
 
   async function signOut() {
@@ -104,5 +127,5 @@ export default function () {
   }
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
 
-  return { account, busy, message, error, user, passkeys, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, signOut };
+  return { account, propertyKey, propertyValue, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, signOut };
 }

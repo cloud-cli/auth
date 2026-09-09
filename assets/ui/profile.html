@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Your account</title>
     <link rel="stylesheet" href="/ui/styles.css" />
+    <link rel="stylesheet" href="/ui/profile.css" />
     <script type="importmap">
       { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
     </script>
@@ -40,6 +41,26 @@
             >
           </div>
           <a class="text-link" href="/pwa/">Install Auth QR app</a>
+        </section>
+        <section class="panel">
+          <div>
+            <h2>Properties</h2>
+            <p class="muted">Private metadata shared with your connected apps.</p>
+          </div>
+          <div class="property-list">
+            <template for="property of properties"
+              ><div class="property-row">
+                <input bind-value="property.key" disabled />
+                <input bind-value="property.value" on-change="saveProperty(property)" />
+                <button class="text-button danger" on-click="removeProperty(property)">Remove</button>
+              </div></template
+            >
+            <form class="property-row" on-submit.prevent="addProperty()">
+              <input ref="propertyKey" placeholder="Key" />
+              <input ref="propertyValue" placeholder="Value" />
+              <button class="button light" type="submit">Add</button>
+            </form>
+          </div>
         </section>
         <section class="panel">
           <div>
