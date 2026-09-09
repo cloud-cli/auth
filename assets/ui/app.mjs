@@ -116,11 +116,23 @@ export default function () {
     poll();
   }
 
-  if (page === 'login' && value('url')) sessionStorage.setItem('auth.returnUrl', value('url'));
+  async function resumeLogin() {
+    const returnUrl = value('url') || '/me';
+    const response = await fetch('/profile', { credentials: 'include' });
+    if (response.ok) location.replace(returnUrl);
+    else if (value('url')) {
+      sessionStorage.setItem('auth.returnUrl', value('url'));
+      sessionStorage.setItem('auth.loginPending', '1');
+    }
+  }
+
+  if (page === 'login') resumeLogin().catch(() => {});
   if (page === 'profile') {
     const returnUrl = sessionStorage.getItem('auth.returnUrl');
-    if (returnUrl) {
-      sessionStorage.removeItem('auth.returnUrl');
+    const loginPending = sessionStorage.getItem('auth.loginPending');
+    sessionStorage.removeItem('auth.returnUrl');
+    sessionStorage.removeItem('auth.loginPending');
+    if (returnUrl && loginPending) {
       setTimeout(() => location.href = returnUrl, 300);
     }
     loadProfile().catch((reason) => setMessage(reason.message, true));
