@@ -3,24 +3,10 @@ import { Query, Resource } from '@cloud-cli/store';
 import { OidcClient, User } from './store.js';
 import { accessTokenTtl, createAccessToken, createIdentityToken } from './token.js';
 
-type Client = { id: string; redirectUris: string[]; secret?: string; secretHash?: string };
+type Client = { id: string; redirectUris: string[]; secretHash: string };
 type AuthorizationCode = { clientId: string; redirectUri: string; userId: string; codeChallenge: string; expiresAt: number };
 
 const codes = new Map<string, AuthorizationCode>();
-const envClients = new Map<string, Client>();
-
-try {
-  const configuredClients = JSON.parse(process.env.OIDC_CLIENTS || '[]');
-  if (Array.isArray(configuredClients)) {
-    for (const client of configuredClients) {
-      if (typeof client?.id !== 'string' || typeof client?.secret !== 'string' || !Array.isArray(client.redirectUris)) continue;
-      const redirectUris = client.redirectUris.filter((uri: unknown) => typeof uri === 'string' && isSecureRedirectUri(uri));
-      if (redirectUris.length) envClients.set(client.id, { id: client.id, secret: client.secret, redirectUris });
-    }
-  }
-} catch {
-  // Invalid compatibility configuration leaves environment clients disabled.
-}
 
 function isSecureRedirectUri(uri: string) {
   try {
@@ -46,7 +32,7 @@ function matchesSecret(secret: string, stored: string) {
 export async function getClient(clientId: string) {
   const stored = await new OidcClient({ id: clientId }).find();
   if (stored) return { id: stored.id, redirectUris: stored.redirectUris, secretHash: stored.secretHash } as Client;
-  return envClients.get(clientId);
+  return undefined;
 }
 
 export async function isOidcClient(clientId: string) {
@@ -65,8 +51,7 @@ export async function exchangeAuthorizationCode({ code, clientId, clientSecret, 
   if (!authorizationCode || authorizationCode.expiresAt < Date.now()) return null;
   const client = await getClient(clientId);
   if (!client || authorizationCode.clientId !== clientId || authorizationCode.redirectUri !== redirectUri) return null;
-  const validSecret = client.secretHash ? matchesSecret(clientSecret, client.secretHash) : client.secret === clientSecret;
-  if (!validSecret || codeChallenge(codeVerifier) !== authorizationCode.codeChallenge) return null;
+  if (!matchesSecret(clientSecret, client.secretHash) || codeChallenge(codeVerifier) !== authorizationCode.codeChallenge) return null;
   return authorizationCode;
 }
 
@@ -84,7 +69,7 @@ export async function listManagedClients() {
 }
 
 export async function createManagedClient(id: string, redirectUris: string[]) {
-  if (!id || !/^[a-zA-Z0-9._-]{1,80}$/.test(id) || envClients.has(id)) throw new Error('Invalid or existing client ID');
+  if (!id || !/^[a-zA-Z0-9._-]{1,80}$/.test(id)) throw new Error('Invalid client ID');
   const normalizedUris = redirectUris.filter(isSecureRedirectUri);
   if (!normalizedUris.length) throw new Error('At least one HTTPS redirect URI is required');
   if (await getClient(id)) throw new Error('Client already exists');
