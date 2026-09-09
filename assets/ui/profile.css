@@ -1,6 +1,0 @@
-.property-list { grid-column: 1 / -1; display: grid; gap: .55rem; }
-.property-row { display: grid; grid-template-columns: minmax(7rem, .8fr) minmax(0, 2fr) auto; gap: .5rem; align-items: center; }
-.property-row input { min-width: 0; width: 100%; padding: .65rem .75rem; border: 1px solid #ddd8ef; border-radius: .65rem; font: inherit; }
-.property-row input:disabled { color: var(--muted); background: #faf9ff; }
-.property-row button { padding: .5rem .65rem; }
-@media (max-width: 700px) { .property-row { grid-template-columns: 1fr auto; } .property-row input:first-child { grid-column: 1 / -1; } }
