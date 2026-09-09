@@ -1,6 +1,6 @@
 import express from 'express';
 import { readFileSync } from 'fs';
-import { findByUserId, userAsJSON } from './user.js';
+import { findByEmail, findByUserId, userAsJSON } from './user.js';
 import { User, initStore } from './store.js';
 import session from './session.js';
 import log from './log.js';
@@ -8,12 +8,18 @@ import passport, { googleCallback } from './passport.js';
 import { getProperties, removeProperty, getProperty, setProperty } from './properties.js';
 import { accessTokenTtl, createAccessToken, getJwks, isAllowedAudience, isTokenServiceConfigured, verifyAccessToken } from './token.js';
 import { createAuthorizationCode, exchangeAuthorizationCode, getClient, isOidcClient, tokenResponse } from './oidc.js';
+import { authenticate, authenticationOptions, listAuthenticators, registrationOptions, registerAuthenticator, revokeAuthenticator } from './webauthn.js';
+import { consumeRecoveryCode, replaceRecoveryCodes } from './recovery.js';
+import { approveQrLogin, completeQrLogin, denyQrLogin, qrLoginDetails, qrLoginOrigin, qrLoginPage } from './qr-login.js';
 
 const googleSvg = readFileSync('./assets/google.svg', 'utf8');
 const esLibrary = readFileSync('./assets/index.mjs', 'utf8');
 const esHelper = readFileSync('./assets/lib.mjs', 'utf8');
 const nodeLibrary = readFileSync('./assets/node.mjs', 'utf8');
 const openApiSpec = readFileSync('./assets/openapi.json', 'utf8');
+const pwaHtml = readFileSync('./assets/pwa.html', 'utf8');
+const pwaModule = readFileSync('./assets/pwa.mjs', 'utf8');
+const pwaServiceWorker = readFileSync('./assets/pwa-sw.js', 'utf8');
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
@@ -109,7 +115,7 @@ function makePage(title: string, page: string) {
   ].join('');
 }
 
-function makeLoginPage() {
+function makeLoginPage(returnUrl = '/me') {
   return makePage(
     'Sign in to continue',
     `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4">
@@ -119,11 +125,48 @@ function makeLoginPage() {
           ${googleSvg}
           Sign in with Google
         </a>
+        <a href="/webauthn/login" class="block bg-gray-900 text-white px-4 py-2 rounded shadow mt-3">Sign in with a passkey</a>
+        <a href="/qr-login?url=${encodeURIComponent(returnUrl)}" class="block border text-gray-800 px-4 py-2 rounded shadow mt-3">Approve on phone with QR</a>
+        <a href="/recovery" class="block text-sm text-gray-600 mt-3">Use a recovery code</a>
       </div>
       <script>
       (function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})();
       </script>`,
   );
+}
+
+function makePasskeyLoginPage() {
+  return makePage(
+    'Sign in with a passkey',
+    `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4">
+      <div class="text-center p-4 bg-white rounded-lg shadow">
+        <h1 class="text-2xl font-bold mb-6">Passkey sign-in</h1>
+        <input id="account" class="border p-2 rounded mb-3" placeholder="Email (optional for phone passkeys)" autocomplete="username webauthn" />
+        <button id="signin" class="bg-gray-900 text-white px-4 py-2 rounded shadow">Unlock with passkey</button>
+        <p id="error" class="text-red-600 mt-4"></p>
+      </div>
+    </div>
+    <script type="module">
+      import { signInWithPasskey } from '/index.mjs';
+      signin.onclick = async () => {
+        try {
+          await signInWithPasskey(account.value);
+          location.href = '/me';
+        } catch (error) {
+          document.querySelector('#error').textContent = error.message;
+        }
+      };
+      signin.click();
+    </script>`,
+  );
+}
+
+function makeRecoveryPage() {
+  return makePage('Use a recovery code', `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4"><form method="post" class="text-center p-4 bg-white rounded-lg shadow"><h1 class="text-2xl font-bold mb-6">Recovery sign-in</h1><input name="email" type="email" required placeholder="Email" class="border p-2 rounded block mb-2" /><input name="code" required placeholder="Recovery code" class="border p-2 rounded block mb-2" /><button class="bg-gray-900 text-white px-4 py-2 rounded shadow">Sign in</button></form></div>`);
+}
+
+function makeQrLoginPage(qr: string, pwaUrl: string, token: string) {
+  return makePage('Approve on phone', `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4"><div class="text-center p-4 bg-white rounded-lg shadow"><h1 class="text-2xl font-bold mb-4">Scan with your phone</h1><img src="${qr}" alt="QR code" width="320" height="320" /><p>Open the Auth app, scan this code, and approve the login.</p><p id="status">Waiting for approval...</p><p><a href="${pwaUrl}">Open Auth PWA</a></p></div></div><script>const token=${JSON.stringify(token)};const poll=async()=>{const r=await fetch('/qr-login/status?transaction='+encodeURIComponent(token),{credentials:'include'});if(r.ok){const x=await r.json();if(x.status==='approved'){location.href=x.returnUrl;return}if(x.status==='denied')document.querySelector('#status').textContent='Login denied.'}setTimeout(poll,1000)};poll();</script>`);
 }
 
 async function makeProfile(user: User) {
@@ -149,6 +192,11 @@ async function makeProfile(user: User) {
     </div>`;
     })
     .join('\n');
+  const authenticators = await listAuthenticators(user.userId);
+  const authenticatorsText = authenticators
+    .filter((authenticator) => !authenticator.revokedAt)
+    .map((authenticator) => `<div class="flex items-center font-mono border-b"><span class="flex-1 p-1">${authenticator.label}</span><span class="flex-1 p-1 text-gray-400">${authenticator.lastUsedAt || 'never used'}</span><button class="p-1" onclick="Auth.revokePasskey('${authenticator.credentialId}').then(()=>location.reload())">Revoke</button></div>`)
+    .join('\n');
 
   return makePage(
     'Profile',
@@ -167,9 +215,13 @@ async function makeProfile(user: User) {
         <div class="text-sm text-gray-400 space-y-1">
           ${fieldsText}
           ${propertiesText}
+          <div class="font-bold border-b mt-4 p-1">Passkeys</div>
+          ${authenticatorsText || '<div class="p-1">No passkeys registered</div>'}
         </div>
         <div class="flex items-centers justify-center p-2">
           <button onclick="Auth.setProperty( prompt('Key', ''), prompt('Value', '') );window.location.relaod()">Add</button>
+          <button class="ml-4" onclick="Auth.registerPasskey(prompt('Passkey name', 'My device')).then(()=>location.reload())">Add passkey</button>
+          <button class="ml-4" onclick="Auth.generateRecoveryCodes().then(codes=>alert(codes.join('\\n')))" >New recovery codes</button>
         </div>
       </div>
     </div>
@@ -240,8 +292,109 @@ app.head('/', protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
 app.delete('/', protectedRoute, logout);
-app.get('/login', (_, res) => {
-  res.send(makeLoginPage());
+app.get('/login', (req, res) => {
+  res.send(makeLoginPage(typeof req.query.url === 'string' ? req.query.url : '/me'));
+});
+app.get('/webauthn/login', (_req, res) => {
+  res.send(makePasskeyLoginPage());
+});
+app.get('/recovery', (_req, res) => res.send(makeRecoveryPage()));
+app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
+  const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
+  if (!user) return res.status(401).send('Invalid recovery code');
+  req.login(userAsJSON(user), (error) => {
+    if (error) return res.status(500).send('Could not create session');
+    res.redirect('/me');
+  });
+});
+app.get('/qr-login', async (req, res) => {
+  const page = await qrLoginPage(req.sessionID, typeof req.query.url === 'string' ? req.query.url : '/me');
+  res.send(makeQrLoginPage(page.qr, page.pwaUrl, page.token));
+});
+app.get('/qr-login/status', async (req, res) => {
+  try {
+    const token = typeof req.query.transaction === 'string' ? req.query.transaction : '';
+    const transaction = qrLoginOrigin(token, req.sessionID);
+    if (transaction.status !== 'approved') return res.json({ status: transaction.status });
+    const completed = await completeQrLogin(token, req.sessionID);
+    if (!completed) return res.status(401).json({ status: 'expired' });
+    req.login(completed.user, (error) => {
+      if (error) return res.status(500).json({ status: 'error' });
+      res.json({ status: 'approved', returnUrl: completed.returnUrl });
+    });
+  } catch {
+    res.status(410).json({ status: 'expired' });
+  }
+});
+app.get('/qr-login/details', protectedRoute, (req, res) => {
+  try {
+    const token = typeof req.query.transaction === 'string' ? req.query.transaction : '';
+    res.json(qrLoginDetails(token));
+  } catch {
+    res.status(410).json({ error: 'Expired QR login' });
+  }
+});
+app.post('/qr-login/approve', express.json(), protectedRoute, async (req, res) => {
+  try {
+    await approveQrLogin(String(req.body?.transaction || ''), req.user!.id);
+    res.sendStatus(204);
+  } catch {
+    res.status(410).json({ error: 'Expired QR login' });
+  }
+});
+app.post('/qr-login/deny', express.json(), protectedRoute, (req, res) => {
+  try {
+    denyQrLogin(String(req.body?.transaction || ''));
+    res.sendStatus(204);
+  } catch {
+    res.status(410).json({ error: 'Expired QR login' });
+  }
+});
+app.get('/pwa/', (_req, res) => res.type('html').send(pwaHtml));
+app.get('/pwa/pwa.mjs', (_req, res) => res.type('javascript').send(pwaModule));
+app.get('/pwa/sw.js', (_req, res) => res.type('javascript').set('Service-Worker-Allowed', '/pwa/').send(pwaServiceWorker));
+app.get('/pwa/manifest.webmanifest', (_req, res) => res.type('application/manifest+json').json({ name: 'Auth', short_name: 'Auth', start_url: '/pwa/', display: 'standalone', background_color: '#f3f4f6', theme_color: '#111827', scope: '/pwa/' }));
+app.get('/webauthn/register/options', protectedRoute, async (req, res) => {
+  res.json(await registrationOptions(req.user!.id));
+});
+app.post('/webauthn/register/verify', express.json(), protectedRoute, async (req, res) => {
+  try {
+    const authenticator = await registerAuthenticator(req.user!.id, req.body, typeof req.body?.label === 'string' ? req.body.label : 'Passkey');
+    res.status(201).json({ credentialId: authenticator.credentialId, label: authenticator.label });
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
+});
+app.get('/webauthn/authentication/options', async (req, res) => {
+  const loginHint = typeof req.query.login_hint === 'string' ? req.query.login_hint : '';
+  const user = loginHint ? (loginHint.includes('@') ? await findByEmail(loginHint) : await findByUserId(loginHint)) : null;
+  res.json(await authenticationOptions(user?.userId));
+});
+app.post('/webauthn/authentication/verify', express.json(), async (req, res) => {
+  try {
+    const { userId } = await authenticate(req.body);
+    const user = await findByUserId(userId);
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    req.login(userAsJSON(user), (error) => {
+      if (error) return res.status(500).json({ error: 'Could not create session' });
+      res.status(204).send('');
+    });
+  } catch (error) {
+    res.status(401).json({ error: String(error) });
+  }
+});
+app.get('/webauthn/credentials', protectedRoute, async (req, res) => {
+  const authenticators = await listAuthenticators(req.user!.id);
+  res.json(authenticators.map(({ credentialId, label, transports, createdAt, lastUsedAt, revokedAt }) => ({ credentialId, label, transports, createdAt, lastUsedAt, revokedAt })));
+});
+app.post('/recovery-codes', express.json(), protectedRoute, async (req, res) => {
+  const user = await findByUserId(req.user!.id);
+  if (!user) return res.status(404).send('');
+  res.json({ codes: await replaceRecoveryCodes(user) });
+});
+app.delete('/webauthn/credentials/:credentialId', protectedRoute, async (req, res) => {
+  const revoked = await revokeAuthenticator(req.user!.id, req.params.credentialId);
+  res.sendStatus(revoked ? 204 : 404);
 });
 app.get('/api', (_req, res) => {
   res.type('application/json').send(openApiSpec);

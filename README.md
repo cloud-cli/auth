@@ -1,6 +1,6 @@
 # Auth
 
-Node.js app for user sign in via Google authentication.
+Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved phone login.
 
 ## Env
 
@@ -19,6 +19,9 @@ Node.js app for user sign in via Google authentication.
 | JWT_TTL_SECONDS       | JWT lifetime from 60 to 900 seconds, defaults to 300 | false |
 | AUTH_ALLOWED_ORIGINS  | Comma-separated browser origins allowed to request JWTs | for browser JWTs |
 | OIDC_CLIENTS          | JSON client registry with `id`, `secret`, and `redirectUris` | for OIDC |
+| AUTH_NAME             | Relying-party name shown during passkey registration | false |
+
+`AUTH_DOMAIN` must use HTTPS in production. WebAuthn, camera access, and the installable PWA require a secure context.
 
 Get the client ID and secret from [Google API console](https://console.cloud.google.com/apis/credentials)
 
@@ -55,6 +58,20 @@ The OpenAPI 3.1 document is served at `GET /api`.
 OIDC clients are registered through `OIDC_CLIENTS`, for example `[{"id":"todo","secret":"...","redirectUris":["https://todo.example.com/auth/callback"]}]`. `GET /authorize` creates a one-time authorization code for an authenticated user. The client exchanges it at `POST /token` using its client secret and PKCE verifier.
 
 Authorization codes are held in this server's memory for one minute. Run a single auth-server instance or use session affinity until the backing store supports atomic one-time code consumption.
+
+### Passkeys and security keys
+
+Each account can have multiple WebAuthn credentials. Sign in with Google first, then use **Add passkey** on `/me` to register an Android fingerprint passkey, Mac Touch ID passkey, synced passkey, or external security key. The server stores each credential's public key, counter, device label, and revocation state; it never receives fingerprint data.
+
+Passkey login is available at `/webauthn/login`. Discoverable passkeys can be used without entering an account identifier. Legacy non-discoverable U2F devices, including compatible Flipper Zero firmware, can be used by entering the account email first. The browser's standard WebAuthn cross-device flow can show a QR code so a phone can approve a login on another device.
+
+Keep at least one recovery method, such as Google sign-in, offline recovery codes, or a separately stored security key. WebAuthn challenges are currently held in memory for two minutes, so use one auth-server instance or session affinity until challenge storage is made shared and atomic.
+
+The `/me` page can generate ten one-time recovery codes. They are stored hashed and shown only once; generating a new set invalidates the previous set. Store them offline and do not put them in source control.
+
+The login page also offers **Approve on phone with QR**. The laptop creates a two-minute, single-use transaction and polls for approval. Open `/pwa/` on the phone, install it if desired, tap **Scan QR code**, scan the laptop's code, and approve the displayed login. The PWA does not use push notifications and does not copy the phone's session cookie; the laptop receives its own session.
+
+QR login transactions are currently held in memory, so use one auth-server instance or session affinity. Before running multiple replicas, move transactions to a shared store with atomic single-use consumption.
 
 `GET /node.mjs` provides `createAuthClient({ clientId })` for Node.js services. It creates PKCE authorization requests, exchanges callbacks, verifies JWTs locally through the JWKS endpoint, and obtains the user's public profile.
 
