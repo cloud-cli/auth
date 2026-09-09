@@ -50,6 +50,7 @@ const uiAssets = Object.fromEntries(
     'pwa.html',
     'app.mjs',
     'pwa.mjs',
+    'qr.css',
     'manifest.webmanifest',
     'auth-qr-icon.svg',
     'embed.html',
