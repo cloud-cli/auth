@@ -416,6 +416,16 @@
         "responses": { "200": { "description": "Administrator access state" }, "401": { "$ref": "#/components/responses/Unauthenticated" } }
       }
     },
+    "/audit": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "List the current user's authentication audit events",
+        "responses": {
+          "200": { "description": "Authentication timeline" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" }
+        }
+      }
+    },
     "/oidc/clients/{id}": {
       "delete": {
         "tags": ["Authentication"],

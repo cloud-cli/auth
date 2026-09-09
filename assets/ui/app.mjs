@@ -1,6 +1,6 @@
 import '@li3/web';
 import { ref, templateRef } from '@li3/web';
-import { createOidcClient, deleteProperty, generateRecoveryCodes, getOidcClients, getPasskeys, getProperties, registerPasskey, removeOidcClient as removeManagedOidcClient, revokePasskey, setProperty, signInWithPasskey } from '/dashboard.mjs';
+import { createOidcClient, deleteProperty, generateRecoveryCodes, getAuditEvents, getOidcClients, getPasskeys, getProperties, registerPasskey, removeOidcClient as removeManagedOidcClient, revokePasskey, setProperty, signInWithPasskey } from '/dashboard.mjs';
 
 const page = document.body.dataset.page;
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
@@ -26,6 +26,7 @@ export default function () {
   const redirectUris = templateRef('redirectUris');
   const clients = ref([]);
   const createdSecret = ref('');
+  const audit = ref([]);
   const propertyKey = templateRef('propertyKey');
   const propertyValue = templateRef('propertyValue');
 
@@ -52,6 +53,17 @@ export default function () {
     const profile = await fetch('/profile', { credentials: 'include' }).then((response) => response.json());
     user.value = profile;
     if (window.opener) window.opener.postMessage({ event: 'signin', detail: profile }, location.origin);
+    setTimeout(() => {
+      const header = document.querySelector('header');
+      if (header && !header.querySelector('[data-audit-link]')) {
+        const link = document.createElement('a');
+        link.href = '/audit';
+        link.dataset.auditLink = 'true';
+        link.className = 'font-semibold text-violet';
+        link.textContent = 'Activity';
+        header.prepend(link);
+      }
+    }, 10);
     const [keys, storedProperties] = await Promise.all([getPasskeys(), getProperties()]);
     passkeys.value = keys.filter((key) => !key.revokedAt);
     properties.value = storedProperties;
@@ -189,7 +201,8 @@ export default function () {
     loadProfile().catch((reason) => setMessage(reason.message, true));
   }
   if (page === 'oidc') getOidcClients().then((value) => clients.value = value).catch((reason) => setMessage(reason.message, true));
+  if (page === 'audit') getAuditEvents().then((value) => audit.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
 
-  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyCreatedSecret, copyUserId, signOut };
+  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, audit, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyCreatedSecret, copyUserId, signOut };
 }

@@ -65,6 +65,17 @@ export class OidcClient extends Resource {
   @Property(String) createdAt: string;
 }
 
+@Model("auth_audit_event")
+export class AuditEvent extends Resource {
+  @Primary() @Property(String) id: string;
+  @Property(String) userId: string;
+  @Property(String) event: string;
+  @Property(String) app: string;
+  @Property(String) result: string;
+  @Property(String) timestamp: string;
+  @Property(String) redirectUri: string;
+}
+
 export async function initStore() {
   Resource.use(new StoreDriver());
   await Resource.create(User);
@@ -73,4 +84,5 @@ export async function initStore() {
   await Resource.create(Authenticator);
   await Resource.create(QrLoginTransaction);
   await Resource.create(OidcClient);
+  await Resource.create(AuditEvent);
 }

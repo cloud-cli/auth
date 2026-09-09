@@ -24,6 +24,7 @@ import {
   revokeAuthenticator,
 } from './webauthn.js';
 import { consumeRecoveryCode, replaceRecoveryCodes } from './recovery.js';
+import { getAuditEvents, recordAudit } from './audit.js';
 import {
   approveQrLogin,
   completeQrLogin,
@@ -44,6 +45,7 @@ const uiAssets = Object.fromEntries(
     'login.html',
     'landing.html',
     'oidc.html',
+    'audit.html',
     'passkey.html',
     'recovery.html',
     'profile.html',
@@ -218,9 +220,14 @@ app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
 app.get('/oidc', adminRoute, serveUi('oidc.html'));
 app.get('/oidc/access', protectedRoute, (req, res) => res.json({ admin: isOidcAdmin(req.user!.id) }));
+app.get('/audit', protectedRoute, async (req, res) => res.json(await getAuditEvents(req.user!.id)));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
-  if (!user) return res.status(401).send('Invalid recovery code');
+  if (!user) {
+    await recordAudit({ event: 'recovery-authentication', app: 'recovery-code', result: 'failure' });
+    return res.status(401).send('Invalid recovery code');
+  }
+  await recordAudit({ userId: user.userId, event: 'recovery-authentication', app: 'recovery-code', result: 'success' });
   req.login(userAsJSON(user), (error) => {
     if (error) return res.status(500).send('Could not create session');
     res.redirect('/me');
@@ -257,6 +264,7 @@ app.get('/qr-login/details', protectedRoute, async (req, res) => {
 app.post('/qr-login/approve', express.json(), protectedRoute, async (req, res) => {
   try {
     await approveQrLogin(String(req.body?.transaction || ''), req.user!.id);
+    await recordAudit({ userId: req.user!.id, event: 'qr-approval', app: 'QR login', result: 'success' });
     res.sendStatus(204);
   } catch {
     res.status(410).json({ error: 'Expired QR login' });
@@ -306,11 +314,13 @@ app.post('/webauthn/authentication/verify', express.json(), async (req, res) => 
     const { userId } = await authenticate(req.body);
     const user = await findByUserId(userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
+    await recordAudit({ userId, event: 'passkey-authentication', app: 'WebAuthn', result: 'success' });
     req.login(userAsJSON(user), (error) => {
       if (error) return res.status(500).json({ error: 'Could not create session' });
       res.status(204).send('');
     });
   } catch (error) {
+    await recordAudit({ event: 'passkey-authentication', app: 'WebAuthn', result: 'failure' });
     res.status(401).json({ error: String(error) });
   }
 });
@@ -377,6 +387,7 @@ app.get('/authorize', async (req, res) => {
     typeof code_challenge !== 'string' ||
     code_challenge_method !== 'S256'
   ) {
+    await recordAudit({ event: 'oidc-authorization', app: clientId || 'unknown', result: 'failure', redirectUri });
     return res.status(400).send('Invalid authorization request');
   }
   if (!req.isAuthenticated?.() || !req.user?.id) {
@@ -384,6 +395,7 @@ app.get('/authorize', async (req, res) => {
   }
 
   const code = createAuthorizationCode(client, redirectUri, req.user.id, code_challenge);
+  await recordAudit({ userId: req.user.id, event: 'oidc-authorization', app: clientId, result: 'success', redirectUri });
   const callback = new URL(redirectUri);
   callback.searchParams.set('code', code);
   callback.searchParams.set('state', state);
@@ -406,10 +418,18 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
     redirectUri: redirect_uri,
     codeVerifier: code_verifier,
   });
-  if (!authorizationCode) return res.status(400).json({ error: 'invalid_grant' });
+  if (!authorizationCode) {
+    await recordAudit({ event: 'oidc-token-exchange', app: client_id, result: 'failure', redirectUri: redirect_uri });
+    return res.status(400).json({ error: 'invalid_grant' });
+  }
 
   const user = await findByUserId(authorizationCode.userId);
-  if (!user) return res.status(400).json({ error: 'invalid_grant' });
+  if (!user) {
+    await recordAudit({ event: 'oidc-token-exchange', app: client_id, result: 'failure', redirectUri: redirect_uri });
+    return res.status(400).json({ error: 'invalid_grant' });
+  }
+
+  await recordAudit({ userId: user.userId, event: 'oidc-token-exchange', app: client_id, result: 'success', redirectUri: redirect_uri });
 
   res.json(await tokenResponse(user, client_id));
 });

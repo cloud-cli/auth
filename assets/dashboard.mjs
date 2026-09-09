@@ -98,3 +98,9 @@ export async function removeOidcClient(id) {
   const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id), authDomain), { credentials: 'include', method: 'DELETE' });
   if (!response.ok) throw new Error('Could not remove OIDC client');
 }
+
+export async function getAuditEvents() {
+  const response = await fetch(new URL('/audit', authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load authentication history');
+  return response.json();
+}

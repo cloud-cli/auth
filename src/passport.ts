@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { userAsJSON, findByProfileId, findByUserId } from './user.js';
 import { User } from './store.js';
+import { recordAudit } from './audit.js';
 
 async function onUserSignIn(accessToken: string, refreshToken: string, profile: Profile, done: any) {
   let user = await findByProfileId(profile.id);
@@ -24,6 +25,7 @@ async function onUserSignIn(accessToken: string, refreshToken: string, profile: 
   });
 
   await user.save();
+  await recordAudit({ userId: user.userId, event: 'google-authentication', app: 'Google', result: 'success' });
 
   done(null, userAsJSON(user));
 }
