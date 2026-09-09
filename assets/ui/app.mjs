@@ -1,3 +1,4 @@
+import { load } from '@li3/web';
 import '@li3/web';
 import { ref, templateRef } from '@li3/web';
 import { createOidcClient, deleteProperty, generateRecoveryCodes, getAuditEvents, getOidcClients, getPasskeys, getProperties, registerPasskey, removeOidcClient as removeManagedOidcClient, revokePasskey, setProperty, signInWithPasskey } from '/dashboard.mjs';
@@ -27,6 +28,7 @@ export default function () {
   const clients = ref([]);
   const createdSecret = ref('');
   const audit = ref([]);
+  const section = ref(location.hash.slice(1) || 'security');
   const propertyKey = templateRef('propertyKey');
   const propertyValue = templateRef('propertyValue');
 
@@ -53,40 +55,6 @@ export default function () {
     const profile = await fetch('/profile', { credentials: 'include' }).then((response) => response.json());
     user.value = profile;
     if (window.opener) window.opener.postMessage({ event: 'signin', detail: profile }, location.origin);
-    setTimeout(() => {
-      const header = document.querySelector('header');
-      if (header && !header.querySelector('[data-audit-link]')) {
-        const link = document.createElement('a');
-        link.href = '/audit';
-        link.dataset.auditLink = 'true';
-        link.className = 'font-semibold text-violet';
-        link.textContent = 'Activity';
-        header.prepend(link);
-      }
-    }, 10);
-    const [keys, storedProperties] = await Promise.all([getPasskeys(), getProperties()]);
-    passkeys.value = keys.filter((key) => !key.revokedAt);
-    properties.value = storedProperties;
-    const access = await fetch('/oidc/access', { credentials: 'include' });
-    if (access.ok && (await access.json()).admin) {
-      setTimeout(() => {
-        const header = document.querySelector('header');
-        if (!header || header.querySelector('[data-oidc-link]')) return;
-        const link = document.createElement('a');
-        link.href = '/oidc';
-        link.dataset.oidcLink = 'true';
-        link.className = 'font-semibold text-violet';
-        link.textContent = 'OIDC apps';
-        header.prepend(link);
-      }, 10);
-    }
-    setTimeout(() => {
-      document.querySelectorAll('button').forEach((button) => {
-        if (button.textContent.trim() !== 'Revoke') return;
-        button.className = 'grid h-10 w-10 place-items-center rounded-xl text-rose-600 hover:bg-rose-50';
-        button.innerHTML = '<lucide-icon icon="trash" size="18"></lucide-icon><span class="sr-only">Revoke passkey</span>';
-      });
-    }, 10);
   }
 
   async function addPasskey() {
@@ -151,6 +119,23 @@ export default function () {
     location.href = '/login';
   }
 
+  async function mountNavigation() {
+    await load('/ui/auth-nav.html');
+    const anchor = page === 'profile' ? document.querySelector('.identity') : document.querySelector('header');
+    if (anchor && !document.querySelector('auth-nav')) anchor.after(document.createElement('auth-nav'));
+    if (page !== 'profile') {
+      const header = document.querySelector('header');
+      if (header && !header.querySelector('[data-signout]')) {
+        const button = document.createElement('button');
+        button.dataset.signout = 'true';
+        button.className = 'font-semibold text-violet';
+        button.textContent = 'Sign out';
+        button.onclick = signOut;
+        header.append(button);
+      }
+    }
+  }
+
   async function copyUserId() {
     await navigator.clipboard.writeText(user.value.id);
     setMessage('User ID copied.');
@@ -198,11 +183,15 @@ export default function () {
     if (returnUrl && loginPending) {
       setTimeout(() => location.href = returnUrl, 300);
     }
+    addEventListener('hashchange', () => section.value = location.hash.slice(1) || 'security');
     loadProfile().catch((reason) => setMessage(reason.message, true));
+    getAuditEvents().then((value) => audit.value = value).catch(() => {});
+    getOidcClients().then((value) => clients.value = value).catch(() => {});
   }
+  if (page === 'profile') mountNavigation().catch((reason) => setMessage(reason.message, true));
   if (page === 'oidc') getOidcClients().then((value) => clients.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'audit') getAuditEvents().then((value) => audit.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
 
-  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, audit, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyCreatedSecret, copyUserId, signOut };
+  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, audit, section, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyCreatedSecret, copyUserId, signOut };
 }

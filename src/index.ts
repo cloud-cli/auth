@@ -44,8 +44,11 @@ const uiAssets = Object.fromEntries(
   [
     'login.html',
     'landing.html',
-    'oidc.html',
-    'audit.html',
+    'auth-nav.html',
+    'security.html',
+    'properties.html',
+    'activity.html',
+    'oidc-apps.html',
     'passkey.html',
     'recovery.html',
     'profile.html',
@@ -218,7 +221,7 @@ app.get('/login', (req, res) => {
 });
 app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
-app.get('/oidc', adminRoute, serveUi('oidc.html'));
+app.get('/oidc', adminRoute, (_req, res) => res.redirect('/me#oidc'));
 app.get('/oidc/access', protectedRoute, (req, res) => res.json({ admin: isOidcAdmin(req.user!.id) }));
 app.get('/audit', protectedRoute, async (req, res) => res.json(await getAuditEvents(req.user!.id)));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {

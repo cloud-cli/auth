@@ -1,0 +1,19 @@
+<template component="auth-nav">
+  <nav class="mt-5 flex overflow-x-auto rounded-2xl border border-violet/10 bg-white p-1 shadow-sm shadow-violet/5">
+    <a class="flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-500" class-active="current === '/me#account'" href="/me#account"><lucide-icon icon="user-round" size="16"></lucide-icon>Account</a>
+    <a class="flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-500" class-active="current === '/me#activity'" href="/me#activity"><lucide-icon icon="history" size="16"></lucide-icon>Activity</a>
+    <template if="admin"><a class="flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-500" class-active="current === '/me#oidc'" href="/me#oidc"><lucide-icon icon="app-window" size="16"></lucide-icon>OIDC apps</a></template>
+  </nav>
+  <style>.active{background:#f0edff;color:#7257f5}</style>
+  <link rel="component" href="https://sodium.static.apphor.de/lucide-icon.html" />
+  <script setup>
+    import { ref } from '@li3/web';
+    export default function () {
+      const current = ref(location.pathname + (location.hash || '#security'));
+      const admin = ref(false);
+      fetch('/oidc/access', { credentials: 'include' }).then((response) => response.ok ? response.json() : null).then((result) => admin.value = Boolean(result?.admin));
+      addEventListener('hashchange', () => current.value = location.pathname + (location.hash || '#security'));
+      return { current, admin };
+    }
+  </script>
+</template>
