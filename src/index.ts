@@ -174,7 +174,12 @@ function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
 }
 
 function serveUi(name: string) {
-  return (_req, res) => res.type('html').send(uiAssets[name]);
+  return (_req, res) => {
+    const source = name === 'profile.html'
+      ? uiAssets[name].replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
+      : uiAssets[name];
+    res.type('html').send(source);
+  };
 }
 
 const googleScopes = {
@@ -469,9 +474,15 @@ app.get('/ui/:asset', (req, res) => {
   const asset = uiAssets[req.params.asset];
   if (!asset) return res.sendStatus(404);
   const type = req.params.asset.endsWith('.css') ? 'text/css' : req.params.asset.endsWith('.svg') ? 'image/svg+xml' : 'text/javascript';
+  const dashboardUrl = new URL('/dashboard.mjs', process.env.AUTH_DOMAIN || `https://${req.get('host')}`);
+  const source = req.params.asset === 'profile.html'
+    ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
+    : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html'].includes(req.params.asset)
+      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`)
+      : asset;
   res.type(type).send(
     req.params.asset === 'embed.mjs'
-      ? asset.replace(
+      ? source.replace(
           '__EMBED_ALLOWED_ORIGINS__',
           JSON.stringify(
             (process.env.EMBED_ALLOWED_ORIGINS || '')
@@ -480,7 +491,7 @@ app.get('/ui/:asset', (req, res) => {
               .filter(Boolean),
           ),
         )
-      : asset,
+      : source,
   );
 });
 
