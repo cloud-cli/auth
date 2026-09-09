@@ -128,6 +128,12 @@ export default function () {
     clients.value = await getOidcClients();
   }
 
+  async function copyCreatedSecret() {
+    await navigator.clipboard.writeText(createdSecret.value.replace(/^.*?: /, ''));
+    setMessage('Client secret copied.');
+    setTimeout(() => setMessage(''), 1800);
+  }
+
   async function signOut() {
     await fetch('/profile', { method: 'DELETE', credentials: 'include' });
     location.href = '/login';
@@ -185,5 +191,5 @@ export default function () {
   if (page === 'oidc') getOidcClients().then((value) => clients.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
 
-  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyUserId, signOut };
+  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyCreatedSecret, copyUserId, signOut };
 }

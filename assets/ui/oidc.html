@@ -1,1 +1,35 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OIDC clients</title><script src="https://cdn.tailwindcss.com"></script><script>tailwind.config={theme:{extend:{colors:{ink:'#18213b',violet:'#7257f5'}}}}</script><script type="importmap">{"imports":{"@li3/":"https://cdn.li3.dev/@li3/"}}</script><script type="module" src="/ui/app.mjs"></script></head><body data-page="oidc" class="min-h-dvh bg-violet/5 p-5 text-ink"><template app><main class="mx-auto max-w-4xl"><header class="flex items-center justify-between py-6"><a class="text-xl font-black" href="/me">auth</a><a class="font-semibold text-violet" href="/me">Back to account</a></header><section class="mb-5 rounded-3xl bg-white p-6 shadow-xl shadow-violet/5"><h1 class="text-3xl font-extrabold tracking-[-.03em]">OIDC applications</h1><p class="mt-2 text-slate-500">Register trusted applications. Secrets are shown once.</p><form class="mt-5 grid gap-3 rounded-2xl bg-violet/5 p-4" on-submit.prevent="addOidcClient()"><input ref="clientId" class="rounded-xl border border-slate-200 px-3 py-2" placeholder="Client ID, e.g. registry" required><textarea ref="redirectUris" class="min-h-24 rounded-xl border border-slate-200 px-3 py-2" placeholder="One exact HTTPS callback URL per line" required></textarea><button class="rounded-xl bg-violet px-4 py-3 font-bold text-white" type="submit">Register application</button></form><p class="mt-3 break-all font-mono text-sm text-emerald-700">{{ createdSecret }}</p></section><section class="rounded-3xl bg-white p-6 shadow-xl shadow-violet/5"><div class="divide-y divide-slate-100"><template for="client of clients"><article class="flex items-start justify-between gap-4 py-4"><div><strong>{{ client.id }}</strong><template for="uri of client.redirectUris"><span class="mt-1 block break-all text-sm text-slate-500">{{ uri }}</span></template></div><button class="font-semibold text-rose-600" on-click="removeOidcClient(client.id)">Remove</button></article></template></div></section></main><script setup src="/ui/app.mjs"></script></template></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>OIDC clients</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{colors:{ink:'#18213b',violet:'#7257f5'}}}}</script>
+    <script type="importmap">{"imports":{"@li3/":"https://cdn.li3.dev/@li3/"}}</script>
+    <link rel="component" href="https://sodium.static.apphor.de/lucide-icon.html" />
+    <script type="module" src="/ui/app.mjs"></script>
+  </head>
+  <body data-page="oidc" class="min-h-dvh bg-violet/5 p-5 text-ink">
+    <template app>
+      <main class="mx-auto max-w-4xl">
+        <header class="flex items-center justify-between py-6"><a class="text-xl font-black" href="/me">auth</a><a class="font-semibold text-violet" href="/me">Back to account</a></header>
+        <section class="mb-5 rounded-3xl bg-white p-6 shadow-xl shadow-violet/5">
+          <h1 class="text-3xl font-extrabold tracking-[-.03em]">OIDC applications</h1>
+          <p class="mt-2 text-slate-500">Register trusted applications. Secrets are shown once.</p>
+          <form class="mt-5 grid gap-3 rounded-2xl bg-violet/5 p-4" on-submit.prevent="addOidcClient()">
+            <input ref="clientId" class="rounded-xl border border-slate-200 px-3 py-2" placeholder="Client ID, e.g. registry" required>
+            <textarea ref="redirectUris" class="min-h-24 rounded-xl border border-slate-200 px-3 py-2" placeholder="One exact HTTPS callback URL per line" required></textarea>
+            <button class="rounded-xl bg-violet px-4 py-3 font-bold text-white" type="submit">Register application</button>
+          </form>
+          <div class="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900" class-created-secret="createdSecret">
+            <lucide-icon icon="key-round" size="18"></lucide-icon><code class="min-w-0 flex-1 break-all">{{ createdSecret }}</code>
+            <button class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-emerald-800 hover:bg-emerald-100" on-click="copyCreatedSecret()"><lucide-icon icon="copy" size="18"></lucide-icon><span class="sr-only">Copy client secret</span></button>
+          </div>
+        </section>
+        <section class="rounded-3xl bg-white p-6 shadow-xl shadow-violet/5"><div class="divide-y divide-slate-100"><template for="client of clients"><article class="flex items-start justify-between gap-4 py-4"><div><strong>{{ client.id }}</strong><template for="uri of client.redirectUris"><span class="mt-1 block break-all text-sm text-slate-500">{{ uri }}</span></template></div><button class="font-semibold text-rose-600" on-click="removeOidcClient(client.id)">Remove</button></article></template></div></section>
+      </main>
+      <script setup src="/ui/app.mjs"></script>
+    </template>
+  </body>
+</html>
