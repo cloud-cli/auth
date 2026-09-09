@@ -50,6 +50,8 @@ const uiAssets = Object.fromEntries(
     'pwa.mjs',
     'styles.css',
     'pwa.css',
+    'manifest.webmanifest',
+    'auth-qr-icon.svg',
     'embed.html',
     'embed.mjs',
   ].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]),
@@ -185,7 +187,7 @@ app.get('/qr-login', serveUi('qr-login.html'));
 app.get('/qr-login/status', async (req, res) => {
   try {
     const token = typeof req.query.transaction === 'string' ? req.query.transaction : '';
-    const transaction = qrLoginOrigin(token, req.sessionID);
+    const transaction = await qrLoginOrigin(token, req.sessionID);
     if (transaction.status !== 'approved') return res.json({ status: transaction.status });
     const completed = await completeQrLogin(token, req.sessionID);
     if (!completed) return res.status(401).json({ status: 'expired' });
@@ -197,10 +199,10 @@ app.get('/qr-login/status', async (req, res) => {
     res.status(410).json({ status: 'expired' });
   }
 });
-app.get('/qr-login/details', protectedRoute, (req, res) => {
+app.get('/qr-login/details', protectedRoute, async (req, res) => {
   try {
     const token = typeof req.query.transaction === 'string' ? req.query.transaction : '';
-    res.json(qrLoginDetails(token));
+    res.json(await qrLoginDetails(token));
   } catch {
     res.status(410).json({ error: 'Expired QR login' });
   }
@@ -213,9 +215,9 @@ app.post('/qr-login/approve', express.json(), protectedRoute, async (req, res) =
     res.status(410).json({ error: 'Expired QR login' });
   }
 });
-app.post('/qr-login/deny', express.json(), protectedRoute, (req, res) => {
+app.post('/qr-login/deny', express.json(), protectedRoute, async (req, res) => {
   try {
-    denyQrLogin(String(req.body?.transaction || ''));
+    await denyQrLogin(String(req.body?.transaction || ''));
     res.sendStatus(204);
   } catch {
     res.status(410).json({ error: 'Expired QR login' });
@@ -226,17 +228,7 @@ app.get('/pwa/sw.js', (_req, res) =>
   res.type('javascript').set('Service-Worker-Allowed', '/pwa/').send(pwaServiceWorker),
 );
 app.get('/pwa/manifest.webmanifest', (_req, res) =>
-  res
-    .type('application/manifest+json')
-    .json({
-      name: 'Auth',
-      short_name: 'Auth',
-      start_url: '/pwa/',
-      display: 'standalone',
-      background_color: '#f3f4f6',
-      theme_color: '#111827',
-      scope: '/pwa/',
-    }),
+  res.type('application/manifest+json').send(uiAssets['manifest.webmanifest']),
 );
 app.get('/webauthn/register/options', protectedRoute, async (req, res) => {
   res.json(await registrationOptions(req.user!.id));
@@ -397,7 +389,8 @@ app.get('/ui/google.svg', (_req, res) => res.type('image/svg+xml').send(readFile
 app.get('/ui/:asset', (req, res) => {
   const asset = uiAssets[req.params.asset];
   if (!asset) return res.sendStatus(404);
-  res.type(req.params.asset.endsWith('.css') ? 'text/css' : 'text/javascript').send(
+  const type = req.params.asset.endsWith('.css') ? 'text/css' : req.params.asset.endsWith('.svg') ? 'image/svg+xml' : 'text/javascript';
+  res.type(type).send(
     req.params.asset === 'embed.mjs'
       ? asset.replace(
           '__EMBED_ALLOWED_ORIGINS__',

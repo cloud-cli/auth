@@ -70,7 +70,7 @@ Keep at least one recovery method, such as Google sign-in, offline recovery code
 
 The `/me` page can generate ten one-time recovery codes. They are stored hashed and shown only once; generating a new set invalidates the previous set. Store them offline and do not put them in source control.
 
-The login page also offers **Approve on phone with QR**. The laptop creates a five-minute, single-use transaction and polls for approval. Open `/pwa/` on the phone, install it if desired, tap **Scan QR code**, scan the laptop's code, and approve the displayed login. The PWA does not use push notifications and does not copy the phone's session cookie; the laptop receives its own session.
+The login page also offers **Approve on phone with QR**. The laptop creates a five-minute, single-use transaction and polls for approval. Open `/pwa/` on the phone, tap **Install Auth QR app** when the browser offers it, then tap **Scan QR code**, scan the laptop's code, and approve the displayed login. The PWA does not use push notifications and does not copy the phone's session cookie; the laptop receives its own session.
 
 QR login transactions are currently held in memory, so use one auth-server instance or session affinity. Before running multiple replicas, move transactions to a shared store with atomic single-use consumption.
 

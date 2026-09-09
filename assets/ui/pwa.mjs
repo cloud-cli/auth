@@ -4,7 +4,22 @@ import { ref, templateRef } from '@li3/web';
 export default function () {
   const message = ref('Tap scan to approve a sign-in from another device.');
   const approved = ref(false);
+  const installAvailable = ref(false);
   const video = templateRef('camera');
+  let installPrompt;
+
+  addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    installPrompt = event;
+    installAvailable.value = true;
+  });
+
+  const install = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    installPrompt = undefined;
+    installAvailable.value = false;
+  };
 
   const scan = async () => {
     if (!('BarcodeDetector' in globalThis)) {
@@ -36,5 +51,5 @@ export default function () {
   };
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/pwa/sw.js');
-  return { video, message, approved, scan };
+  return { video, message, approved, installAvailable, install, scan };
 }

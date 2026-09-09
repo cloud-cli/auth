@@ -47,10 +47,21 @@ export class Authenticator extends Resource {
   @Property(String) revokedAt: string;
 }
 
+@Model("auth_qr_login")
+export class QrLoginTransaction extends Resource {
+  @Primary() @Property(String) token: string;
+  @Property(String) sessionId: string;
+  @Property(String) returnUrl: string;
+  @Property(String) createdAt: string;
+  @Property(String) userId: string;
+  @Property(String) status: string;
+}
+
 export async function initStore() {
   Resource.use(new StoreDriver());
   await Resource.create(User);
   await Resource.create(UserProperty);
   await Resource.create(UserSession);
   await Resource.create(Authenticator);
+  await Resource.create(QrLoginTransaction);
 }
