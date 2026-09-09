@@ -605,14 +605,14 @@
         }
       }
     },
-    "/qr-login": {
+    "/qr-login/start": {
       "get": {
         "tags": ["Authentication"],
-        "summary": "Display a QR login approval transaction",
+        "summary": "Create a QR login approval transaction",
         "parameters": [
           { "name": "url", "in": "query", "required": false, "schema": { "type": "string" } }
         ],
-        "responses": { "200": { "description": "QR login page" } }
+        "responses": { "200": { "description": "Transaction token, QR data URL, and PWA URL" } }
       }
     },
     "/qr-login/status": {

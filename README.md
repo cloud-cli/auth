@@ -73,6 +73,10 @@ The login page also offers **Approve on phone with QR**. The laptop creates a tw
 
 QR login transactions are currently held in memory, so use one auth-server instance or session affinity. Before running multiple replicas, move transactions to a shared store with atomic single-use consumption.
 
+## Frontend
+
+The API server contains no HTML. Pages are static Li3 apps under `assets/ui/` and are served through `/login`, `/me`, `/webauthn/login`, `/recovery`, `/qr-login`, and `/pwa/`. The frontend uses the existing browser client at `/index.mjs`; APIs remain JSON, JavaScript, or redirect endpoints.
+
 `GET /node.mjs` provides `createAuthClient({ clientId })` for Node.js services. It creates PKCE authorization requests, exchanges callbacks, verifies JWTs locally through the JWKS endpoint, and obtains the user's public profile.
 
 For sibling domains that receive the shared auth cookie, it also provides `getSessionProfile(request)`, `isSessionAuthenticated(request)`, and `requireSession(request, response)`. These forward only the configured session cookie to the auth API. They do not work across unrelated domains; use the OIDC authorization-code flow there.

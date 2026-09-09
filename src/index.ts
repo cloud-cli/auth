@@ -1,7 +1,7 @@
 import express from 'express';
 import { readFileSync } from 'fs';
 import { findByEmail, findByUserId, userAsJSON } from './user.js';
-import { User, initStore } from './store.js';
+import { initStore } from './store.js';
 import session from './session.js';
 import log from './log.js';
 import passport, { googleCallback } from './passport.js';
@@ -12,18 +12,24 @@ import { authenticate, authenticationOptions, listAuthenticators, registrationOp
 import { consumeRecoveryCode, replaceRecoveryCodes } from './recovery.js';
 import { approveQrLogin, completeQrLogin, denyQrLogin, qrLoginDetails, qrLoginOrigin, qrLoginPage } from './qr-login.js';
 
-const googleSvg = readFileSync('./assets/google.svg', 'utf8');
 const esLibrary = readFileSync('./assets/index.mjs', 'utf8');
 const esHelper = readFileSync('./assets/lib.mjs', 'utf8');
 const nodeLibrary = readFileSync('./assets/node.mjs', 'utf8');
 const openApiSpec = readFileSync('./assets/openapi.json', 'utf8');
-const pwaHtml = readFileSync('./assets/pwa.html', 'utf8');
-const pwaModule = readFileSync('./assets/pwa.mjs', 'utf8');
 const pwaServiceWorker = readFileSync('./assets/pwa-sw.js', 'utf8');
+const uiAssets = Object.fromEntries(['login.html', 'passkey.html', 'recovery.html', 'profile.html', 'qr-login.html', 'pwa.html', 'app.mjs', 'pwa.mjs', 'styles.css', 'embed.html', 'embed.mjs'].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]));
 
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
-    return res.status(401).send(makeLoginPage());
+    return res.status(401).send('');
+  }
+
+  next();
+}
+
+function protectedPage(req, res, next) {
+  if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
+    return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
   }
 
   next();
@@ -81,181 +87,8 @@ function sessionTokenCors(req, res, next) {
   next();
 }
 
-async function getProfile(req, res) {
-  const user = await findByUserId(req.user?.id);
-
-  if (user) {
-    res.send(await makeProfile(user));
-    return;
-  }
-
-  res.status(404).send('{}');
-}
-
-function makePage(title: string, page: string) {
-  return [
-    `<!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>${title}</title>
-      <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet" />
-      <script type="module">
-      async function load() {
-        globalThis.Auth = await import('/index.mjs');
-      }
-      load();
-      </script>
-  </head>
-  <body>`,
-    page,
-    `</body>
-  </html>`,
-  ].join('');
-}
-
-function makeLoginPage(returnUrl = '/me') {
-  return makePage(
-    'Sign in to continue',
-    `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4">
-      <div class="text-center p-4 bg-white rounded-lg shadow">
-        <h1 class="text-2xl font-bold mb-6">Hello!</h1>
-        <a href="/auth/google" class="bg-white border text-gray-800 px-4 py-2 rounded shadow flex items-center justify-center">
-          ${googleSvg}
-          Sign in with Google
-        </a>
-        <a href="/webauthn/login" class="block bg-gray-900 text-white px-4 py-2 rounded shadow mt-3">Sign in with a passkey</a>
-        <a href="/qr-login?url=${encodeURIComponent(returnUrl)}" class="block border text-gray-800 px-4 py-2 rounded shadow mt-3">Approve on phone with QR</a>
-        <a href="/recovery" class="block text-sm text-gray-600 mt-3">Use a recovery code</a>
-      </div>
-      <script>
-      (function(){sessionStorage.url=[...new URLSearchParams(location.search)].find(p=>p[0]==="url")?.[1] || ''})();
-      </script>`,
-  );
-}
-
-function makePasskeyLoginPage() {
-  return makePage(
-    'Sign in with a passkey',
-    `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4">
-      <div class="text-center p-4 bg-white rounded-lg shadow">
-        <h1 class="text-2xl font-bold mb-6">Passkey sign-in</h1>
-        <input id="account" class="border p-2 rounded mb-3" placeholder="Email (optional for phone passkeys)" autocomplete="username webauthn" />
-        <button id="signin" class="bg-gray-900 text-white px-4 py-2 rounded shadow">Unlock with passkey</button>
-        <p id="error" class="text-red-600 mt-4"></p>
-      </div>
-    </div>
-    <script type="module">
-      import { signInWithPasskey } from '/index.mjs';
-      signin.onclick = async () => {
-        try {
-          await signInWithPasskey(account.value);
-          location.href = '/me';
-        } catch (error) {
-          document.querySelector('#error').textContent = error.message;
-        }
-      };
-      signin.click();
-    </script>`,
-  );
-}
-
-function makeRecoveryPage() {
-  return makePage('Use a recovery code', `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4"><form method="post" class="text-center p-4 bg-white rounded-lg shadow"><h1 class="text-2xl font-bold mb-6">Recovery sign-in</h1><input name="email" type="email" required placeholder="Email" class="border p-2 rounded block mb-2" /><input name="code" required placeholder="Recovery code" class="border p-2 rounded block mb-2" /><button class="bg-gray-900 text-white px-4 py-2 rounded shadow">Sign in</button></form></div>`);
-}
-
-function makeQrLoginPage(qr: string, pwaUrl: string, token: string) {
-  return makePage('Approve on phone', `<div class="bg-gray-100 h-screen w-screen flex items-center justify-center px-4"><div class="text-center p-4 bg-white rounded-lg shadow"><h1 class="text-2xl font-bold mb-4">Scan with your phone</h1><img src="${qr}" alt="QR code" width="320" height="320" /><p>Open the Auth app, scan this code, and approve the login.</p><p id="status">Waiting for approval...</p><p><a href="${pwaUrl}">Open Auth PWA</a></p></div></div><script>const token=${JSON.stringify(token)};const poll=async()=>{const r=await fetch('/qr-login/status?transaction='+encodeURIComponent(token),{credentials:'include'});if(r.ok){const x=await r.json();if(x.status==='approved'){location.href=x.returnUrl;return}if(x.status==='denied')document.querySelector('#status').textContent='Login denied.'}setTimeout(poll,1000)};poll();</script>`);
-}
-
-async function makeProfile(user: User) {
-  const profile = JSON.stringify(user);
-  const fields = ['userId', 'profileId', 'accessToken', 'refreshToken'] as Array<keyof User>;
-  const fieldsText = fields
-    .map((key) => ({ key, value: user[key] || '' }))
-    .map(
-      ({ key, value }) => `<div class="flex items-center font-mono border-b">
-        <span class="w-1/3 p-1">${key}</span>
-        <span class="w-2/3 truncate p-1" onclick="$event.target.classList.toggle('truncate')">${value}</span>
-      </div>`,
-    )
-    .join('\n');
-
-  const properties = await getProperties(user.userId);
-  const propertiesText = properties
-    .map(({ key, value }) => {
-      return `<div class="flex items-center font-mono border-b">
-      <span class="w-1/3 p-1">${key}</span>
-      <span class="w-2/3 flex-1 text-red-500 p-1 truncate">${value}</span>
-      <button class="flex-1" onclick="if(confirm('Sure?')){Auth.deleteProperty('${key}');$event.target.parentNode.remove();}">&times;</button>
-    </div>`;
-    })
-    .join('\n');
-  const authenticators = await listAuthenticators(user.userId);
-  const authenticatorsText = authenticators
-    .filter((authenticator) => !authenticator.revokedAt)
-    .map((authenticator) => `<div class="flex items-center font-mono border-b"><span class="flex-1 p-1">${authenticator.label}</span><span class="flex-1 p-1 text-gray-400">${authenticator.lastUsedAt || 'never used'}</span><button class="p-1" onclick="Auth.revokePasskey('${authenticator.credentialId}').then(()=>location.reload())">Revoke</button></div>`)
-    .join('\n');
-
-  return makePage(
-    'Profile',
-    `<div class="hidden" id="r">Redirecting</div>
-    <div class="bg-gray-100 h-screen w-screen flex items-center justify-center p-4 hidden" id="p">
-      <div class="bg-white rounded-xl mx-auto p-8 border shadow-lg max-w-full md:max-w-5xl max-h-full overflow-auto">
-        <figure>
-          <img class="w-24 h-24 rounded-full mx-auto" src="${user.photo}" alt="" width="384" height="512" />
-          <figcaption class="block space-y-1">
-            <div class="text-center py-4">Hello, ${user.name}!</div>
-          </figcaption>
-        </figure>
-        <hr class="mt-4" />
-        <button type="button" onclick="l()" class="block bg-white text-gray-800 p-2 text-sm rounded shadow border border-gray-200 mt-4 mx-auto">Logout</button>
-        <hr class="mt-4" />
-        <div class="text-sm text-gray-400 space-y-1">
-          ${fieldsText}
-          ${propertiesText}
-          <div class="font-bold border-b mt-4 p-1">Passkeys</div>
-          ${authenticatorsText || '<div class="p-1">No passkeys registered</div>'}
-        </div>
-        <div class="flex items-centers justify-center p-2">
-          <button onclick="Auth.setProperty( prompt('Key', ''), prompt('Value', '') );window.location.relaod()">Add</button>
-          <button class="ml-4" onclick="Auth.registerPasskey(prompt('Passkey name', 'My device')).then(()=>location.reload())">Add passkey</button>
-          <button class="ml-4" onclick="Auth.generateRecoveryCodes().then(codes=>alert(codes.join('\\n')))" >New recovery codes</button>
-        </div>
-      </div>
-    </div>
-    <script>
-    async function l(){await fetch('/',{method:'DELETE'});location.href='/login';}
-    addEventListener('DOMContentLoaded',() => {
-      const n = sessionStorage.url || '';
-      if (n) {
-        setTimeout(()=>location.href=n,1000);
-        return window.r.classList.add('hidden');
-      }
-
-      window.p.classList.remove('hidden');
-      (opener||window).postMessage({ event: 'signin', detail: ${profile} }, '*');
-    });
-    </script>`,
-  );
-}
-
-async function makeEmbedPage(_req, res) {
-  const allowedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim());
-
-  res.send(`<script type="module">
-import { runCommand } from '/lib.mjs';
-const allowedOrigins = ${JSON.stringify(allowedOrigins)};
-window.addEventListener("message", async function (event) {
-  if (!allowedOrigins.some(o => event.origin.endsWith(o))) {
-    console.log('Origin not allowed: ' + event.origin, event);
-    return;
-  }
-
-  runCommand(event);
-}, false);
-</script>`);
+function serveUi(name: string) {
+  return (_req, res) => res.type('html').send(uiAssets[name]);
 }
 
 const googleScopes = {
@@ -292,13 +125,9 @@ app.head('/', protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
 app.delete('/', protectedRoute, logout);
-app.get('/login', (req, res) => {
-  res.send(makeLoginPage(typeof req.query.url === 'string' ? req.query.url : '/me'));
-});
-app.get('/webauthn/login', (_req, res) => {
-  res.send(makePasskeyLoginPage());
-});
-app.get('/recovery', (_req, res) => res.send(makeRecoveryPage()));
+app.get('/login', serveUi('login.html'));
+app.get('/webauthn/login', serveUi('passkey.html'));
+app.get('/recovery', serveUi('recovery.html'));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
   if (!user) return res.status(401).send('Invalid recovery code');
@@ -307,10 +136,11 @@ app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) 
     res.redirect('/me');
   });
 });
-app.get('/qr-login', async (req, res) => {
+app.get('/qr-login/start', async (req, res) => {
   const page = await qrLoginPage(req.sessionID, typeof req.query.url === 'string' ? req.query.url : '/me');
-  res.send(makeQrLoginPage(page.qr, page.pwaUrl, page.token));
+  res.json(page);
 });
+app.get('/qr-login', serveUi('qr-login.html'));
 app.get('/qr-login/status', async (req, res) => {
   try {
     const token = typeof req.query.transaction === 'string' ? req.query.transaction : '';
@@ -350,8 +180,7 @@ app.post('/qr-login/deny', express.json(), protectedRoute, (req, res) => {
     res.status(410).json({ error: 'Expired QR login' });
   }
 });
-app.get('/pwa/', (_req, res) => res.type('html').send(pwaHtml));
-app.get('/pwa/pwa.mjs', (_req, res) => res.type('javascript').send(pwaModule));
+app.get('/pwa/', serveUi('pwa.html'));
 app.get('/pwa/sw.js', (_req, res) => res.type('javascript').set('Service-Worker-Allowed', '/pwa/').send(pwaServiceWorker));
 app.get('/pwa/manifest.webmanifest', (_req, res) => res.type('application/manifest+json').json({ name: 'Auth', short_name: 'Auth', start_url: '/pwa/', display: 'standalone', background_color: '#f3f4f6', theme_color: '#111827', scope: '/pwa/' }));
 app.get('/webauthn/register/options', protectedRoute, async (req, res) => {
@@ -453,8 +282,8 @@ app.get('/userinfo', tokenUser, async (req, res) => {
 
   res.json(userAsJSON(user));
 });
-app.get('/embed', makeEmbedPage);
-app.get('/me', protectedRoute, getProfile);
+app.get('/embed', serveUi('embed.html'));
+app.get('/me', protectedPage, serveUi('profile.html'));
 app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 
@@ -470,6 +299,12 @@ app.get('/index.js', serveEsModule(esLibrary));
 app.get('/index.mjs', serveEsModule(esLibrary));
 app.get('/node.mjs', serveEsModule(nodeLibrary));
 app.get('/lib.mjs', serveEsModule(esHelper));
+app.get('/ui/google.svg', (_req, res) => res.type('image/svg+xml').send(readFileSync('./assets/google.svg', 'utf8')));
+app.get('/ui/:asset', (req, res) => {
+  const asset = uiAssets[req.params.asset];
+  if (!asset) return res.sendStatus(404);
+  res.type(req.params.asset.endsWith('.css') ? 'text/css' : 'text/javascript').send(req.params.asset === 'embed.mjs' ? asset.replace('__EMBED_ALLOWED_ORIGINS__', JSON.stringify((process.env.EMBED_ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean))) : asset);
+});
 
 app.put('/properties', protectedRoute, async (req, res) => {
   const buffer = Buffer.concat(await req.toArray()).toString('utf8');
