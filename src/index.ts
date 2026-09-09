@@ -42,6 +42,7 @@ const pwaServiceWorker = readFileSync('./assets/pwa-sw.js', 'utf8');
 const uiAssets = Object.fromEntries(
   [
     'login.html',
+    'landing.html',
     'passkey.html',
     'recovery.html',
     'profile.html',
@@ -181,7 +182,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/', browserCors, protectedRouteWithRedirect, async (req, res) => {
+app.get('/', serveUi('landing.html'));
+app.get('/profile', browserCors, protectedRouteWithRedirect, async (req, res) => {
   const user = await findByUserId(req.user?.id);
   if (user) {
     res.send(userAsJSON(user));
@@ -190,10 +192,10 @@ app.get('/', browserCors, protectedRouteWithRedirect, async (req, res) => {
 
   res.status(404).send('{}');
 });
-app.head('/', browserCors, protectedRoute, (_req, res) => {
+app.head('/profile', browserCors, protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
-app.delete('/', protectedRoute, logout);
+app.delete('/profile', protectedRoute, logout);
 app.get('/login', serveUi('login.html'));
 app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
@@ -406,8 +408,6 @@ const serveEsModule = (source) => (req, res) => {
   res.set('Content-Type', 'text/javascript').set('Access-Control-Allow-Origin', '*').send(es);
 };
 
-app.get('/auth.js', serveEsModule(esLibrary));
-app.get('/index.js', serveEsModule(esLibrary));
 app.get('/index.mjs', serveEsModule(esLibrary));
 app.get('/dashboard.mjs', serveEsModule(dashboardLibrary));
 app.get('/node.mjs', serveEsModule(nodeLibrary));

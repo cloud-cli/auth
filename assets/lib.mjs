@@ -18,17 +18,17 @@ function toBoolean(r) {
 }
 
 async function getProfile() {
-  const r = await fetch(authDomain, fetchOptions);
+  const r = await fetch(new URL("/profile", authDomain), fetchOptions);
   return toJson(r);
 }
 
 async function isAuthenticated() {
-  const r = await fetch(authDomain, { ...fetchOptions, method: "HEAD" });
+  const r = await fetch(new URL("/profile", authDomain), { ...fetchOptions, method: "HEAD" });
   return Boolean(r.ok && r.status < 300);
 }
 
 async function signOut() {
-  const r = await fetch(authDomain, {
+  const r = await fetch(new URL("/profile", authDomain), {
     ...fetchOptions,
     method: "DELETE",
   });

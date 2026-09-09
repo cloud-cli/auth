@@ -189,21 +189,25 @@ createServer(async (request, response) => {
 
 `auth.getSessionCookie(request)` returns the central `connect.sid` cookie value that `getSessionProfile`, `isSessionAuthenticated`, and `requireSession` forward to the auth API. These helpers are only useful when the incoming request already contains the shared auth cookie. The example's `todo.sid` is an application-owned session cookie and cannot be forwarded to the auth API.
 
-\*GET /:
+*GET /profile*:
 
 Returns a JSON with `{ id, displayName, photo, properties }`
 
-_DELETE /_:
+_DELETE /profile_:
 
 Deletes the current session
 
-_HEAD /_:
+_HEAD /profile_:
 
 Returns 204 if authenticated, 401 if not
 
 _GET /login?url=xxx_:
 
 Browser login page. Optionally, redirects after login
+
+*GET /*:
+
+Auth landing page
 
 _GET /me_:
 

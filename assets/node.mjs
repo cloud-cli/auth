@@ -89,7 +89,7 @@ export function createAuthClient({ issuer = defaultIssuer, clientId, sessionCook
     const cookie = getSessionCookie(request, sessionCookieName);
     if (!cookie) return null;
 
-    const response = await fetch(new URL('/', issuer), { headers: { Cookie: cookie } });
+    const response = await fetch(new URL('/profile', issuer), { headers: { Cookie: cookie } });
     return response.ok ? response.json() : null;
   }
 

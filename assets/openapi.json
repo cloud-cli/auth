@@ -25,7 +25,7 @@
     }
   ],
   "paths": {
-    "/": {
+    "/profile": {
       "get": {
         "tags": ["Authentication"],
         "summary": "Get the current user",
@@ -72,6 +72,22 @@
           },
           "500": {
             "description": "Sign-out failed"
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Show the Auth landing page",
+        "responses": {
+          "200": {
+            "description": "HTML landing page",
+            "content": {
+              "text/html": {
+                "schema": { "type": "string" }
+              }
+            }
           }
         }
       }
@@ -296,28 +312,6 @@
       "get": {
         "tags": ["Browser client"],
         "summary": "Serve the Auth dashboard WebAuthn management module",
-        "responses": {
-          "200": {
-            "description": "JavaScript ES module"
-          }
-        }
-      }
-    },
-    "/index.js": {
-      "get": {
-        "tags": ["Browser client"],
-        "summary": "Alias for the browser authentication ES module",
-        "responses": {
-          "200": {
-            "description": "JavaScript ES module"
-          }
-        }
-      }
-    },
-    "/auth.js": {
-      "get": {
-        "tags": ["Browser client"],
-        "summary": "Alias for the browser authentication ES module",
         "responses": {
           "200": {
             "description": "JavaScript ES module"

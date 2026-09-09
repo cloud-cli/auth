@@ -44,7 +44,7 @@ export default function () {
   }
 
   async function loadProfile() {
-    const profile = await fetch('/', { credentials: 'include' }).then((response) => response.json());
+    const profile = await fetch('/profile', { credentials: 'include' }).then((response) => response.json());
     user.value = profile;
     if (window.opener) window.opener.postMessage({ event: 'signin', detail: profile }, location.origin);
     const [keys, storedProperties] = await Promise.all([getPasskeys(), getProperties()]);
@@ -90,7 +90,7 @@ export default function () {
   }
 
   async function signOut() {
-    await fetch('/', { method: 'DELETE', credentials: 'include' });
+    await fetch('/profile', { method: 'DELETE', credentials: 'include' });
     location.href = '/login';
   }
 

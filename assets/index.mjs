@@ -145,7 +145,7 @@ export const deleteProperty = fetchCommand("deleteProperty");
 export const getProperties = fetchCommand("getProperties");
 export async function getProfile() {
   try {
-    const response = await fetch(authDomain, { credentials: "include", mode: "cors" });
+    const response = await fetch(new URL("/profile", authDomain), { credentials: "include", mode: "cors" });
     if (!response.ok) throw new Error(response.status + ": " + response.statusText);
     return response.json();
   } catch {
@@ -154,7 +154,7 @@ export async function getProfile() {
 }
 export async function isAuthenticated() {
   try {
-    const response = await fetch(authDomain, { credentials: "include", mode: "cors", method: "HEAD" });
+    const response = await fetch(new URL("/profile", authDomain), { credentials: "include", mode: "cors", method: "HEAD" });
     return response.ok && response.status < 300;
   } catch {
     return fetchCommand("isAuthenticated")();
