@@ -44,6 +44,7 @@ export default function () {
     const [profile, keys] = await Promise.all([fetch('/', { credentials: 'include' }).then((response) => response.json()), getPasskeys()]);
     user.value = profile;
     passkeys.value = keys.filter((key) => !key.revokedAt);
+    if (window.opener) window.opener.postMessage({ event: 'signin', detail: profile }, location.origin);
   }
 
   async function addPasskey() {

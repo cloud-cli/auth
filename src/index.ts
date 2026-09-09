@@ -49,6 +49,7 @@ const uiAssets = Object.fromEntries(
     'app.mjs',
     'pwa.mjs',
     'styles.css',
+    'login.css',
     'pwa.css',
     'manifest.webmanifest',
     'auth-qr-icon.svg',

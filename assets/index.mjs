@@ -90,7 +90,7 @@ export function signIn(usePopUp) {
     popup = window.open(
       String(new URL("/login", authDomain)),
       "signin",
-      `popup,width=640,height=480,left=${left},top=${top}`
+      `popup,width=640,height=630,left=${left},top=${top}`
     );
     return;
   }
