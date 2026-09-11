@@ -2,9 +2,8 @@ FROM ghcr.io/cloud-cli/node:latest AS builder
 
 USER 0
 COPY . .
-RUN pnpm i && pnpm build && rm -r node_modules/ src/
+RUN pnpm install --frozen-lockfile && pnpm build && pnpm prune --prod && rm -r src/
 
 FROM ghcr.io/cloud-cli/node:latest
 
 COPY --from=builder /home/app/ .
-RUN pnpm i --prod
