@@ -13,6 +13,7 @@ Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved p
 | SESSION_DOMAIN       | Domain to use for session cookie, e.g foo.com                                     | false            |
 | SESSION_SECRET       | Session secret, used to store the user session                                    | true             |
 | STORE_URL            | URL of store endpoint for [@cloud-cli/store](https://github.com/cloud-cli/store). | true             |
+| DATABASE_URL         | ES module URL for the application database API | for database migration |
 | JWT_PRIVATE_KEY      | PEM-encoded RSA private key used for JWT signing                                  | for JWTs         |
 | JWT_AUDIENCES        | Comma-separated allowed JWT audiences                                             | for JWTs         |
 | JWT_KEY_ID           | Signing key ID, defaults to `auth-1`                                              | false            |
