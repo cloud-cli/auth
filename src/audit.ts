@@ -29,3 +29,8 @@ export async function getAuditEvents(userId: string, options: { app?: string; ev
   const total = await all<{ count: number }>(`SELECT COUNT(*) AS count FROM auth_audit_event WHERE ${where}`, params);
   return { items: events.map(({ event, app, result, timestamp, redirectUri }) => ({ event, app, result, timestamp, redirectUri })), total: total[0]?.count || 0, limit, offset };
 }
+
+export async function getAuditOptions(userId: string) {
+  const values = await all<{ app: string; event: string }>('SELECT DISTINCT app, event FROM auth_audit_event WHERE user_id = ?', [userId]);
+  return { apps: [...new Set(values.map((value) => value.app))].sort(), events: [...new Set(values.map((value) => value.event))].sort() };
+}

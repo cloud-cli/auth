@@ -99,9 +99,18 @@ export async function removeOidcClient(id) {
   if (!response.ok) throw new Error('Could not remove OIDC client');
 }
 
-export async function getAuditEvents() {
-  const response = await fetch(new URL('/audit', authDomain), { credentials: 'include' });
+export async function getAuditEvents({ app = '', event = '', offset = 0 } = {}) {
+  const url = new URL('/audit', authDomain);
+  url.searchParams.set('limit', '50'); url.searchParams.set('offset', String(offset));
+  if (app) url.searchParams.set('app', app); if (event) url.searchParams.set('event', event);
+  const response = await fetch(url, { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load authentication history');
+  return response.json();
+}
+
+export async function getAuditOptions() {
+  const response = await fetch(new URL('/audit/options', authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load audit filters');
   return response.json();
 }
 
@@ -113,8 +122,10 @@ export async function getSigningKeys() {
 
 export async function getTokenApps() {
   const response = await fetch(new URL('/api-tokens/apps', authDomain), { credentials: 'include' });
-  if (!response.ok) throw new Error('Could not load token apps');
-  return response.json();
+  if (response.ok) return response.json();
+  const fallback = await fetch(new URL('/oidc/clients', authDomain), { credentials: 'include' });
+  if (!fallback.ok) throw new Error('Could not load token apps');
+  return fallback.json();
 }
 
 export async function getApiTokens(clientId) {
