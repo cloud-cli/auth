@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "test:integration": "playwright test",
     "migrate": "pnpm build && node ./dist/db/migrations/002_migrate_store.js",
     "start": "node ./dist/src/index.js"
   },
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@cloud-cli/prettier-config": "^1.0.0",
     "@cloud-cli/typescript-config": "^1.0.0",
+    "@playwright/test": "^1.63.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.17.7",

@@ -334,7 +334,10 @@ app.post('/webauthn/authentication/verify', express.json(), async (req, res) => 
     await recordAudit({ userId, event: 'passkey-authentication', app: 'WebAuthn', result: 'success' });
     req.login(userAsJSON(user), (error) => {
       if (error) return res.status(500).json({ error: 'Could not create session' });
-      res.status(204).send('');
+      req.session.save((saveError) => {
+        if (saveError) return res.status(500).json({ error: 'Could not persist session' });
+        res.status(204).send('');
+      });
     });
   } catch (error) {
     await recordAudit({ event: 'passkey-authentication', app: 'WebAuthn', result: 'failure' });

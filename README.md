@@ -51,6 +51,10 @@ docker run --name 'auth' --detach \
 
 ## RESTful API
 
+## Integration tests
+
+Install Playwright browsers once with `pnpm exec playwright install chromium`. Run `pnpm test:integration` with the application environment configured; the tests start `pnpm start` automatically. To test an already-running deployment, set `INTEGRATION_BASE_URL` instead.
+
 The OpenAPI 3.1 document is served at `GET /api`.
 
 `POST /session/token` exchanges an authenticated browser session for a short-lived RS256 JWT. Its JSON body must include an audience configured in `JWT_AUDIENCES`; browser callers must originate from `AUTH_ALLOWED_ORIGINS`. Public signing keys are available at `GET /.well-known/jwks.json`.
