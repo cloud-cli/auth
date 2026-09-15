@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@cloud-cli/store':
-        specifier: ^2.0.4
-        version: 2.0.9(better-sqlite3@13.0.2)
       '@simplewebauthn/server':
         specifier: ^14.0.1
         version: 14.0.1
@@ -65,11 +62,6 @@ packages:
 
   '@cloud-cli/prettier-config@1.0.0':
     resolution: {integrity: sha512-0Ops1CBvaV4keDW+phGR2eOLmjBhXHV8eG5Cm3nAqlHUdWbYs9a73r39GVDzz/J5kni5iUhKJG/IPKwPinWpsA==}
-
-  '@cloud-cli/store@2.0.9':
-    resolution: {integrity: sha512-FRgUmmt9LCujt7VJEKEDQMAX25+AoEb4fiEUutHdGy1oBGicTwJluqOJbkSqeD4Qb5uYM+Ge14vSRC5sf82QSg==}
-    peerDependencies:
-      better-sqlite3: ^13.0.1
 
   '@cloud-cli/typescript-config@1.0.1':
     resolution: {integrity: sha512-Mo2IL2gTDRqDdoDn7qZLWjFRpXSODmHk0IhZZMpVt0XLfv8V4QQj8mGTJJQCq9HBncyowk3+OYWV4OD8x5BW9w==}
@@ -337,10 +329,6 @@ packages:
     resolution: {integrity: sha512-ir1UPr3dkwexU7FdV8qBBbNDRUhMmIekYMFZfi+C/sLNnRESKPl23nB9b2pltqfOQNnGzsDdId90AEtG5tCx4A==}
     engines: {node: '>=6.0.0'}
 
-  better-sqlite3@13.0.2:
-    resolution: {integrity: sha512-jW6oufeDhXZaiX9Lw5A+oerVClx4iFrI6uDj1zu7SqUAjak9vbJvA0NEcKLNxHiQHb6kYCoFzzXYV0YOauhV3g==}
-    engines: {node: '>=22'}
-
   body-parser@1.20.6:
     resolution: {integrity: sha512-p5tAzS57i5MV9fZFDj9LeIiTZEufbSe2eDozP+ElheSUq1m74CRq1jI4mYNDdVs9vQztXFLuk/Gd6BWTdwRJ5g==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
@@ -556,10 +544,6 @@ packages:
   negotiator@0.6.3:
     resolution: {integrity: sha512-+EUsqGPLsM+j/zdChZjsnX51g4XrHFOIXwfnCVPGlQk/k5giakcKsuxCObBRu6DSm9opw/O6slWbJdghQM4bBg==}
     engines: {node: '>= 0.6'}
-
-  node-addon-api@8.9.0:
-    resolution: {integrity: sha512-ekZMeaaIzSQTSpr7X2X3iJM7lTzgnx8ahAG9pJfT/7+14mlEM8ZYQ9cgCDvSSRbReFK0oHli3WrZdCiRsgAT9Q==}
-    engines: {node: ^18 || ^20 || >= 21}
 
   oauth@0.10.2:
     resolution: {integrity: sha512-JtFnB+8nxDEXgNyniwz573xxbKSOu3R8D40xQKqcjwJ2CDkYqUDI53o6IuzDJBx60Z8VKCm271+t8iFjakrl8Q==}
@@ -781,10 +765,6 @@ packages:
 snapshots:
 
   '@cloud-cli/prettier-config@1.0.0': {}
-
-  '@cloud-cli/store@2.0.9(better-sqlite3@13.0.2)':
-    dependencies:
-      better-sqlite3: 13.0.2
 
   '@cloud-cli/typescript-config@1.0.1': {}
 
@@ -1075,10 +1055,6 @@ snapshots:
 
   base64url@3.0.1: {}
 
-  better-sqlite3@13.0.2:
-    dependencies:
-      node-addon-api: 8.9.0
-
   body-parser@1.20.6:
     dependencies:
       bytes: 3.1.2
@@ -1313,8 +1289,6 @@ snapshots:
   ms@2.1.3: {}
 
   negotiator@0.6.3: {}
-
-  node-addon-api@8.9.0: {}
 
   oauth@0.10.2: {}
 

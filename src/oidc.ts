@@ -1,6 +1,5 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
-import { Query, Resource } from '@cloud-cli/store';
-import { OidcClient, User } from './store.js';
+import { json, OidcClient, User, rows, run } from './database.js';
 import { accessTokenTtl, createAccessToken, createIdentityToken } from './token.js';
 
 type Client = { id: string; redirectUris: string[]; scopes: string[]; secretHash: string };
@@ -31,7 +30,7 @@ function matchesSecret(secret: string, stored: string) {
 
 export async function getClient(clientId: string) {
   try {
-    const stored = await new OidcClient({ id: clientId }).find();
+    const stored = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [clientId]))[0];
     return stored ? { id: stored.id, redirectUris: stored.redirectUris, scopes: stored.scopes || [], secretHash: stored.secretHash } as Client : undefined;
   } catch {
     return undefined;
@@ -71,7 +70,7 @@ export async function tokenResponse(user: User, clientId: string) {
 }
 
 export async function listManagedClients() {
-  const clients = await Resource.find(OidcClient, new Query<OidcClient>());
+  const clients = await rows<OidcClient>('auth_oidc_client');
   return clients.map(({ id, redirectUris, scopes, createdAt }) => ({ id, redirectUris, scopes, createdAt }));
 }
 
@@ -83,13 +82,13 @@ export async function createManagedClient(id: string, redirectUris: string[], sc
   if (!normalizedScopes.length) throw new Error('At least one scope is required');
   if (await getClient(id)) throw new Error('Client already exists');
   const secret = randomBytes(32).toString('base64url');
-  await new OidcClient({ id, secretHash: hashSecret(secret), redirectUris: normalizedUris, scopes: normalizedScopes, createdAt: new Date().toISOString() }).save();
+  await run('INSERT INTO auth_oidc_client (id, secret_hash, redirect_uris, scopes, created_at) VALUES (?, ?, ?, ?, ?)', [id, hashSecret(secret), json(normalizedUris), json(normalizedScopes), new Date().toISOString()]);
   return { id, secret, redirectUris: normalizedUris, scopes: normalizedScopes };
 }
 
 export async function removeManagedClient(id: string) {
-  const client = await new OidcClient({ id }).find();
+  const client = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [id]))[0];
   if (!client) return false;
-  await client.remove();
+  await run('DELETE FROM auth_oidc_client WHERE id = ?', [id]);
   return true;
 }

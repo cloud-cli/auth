@@ -2,17 +2,18 @@ import passport, { Profile } from 'passport';
 import { randomUUID } from 'crypto';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { userAsJSON, findByProfileId, findByUserId } from './user.js';
-import { User } from './store.js';
+import { saveUser } from './database.js';
 import { recordAudit } from './audit.js';
 
 async function onUserSignIn(accessToken: string, refreshToken: string, profile: Profile, done: any) {
   let user = await findByProfileId(profile.id);
 
   if (!user) {
-    user = new User({
+    user = {
       userId: randomUUID(),
       profileId: profile.id,
-    });
+      accessToken: '', refreshToken: '', name: '', email: '', photo: '', lastSeen: '',
+    };
   }
 
   Object.assign(user, {
@@ -24,7 +25,7 @@ async function onUserSignIn(accessToken: string, refreshToken: string, profile: 
     lastSeen: new Date().toISOString(),
   });
 
-  await user.save();
+  await saveUser(user);
   await recordAudit({ userId: user.userId, event: 'google-authentication', app: 'Google', result: 'success' });
 
   done(null, userAsJSON(user));

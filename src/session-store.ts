@@ -1,10 +1,9 @@
 import session from "express-session";
-import { Query, Resource } from "@cloud-cli/store";
-import { UserSession } from "./store.js";
+import { UserSession, json, rows, run } from './database.js';
 
 class SessionStoreImpl extends session.Store {
   protected async findAll() {
-    return await Resource.find(UserSession, new Query<UserSession>());
+    return rows<UserSession>('auth_session');
   }
 
   async all(callback) {
@@ -18,7 +17,7 @@ class SessionStoreImpl extends session.Store {
 
   async destroy(sid, callback) {
     try {
-      await new UserSession({ sid }).remove();
+      await run('DELETE FROM auth_session WHERE sid = ?', [sid]);
       callback(null);
     } catch (error) {
       callback(error);
@@ -28,7 +27,7 @@ class SessionStoreImpl extends session.Store {
   async clear(callback) {
     const all = await this.findAll();
     for (const s of all) {
-      s.remove();
+      await run('DELETE FROM auth_session WHERE sid = ?', [s.sid]);
     }
 
     callback(null);
@@ -44,8 +43,7 @@ class SessionStoreImpl extends session.Store {
 
   async get(sid, callback) {
     try {
-      const model = new UserSession({ sid });
-      const s = await model.find();
+      const s = (await rows<UserSession>('auth_session', 'sid = ?', [sid]))[0];
       callback(null, s ? s.session : null);
     } catch (error) {
       callback(null);
@@ -54,8 +52,7 @@ class SessionStoreImpl extends session.Store {
 
   async set(sid, session, callback) {
     try {
-      const s = new UserSession({ sid, session });
-      s.save();
+      await run('INSERT OR REPLACE INTO auth_session (sid, session) VALUES (?, ?)', [sid, json(session)]);
       callback(null);
     } catch (error) {
       callback(error);

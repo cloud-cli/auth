@@ -1,8 +1,7 @@
 import { createCipheriv, createDecipheriv, createPublicKey, generateKeyPairSync, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { exportJWK, importPKCS8, importSPKI, jwtVerify, SignJWT } from 'jose';
-import { Query, Resource } from '@cloud-cli/store';
-import { SigningKey, User } from './store.js';
+import { rows, run, SigningKey, User } from './database.js';
 
 const issuer = (process.env.AUTH_DOMAIN || '').replace(/\/$/, '');
 const privateKeyFile = process.env.JWT_PRIVATE_KEY_FILE || '';
@@ -44,28 +43,28 @@ function decryptPrivateKey(value: string) {
 }
 
 export async function initializeSigningKeys() {
-  let keys = await Resource.find(SigningKey, new Query<SigningKey>());
+  let keys = await rows<SigningKey>('auth_signing_key');
   const now = Date.now();
   const activeKeys = keys.filter((key) => key.status === 'active').sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   if (activeKeys.length > 1) {
     for (const duplicate of activeKeys.slice(1)) {
       duplicate.status = 'retiring';
-      await duplicate.save();
+      await run('UPDATE auth_signing_key SET status = ? WHERE kid = ?', [duplicate.status, duplicate.kid]);
     }
   }
   for (const key of keys.filter((item) => item.status === 'retiring' && Date.parse(item.createdAt) + Math.max(ttl, 900) * 1000 < now)) {
-    await key.remove();
+    await run('DELETE FROM auth_signing_key WHERE kid = ?', [key.kid]);
   }
-  keys = await Resource.find(SigningKey, new Query<SigningKey>());
+  keys = await rows<SigningKey>('auth_signing_key');
   if (!keys.some((key) => key.status === 'active') && keys.length) {
     const newest = keys.filter((key) => key.status !== 'revoked').sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
-    if (newest) { newest.status = 'active'; await newest.save(); }
+    if (newest) { newest.status = 'active'; await run('UPDATE auth_signing_key SET status = ? WHERE kid = ?', [newest.status, newest.kid]); }
   }
   if (!keys.length && privateKeyPem && encryptionKey?.length === 32) {
     const publicKey = createPublicKey(privateKeyPem.replace(/\\n/g, '\n')).export({ type: 'spki', format: 'pem' }).toString();
-    await new SigningKey({ kid: keyId, encryptedPrivateKey: encryptPrivateKey(privateKeyPem), publicKey, status: 'active', createdAt: new Date().toISOString() }).save();
+    await run('INSERT INTO auth_signing_key (kid, encrypted_private_key, public_key, status, created_at) VALUES (?, ?, ?, ?, ?)', [keyId, encryptPrivateKey(privateKeyPem), publicKey, 'active', new Date().toISOString()]);
   }
-  const stored = await Resource.find(SigningKey, new Query<SigningKey>());
+  const stored = await rows<SigningKey>('auth_signing_key');
   verificationKeys.clear();
   for (const key of stored.filter((item) => item.status !== 'revoked')) verificationKeys.set(key.kid, await importSPKI(key.publicKey, 'RS256'));
   const activeKey = stored.find((item) => item.status === 'active');
@@ -76,7 +75,7 @@ export async function initializeSigningKeys() {
 }
 
 export async function listSigningKeys() {
-  const keys = await Resource.find(SigningKey, new Query<SigningKey>());
+  const keys = await rows<SigningKey>('auth_signing_key');
   return keys.map(({ kid, status, createdAt }) => ({ kid, status, createdAt })).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
@@ -84,9 +83,9 @@ export async function rotateSigningKey() {
   if (!encryptionKey || encryptionKey.length !== 32) throw new Error('JWT_KEY_ENCRYPTION_KEY_FILE is not configured');
   const pair = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { format: 'pem', type: 'pkcs8' }, publicKeyEncoding: { format: 'pem', type: 'spki' } });
   const kid = `auth-${randomUUID()}`;
-  const old = await Resource.find(SigningKey, new Query<SigningKey>().where('status').is('active'));
-  for (const key of old) { key.status = 'retiring'; await key.save(); }
-  await new SigningKey({ kid, encryptedPrivateKey: encryptPrivateKey(pair.privateKey), publicKey: pair.publicKey, status: 'active', createdAt: new Date().toISOString() }).save();
+  const old = await rows<SigningKey>('auth_signing_key', 'status = ?', ['active']);
+  for (const key of old) { key.status = 'retiring'; await run('UPDATE auth_signing_key SET status = ? WHERE kid = ?', [key.status, key.kid]); }
+  await run('INSERT INTO auth_signing_key (kid, encrypted_private_key, public_key, status, created_at) VALUES (?, ?, ?, ?, ?)', [kid, encryptPrivateKey(pair.privateKey), pair.publicKey, 'active', new Date().toISOString()]);
   await initializeSigningKeys();
   return { kid };
 }

@@ -1,6 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
-import { Query, Resource } from '@cloud-cli/store';
-import { ApiToken } from './store.js';
+import { ApiToken, json, rows, run } from './database.js';
 import { getClient, verifyClientSecret } from './oidc.js';
 
 const ttl = 365 * 24 * 60 * 60 * 1000;
@@ -15,30 +14,30 @@ export async function createApiToken(userId: string, clientId: string, label: st
   const allowed = new Set(client.scopes || []);
   if (!scopes.length || scopes.some((scope) => !allowed.has(scope))) throw new Error('Invalid token scope');
   const token = 'apphor_' + randomBytes(32).toString('base64url');
-  await new ApiToken({ tokenHash: hash(token), userId, clientId, scopes, label: label || 'API token', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + ttl).toISOString(), lastUsedAt: '', revokedAt: '' }).save();
+  await run('INSERT OR REPLACE INTO auth_api_token (token_hash, user_id, client_id, scopes, label, created_at, expires_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [hash(token), userId, clientId, json(scopes), label || 'API token', new Date().toISOString(), new Date(Date.now() + ttl).toISOString(), '', '']);
   return { token, expiresAt: new Date(Date.now() + ttl).toISOString() };
 }
 
 export async function listApiTokens(userId: string, clientId: string) {
-  const tokens = await Resource.find(ApiToken, new Query<ApiToken>().where('userId').is(userId).where('clientId').is(clientId));
+  const tokens = await rows<ApiToken>('auth_api_token', 'user_id = ? AND client_id = ?', [userId, clientId]);
   return tokens.map(({ label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({ label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }));
 }
 
 export async function revokeApiToken(userId: string, clientId: string, label: string) {
-  const tokens = await Resource.find(ApiToken, new Query<ApiToken>().where('userId').is(userId).where('clientId').is(clientId).where('label').is(label));
+  const tokens = await rows<ApiToken>('auth_api_token', 'user_id = ? AND client_id = ? AND label = ?', [userId, clientId, label]);
   if (!tokens[0]) return false;
   tokens[0].revokedAt = new Date().toISOString();
-  await tokens[0].save();
+  await run('UPDATE auth_api_token SET revoked_at = ? WHERE token_hash = ?', [tokens[0].revokedAt, tokens[0].tokenHash]);
   return true;
 }
 
 export async function introspectApiToken(token: string, clientId: string, clientSecret: string) {
   const client = await getClient(clientId);
   if (!client || !(await verifyClientSecret(client, clientSecret))) return null;
-  const tokens = await Resource.find(ApiToken, new Query<ApiToken>().where('tokenHash').is(hash(token)).where('clientId').is(clientId));
+  const tokens = await rows<ApiToken>('auth_api_token', 'token_hash = ? AND client_id = ?', [hash(token), clientId]);
   const item = tokens[0];
   if (!item || item.revokedAt || Date.parse(item.expiresAt) <= Date.now()) return { active: false };
   item.lastUsedAt = new Date().toISOString();
-  await item.save();
+  await run('UPDATE auth_api_token SET last_used_at = ? WHERE token_hash = ?', [item.lastUsedAt, item.tokenHash]);
   return { active: true, client_id: item.clientId, sub: item.userId, scope: item.scopes.join(' '), token_type: 'Bearer', iat: Math.floor(Date.parse(item.createdAt) / 1000), exp: Math.floor(Date.parse(item.expiresAt) / 1000) };
 }

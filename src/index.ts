@@ -1,7 +1,7 @@
 import express from 'express';
 import { readFileSync } from 'fs';
 import { findByEmail, findByUserId, userAsJSON } from './user.js';
-import { initStore } from './store.js';
+import { initDatabase } from './database.js';
 import session from './session.js';
 import log from './log.js';
 import passport, { googleCallback } from './passport.js';
@@ -577,7 +577,7 @@ app.get('/properties/:key', protectedRoute, async (req, res) => {
 
 const PORT = Number(process.env.PORT);
 app.listen(PORT, async () => {
-  await initStore();
+  await initDatabase();
   await initializeSigningKeys();
   log('Auth is running on port ' + PORT);
 });

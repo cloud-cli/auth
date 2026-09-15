@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto';
-import { Query, Resource } from '@cloud-cli/store';
-import { AuditEvent } from './store.js';
+import { run, rows, AuditEvent } from './database.js';
 
 type AuditInput = {
   userId?: string;
@@ -12,22 +11,14 @@ type AuditInput = {
 
 export async function recordAudit(input: AuditInput) {
   try {
-    await new AuditEvent({
-      id: randomUUID(),
-      userId: input.userId || '',
-      event: input.event,
-      app: input.app || 'auth',
-      result: input.result,
-      timestamp: new Date().toISOString(),
-      redirectUri: input.redirectUri || '',
-    }).save();
+    await run('INSERT INTO auth_audit_event (id, user_id, event, app, result, timestamp, redirect_uri) VALUES (?, ?, ?, ?, ?, ?, ?)', [randomUUID(), input.userId || '', input.event, input.app || 'auth', input.result, new Date().toISOString(), input.redirectUri || '']);
   } catch (error) {
     console.error('Could not write audit event', error);
   }
 }
 
 export async function getAuditEvents(userId: string) {
-  const events = await Resource.find(AuditEvent, new Query<AuditEvent>().where('userId').is(userId));
+  const events = await rows<AuditEvent>('auth_audit_event', 'user_id = ?', [userId]);
   return events
     .map(({ event, app, result, timestamp, redirectUri }) => ({ event, app, result, timestamp, redirectUri }))
     .sort((left, right) => right.timestamp.localeCompare(left.timestamp));

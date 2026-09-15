@@ -12,8 +12,7 @@ Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved p
 | AUTH_DOMAIN          | Authentication host, e.g. https://auth.foo.com                                    | true             |
 | SESSION_DOMAIN       | Domain to use for session cookie, e.g foo.com                                     | false            |
 | SESSION_SECRET       | Session secret, used to store the user session                                    | true             |
-| STORE_URL            | URL of store endpoint for [@cloud-cli/store](https://github.com/cloud-cli/store). | true             |
-| DATABASE_URL         | ES module URL for the application database API | for database migration |
+| DATABASE_URL         | ES module URL for the application database API | true             |
 | JWT_PRIVATE_KEY      | PEM-encoded RSA private key used for JWT signing                                  | for JWTs         |
 | JWT_AUDIENCES        | Comma-separated allowed JWT audiences                                             | for JWTs         |
 | JWT_KEY_ID           | Signing key ID, defaults to `auth-1`                                              | false            |
@@ -46,7 +45,6 @@ docker run --name 'auth' --detach \
   -e AUTH_DOMAIN='https://auth.foo.com/' \
   -e SESSION_DOMAIN='foo.com' \
   -e SESSION_SECRET='xxx' \
-  -e STORE_URL='https://foo.xyz/123' \
   -e PORT=3000 \
   ghcr.io/cloud-cli/auth:latest
 ```

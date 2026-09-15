@@ -1,5 +1,5 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
-import { User } from './store.js';
+import { saveUser, User } from './database.js';
 import { findByEmail } from './user.js';
 
 function normalize(code: string) {
@@ -24,7 +24,7 @@ export function generateRecoveryCodes() {
 export async function replaceRecoveryCodes(user: User) {
   const result = generateRecoveryCodes();
   user.recoveryCodes = result.hashes;
-  await user.save();
+  await saveUser(user);
   return result.codes;
 }
 
@@ -45,6 +45,6 @@ export async function consumeRecoveryCode(email: string, code: string) {
   if (index === -1) return null;
 
   user.recoveryCodes.splice(index, 1);
-  await user.save();
+  await saveUser(user);
   return user;
 }

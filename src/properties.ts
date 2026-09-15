@@ -1,39 +1,27 @@
-import { Query, Resource } from '@cloud-cli/store';
-import { UserProperty } from './store.js';
+import { randomUUID } from 'crypto';
+import { UserProperty, rows, run } from './database.js';
 
 export async function setProperty(userId: string | undefined, key: string, value: string) {
   if (!userId) return;
 
-  const found = await Resource.find(
-    UserProperty,
-    new Query<UserProperty>().where('userId').is(userId).where('key').is(key),
-  );
+  const found = await rows<UserProperty>('auth_property', 'user_id = ? AND key = ?', [userId, key]);
 
   if (found.length) {
     const property = found[0];
     property.value = value;
-    await property.save();
+    await run('UPDATE auth_property SET value = ?, value_type = ? WHERE uid = ?', [String(value), 'text', property.uid]);
     return property;
   }
 
-  const propertyId = await new UserProperty({
-    userId,
-    key,
-    value,
-  }).save();
-
-  return await new UserProperty({ uid: propertyId }).find();
+  const uid = randomUUID();
+  await run('INSERT INTO auth_property (uid, user_id, key, value, value_type) VALUES (?, ?, ?, ?, ?)', [uid, userId, key, String(value), 'text']);
+  return (await rows<UserProperty>('auth_property', 'uid = ?', [uid]))[0];
 }
 
 export async function getProperties(userId?: string, key?: string) {
   if (!userId) return [];
 
-  const query = new Query<UserProperty>().where('userId').is(userId);
-  if (key) {
-    query.where('key').is(key);
-  }
-
-  const entries = await Resource.find(UserProperty, query);
+  const entries = await rows<UserProperty>('auth_property', key ? 'user_id = ? AND key = ?' : 'user_id = ?', key ? [userId, key] : [userId]);
   const properties = entries.map((p) => ({
     key: p.key,
     value: p.value,
@@ -45,13 +33,10 @@ export async function getProperties(userId?: string, key?: string) {
 export async function removeProperty(userId: string | undefined, key: string) {
   if (!userId) return;
 
-  const entries = await Resource.find(
-    UserProperty,
-    new Query<UserProperty>().where('key').is(key).where('userId').is(userId),
-  );
+  const entries = await rows<UserProperty>('auth_property', 'key = ? AND user_id = ?', [key, userId]);
 
   for (const p of entries) {
-    await p.remove();
+    await run('DELETE FROM auth_property WHERE uid = ?', [p.uid]);
   }
 }
 

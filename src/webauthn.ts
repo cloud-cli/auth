@@ -4,7 +4,7 @@ import {
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
-import { Authenticator } from './store.js';
+import { Authenticator, saveAuthenticator, run } from './database.js';
 import { findAuthenticator, findAuthenticatorsByUserId, findByUserId } from './user.js';
 
 const rpID = new URL(process.env.AUTH_DOMAIN || 'http://localhost').hostname;
@@ -62,7 +62,7 @@ export async function registerAuthenticator(userId: string, response: any, label
   if (!verification.verified || !verification.registrationInfo) throw new Error('WebAuthn registration failed');
 
   const { credential } = verification.registrationInfo;
-  const authenticator = new Authenticator({
+  const authenticator: Authenticator = {
     credentialId: credential.id,
     userId,
     publicKey: Buffer.from(credential.publicKey).toString('base64url'),
@@ -72,8 +72,8 @@ export async function registerAuthenticator(userId: string, response: any, label
     createdAt: new Date().toISOString(),
     lastUsedAt: '',
     revokedAt: '',
-  });
-  await authenticator.save();
+  };
+  await saveAuthenticator(authenticator);
   return authenticator;
 }
 
@@ -110,7 +110,7 @@ export async function authenticate(response: any) {
 
   authenticator.counter = verification.authenticationInfo.newCounter;
   authenticator.lastUsedAt = new Date().toISOString();
-  await authenticator.save();
+  await run('UPDATE auth_authenticator SET counter = ?, last_used_at = ? WHERE credential_id = ?', [authenticator.counter, authenticator.lastUsedAt, authenticator.credentialId]);
   return { userId: authenticator.userId, challenge: challenge.challenge };
 }
 
@@ -122,6 +122,6 @@ export async function revokeAuthenticator(userId: string, credentialId: string) 
   const authenticator = await findAuthenticator(credentialId);
   if (!authenticator || authenticator.userId !== userId) return false;
   authenticator.revokedAt = new Date().toISOString();
-  await authenticator.save();
+  await run('UPDATE auth_authenticator SET revoked_at = ? WHERE credential_id = ?', [authenticator.revokedAt, authenticator.credentialId]);
   return true;
 }
