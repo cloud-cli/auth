@@ -111,6 +111,25 @@ export async function getSigningKeys() {
   return response.json();
 }
 
+export async function getTokenApps() {
+  const response = await fetch(new URL('/api-tokens/apps', authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load token apps');
+  return response.json();
+}
+
+export async function getApiTokens(clientId) {
+  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load API tokens');
+  return response.json();
+}
+
+export async function createApiToken(clientId, label, scopes) {
+  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label, scopes }) });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not create API token');
+  return result;
+}
+
 export async function rotateSigningKey() {
   const response = await fetch(new URL('/keys/rotate', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   if (!response.ok) throw new Error('Could not rotate signing key');

@@ -181,7 +181,7 @@ function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
 function serveUi(name: string) {
   return (_req, res) => {
     const source = name === 'profile.html'
-      ? uiAssets[name].replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"').replace('<link rel="component" href="/ui/oidc-apps.html">', '<link rel="component" href="/ui/oidc-apps.html"><link rel="component" href="/ui/keys.html">').replace('<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template>', '<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template><template if="section === \'keys\'"><signing-key-manager></signing-key-manager></template>')
+      ? uiAssets[name].replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"').replace('<link rel="component" href="/ui/oidc-apps.html">', '<link rel="component" href="/ui/oidc-apps.html"><link rel="component" href="/ui/keys.html"><link rel="component" href="/ui/tokens.html">').replace('<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template>', '<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template><template if="section === \'keys\'"><signing-key-manager></signing-key-manager></template><template if="section === \'tokens\'"><dashboard-tokens></dashboard-tokens></template>')
       : uiAssets[name];
     res.type('html').send(source);
   };
@@ -378,6 +378,7 @@ app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
   }
 });
 app.get('/api-tokens/:clientId', protectedRoute, async (req, res) => res.json(await listApiTokens(req.user!.id, req.params.clientId)));
+app.get('/api-tokens/apps', protectedRoute, async (_req, res) => res.json(await listManagedClients()));
 app.post('/api-tokens/:clientId', express.json(), protectedRoute, async (req, res) => {
   try { res.status(201).json(await createApiToken(req.user!.id, req.params.clientId, String(req.body?.label || ''), Array.isArray(req.body?.scopes) ? req.body.scopes : [])); } catch (error) { res.status(400).json({ error: String(error) }); }
 });
@@ -497,7 +498,7 @@ app.get('/ui/:asset', (req, res) => {
   const dashboardUrl = new URL('/dashboard.mjs', process.env.AUTH_DOMAIN || `https://${req.get('host')}`);
   const source = req.params.asset === 'profile.html'
     ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
-    : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html'].includes(req.params.asset)
+    : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(req.params.asset)
       ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`)
       : asset;
   res.type(type).send(

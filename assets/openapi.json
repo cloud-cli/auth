@@ -434,6 +434,38 @@
         "responses": { "204": { "description": "Removed" }, "403": { "description": "Administrator access required" }, "404": { "description": "Not found" } }
       }
     },
+    "/api-tokens/{clientId}": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "List the current user's tokens for an OIDC app",
+        "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Token metadata without token values" }, "401": { "$ref": "#/components/responses/Unauthenticated" } }
+      },
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Create a scoped opaque API token",
+        "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["label", "scopes"], "properties": { "label": { "type": "string" }, "scopes": { "type": "array", "items": { "type": "string" } } } } } } },
+        "responses": { "201": { "description": "Token value, shown once" }, "400": { "description": "Invalid app or scope" }, "401": { "$ref": "#/components/responses/Unauthenticated" } }
+      }
+    },
+    "/api-tokens/{clientId}/{label}": {
+      "delete": {
+        "tags": ["Authentication"],
+        "summary": "Revoke a token by label",
+        "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "label", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "204": { "description": "Revoked" }, "404": { "description": "Token not found" } }
+      }
+    },
+    "/oauth/introspect": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Introspect an opaque API token",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/x-www-form-urlencoded": { "schema": { "type": "object", "required": ["token"], "properties": { "token": { "type": "string" }, "token_type_hint": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "RFC 7662 token status" } }
+      }
+    },
     "/authorize": {
       "get": {
         "tags": ["Authentication"],
@@ -834,6 +866,10 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT"
+      },
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic"
       }
     },
     "responses": {
