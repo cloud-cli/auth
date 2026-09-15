@@ -22,7 +22,6 @@ export default function () {
   const recoveryUrl = ref('/recovery?url=' + encodeURIComponent(value('url') || '/me'));
   const status = ref('Preparing a secure connection...');
   const approved = ref(false);
-  const account = templateRef('account');
   const clientId = templateRef('clientId');
   const redirectUris = templateRef('redirectUris');
   const clients = ref([]);
@@ -41,7 +40,7 @@ export default function () {
     busy.value = true;
     setMessage('Waiting for your authenticator...');
     try {
-      await signInWithPasskey(account.value?.value || '');
+      await signInWithPasskey();
       setMessage('Passkey confirmed. Finishing sign-in...');
       setTimeout(() => location.href = value('url') || '/me', 450);
     } catch (reason) {
@@ -188,10 +187,11 @@ export default function () {
     getAuditEvents().then((value) => audit.value = value).catch(() => {});
     getOidcClients().then((value) => clients.value = value).catch(() => {});
   }
+  if (page === 'passkey') setTimeout(signIn, 0);
   // The profile document declares the navigation component directly.
   if (page === 'oidc') getOidcClients().then((value) => clients.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'audit') getAuditEvents().then((value) => audit.value = value).catch((reason) => setMessage(reason.message, true));
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
 
-  return { account, propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, audit, section, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyCreatedSecret, copyUserId, signOut };
+  return { propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, audit, section, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyCreatedSecret, copyUserId, signOut };
 }
