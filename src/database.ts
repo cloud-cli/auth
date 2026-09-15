@@ -45,7 +45,7 @@ function mapRow(table: string, row: Record<string, any>) {
   const result: Record<string, any> = { ...row };
   for (const [camel, column] of Object.entries(mapping || {})) {
     result[camel] = column === 'value' && row.value_type === 'json' ? decode(row[column]) : jsonColumns.has(column) ? decode(row[column]) : row[column];
-    delete result[column];
+    if (camel !== column) delete result[column];
   }
   return result;
 }
