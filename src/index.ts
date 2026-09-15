@@ -480,7 +480,6 @@ app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 
 const serveEsModule = (source) => (req, res) => {
-  console.log(req.headers);
   const host = req.headers['x-forwarded-host'] || req.headers['x-forwarded-for'] || 'localhost';
   const es = source.replace('__API_URL__', 'https://' + host);
   res.set('Content-Type', 'text/javascript').set('Access-Control-Allow-Origin', '*').send(es);

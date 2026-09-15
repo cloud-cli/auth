@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS auth_property (
   user_id TEXT NOT NULL,
   key TEXT NOT NULL,
   value TEXT NOT NULL DEFAULT '',
+  value_type TEXT NOT NULL DEFAULT 'text',
   UNIQUE (user_id, key)
 );
 

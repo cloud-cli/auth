@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "migrate": "pnpm build && node ./dist/db/migrations/002_migrate_store.js",
     "start": "node ./dist/index.js"
   },
   "prettier": "@cloud-cli/prettier-config",
