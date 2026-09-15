@@ -38,7 +38,7 @@ export function getSessionCookie(request, cookieName = 'connect.sid') {
   return value ? `${cookieName}=${encodeURIComponent(value)}` : '';
 }
 
-export function createAuthClient({ issuer = defaultIssuer, clientId, sessionCookieName = 'connect.sid' } = {}) {
+export function createAuthClient({ issuer = defaultIssuer, clientId, clientSecret, sessionCookieName = 'connect.sid' } = {}) {
   if (!clientId) throw new Error('A client ID is required');
 
   let jwks;
@@ -85,6 +85,13 @@ export function createAuthClient({ issuer = defaultIssuer, clientId, sessionCook
     return response.json();
   }
 
+  async function introspectToken(token) {
+    const credentials = Buffer.from(`${clientId}:${clientSecret || ''}`).toString('base64');
+    const response = await fetch(new URL('/oauth/introspect', issuer), { method: 'POST', headers: { Authorization: `Basic ${credentials}`, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token, token_type_hint: 'access_token' }) });
+    if (!response.ok) throw new Error(`Could not introspect token: ${response.status}`);
+    return response.json();
+  }
+
   async function getSessionProfile(request) {
     const cookie = getSessionCookie(request, sessionCookieName);
     if (!cookie) return null;
@@ -128,5 +135,5 @@ export function createAuthClient({ issuer = defaultIssuer, clientId, sessionCook
     return response.json();
   }
 
-  return { createAuthorizationRequest, exchangeCode, verifyToken, getProfile, getSessionProfile, isSessionAuthenticated, requireSession };
+  return { createAuthorizationRequest, exchangeCode, verifyToken, getProfile, introspectToken, getSessionProfile, isSessionAuthenticated, requireSession };
 }

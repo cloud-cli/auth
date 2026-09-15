@@ -3,7 +3,7 @@ import { Query, Resource } from '@cloud-cli/store';
 import { OidcClient, User } from './store.js';
 import { accessTokenTtl, createAccessToken, createIdentityToken } from './token.js';
 
-type Client = { id: string; redirectUris: string[]; secretHash: string };
+type Client = { id: string; redirectUris: string[]; scopes: string[]; secretHash: string };
 type AuthorizationCode = { clientId: string; redirectUri: string; userId: string; codeChallenge: string; expiresAt: number };
 
 const codes = new Map<string, AuthorizationCode>();
@@ -32,7 +32,7 @@ function matchesSecret(secret: string, stored: string) {
 export async function getClient(clientId: string) {
   try {
     const stored = await new OidcClient({ id: clientId }).find();
-    return stored ? { id: stored.id, redirectUris: stored.redirectUris, secretHash: stored.secretHash } as Client : undefined;
+    return stored ? { id: stored.id, redirectUris: stored.redirectUris, scopes: stored.scopes || [], secretHash: stored.secretHash } as Client : undefined;
   } catch {
     return undefined;
   }
@@ -40,6 +40,10 @@ export async function getClient(clientId: string) {
 
 export async function isOidcClient(clientId: string) {
   return Boolean(await getClient(clientId));
+}
+
+export async function verifyClientSecret(client: Client, secret: string) {
+  return matchesSecret(secret, client.secretHash);
 }
 
 export function createAuthorizationCode(client: Client, redirectUri: string, userId: string, codeChallenge: string) {
@@ -68,17 +72,19 @@ export async function tokenResponse(user: User, clientId: string) {
 
 export async function listManagedClients() {
   const clients = await Resource.find(OidcClient, new Query<OidcClient>());
-  return clients.map(({ id, redirectUris, createdAt }) => ({ id, redirectUris, createdAt }));
+  return clients.map(({ id, redirectUris, scopes, createdAt }) => ({ id, redirectUris, scopes, createdAt }));
 }
 
-export async function createManagedClient(id: string, redirectUris: string[]) {
+export async function createManagedClient(id: string, redirectUris: string[], scopes: string[]) {
   if (!id || !/^[a-zA-Z0-9._-]{1,80}$/.test(id)) throw new Error('Invalid client ID');
   const normalizedUris = redirectUris.filter(isSecureRedirectUri);
   if (!normalizedUris.length) throw new Error('At least one HTTPS redirect URI is required');
+  const normalizedScopes = scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope));
+  if (!normalizedScopes.length) throw new Error('At least one scope is required');
   if (await getClient(id)) throw new Error('Client already exists');
   const secret = randomBytes(32).toString('base64url');
-  await new OidcClient({ id, secretHash: hashSecret(secret), redirectUris: normalizedUris, createdAt: new Date().toISOString() }).save();
-  return { id, secret, redirectUris: normalizedUris };
+  await new OidcClient({ id, secretHash: hashSecret(secret), redirectUris: normalizedUris, scopes: normalizedScopes, createdAt: new Date().toISOString() }).save();
+  return { id, secret, redirectUris: normalizedUris, scopes: normalizedScopes };
 }
 
 export async function removeManagedClient(id: string) {

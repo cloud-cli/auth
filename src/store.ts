@@ -62,7 +62,21 @@ export class OidcClient extends Resource {
   @Primary() @Property(String) id: string;
   @Property(String) secretHash: string;
   @Property(Object) redirectUris: string[];
+  @Property(Object) scopes: string[];
   @Property(String) createdAt: string;
+}
+
+@Model("auth_api_token")
+export class ApiToken extends Resource {
+  @Primary() @Property(String) tokenHash: string;
+  @Property(String) userId: string;
+  @Property(String) clientId: string;
+  @Property(Object) scopes: string[];
+  @Property(String) label: string;
+  @Property(String) createdAt: string;
+  @Property(String) expiresAt: string;
+  @Property(String) lastUsedAt: string;
+  @Property(String) revokedAt: string;
 }
 
 @Model("auth_audit_event")
@@ -94,6 +108,7 @@ export async function initStore() {
   await Resource.create(Authenticator);
   await Resource.create(QrLoginTransaction);
   await Resource.create(OidcClient);
+  await Resource.create(ApiToken);
   await Resource.create(AuditEvent);
   await Resource.create(SigningKey);
 }

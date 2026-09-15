@@ -28,6 +28,7 @@ import {
 } from './webauthn.js';
 import { consumeRecoveryCode, replaceRecoveryCodes } from './recovery.js';
 import { getAuditEvents, recordAudit } from './audit.js';
+import { createApiToken, introspectApiToken, listApiTokens, revokeApiToken } from './api-tokens.js';
 import {
   approveQrLogin,
   completeQrLogin,
@@ -370,11 +371,22 @@ app.get('/api', (req, res) => {
 app.get('/oidc/clients', adminRoute, async (_req, res) => res.json(await listManagedClients()));
 app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
   try {
-    const result = await createManagedClient(String(req.body?.id || ''), Array.isArray(req.body?.redirectUris) ? req.body.redirectUris.filter((value) => typeof value === 'string') : []);
+    const result = await createManagedClient(String(req.body?.id || ''), Array.isArray(req.body?.redirectUris) ? req.body.redirectUris.filter((value) => typeof value === 'string') : [], Array.isArray(req.body?.scopes) ? req.body.scopes.filter((value) => typeof value === 'string') : []);
     res.status(201).json(result);
   } catch (error) {
     res.status(400).json({ error: String(error) });
   }
+});
+app.get('/api-tokens/:clientId', protectedRoute, async (req, res) => res.json(await listApiTokens(req.user!.id, req.params.clientId)));
+app.post('/api-tokens/:clientId', express.json(), protectedRoute, async (req, res) => {
+  try { res.status(201).json(await createApiToken(req.user!.id, req.params.clientId, String(req.body?.label || ''), Array.isArray(req.body?.scopes) ? req.body.scopes : [])); } catch (error) { res.status(400).json({ error: String(error) }); }
+});
+app.delete('/api-tokens/:clientId/:label', protectedRoute, async (req, res) => res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.label)) ? 204 : 404));
+app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (req, res) => {
+  const authorization = req.get('authorization') || '';
+  const [clientId, clientSecret] = authorization.startsWith('Basic ') ? Buffer.from(authorization.slice(6), 'base64').toString().split(':') : ['', ''];
+  const result = await introspectApiToken(String(req.body?.token || ''), clientId, clientSecret);
+  res.set('Cache-Control', 'private, max-age=30').set('X-Token-Expires-At', String(result?.exp || 0)).json(result || { active: false });
 });
 app.delete('/oidc/clients/:id', adminRoute, async (req, res) => res.sendStatus((await removeManagedClient(req.params.id)) ? 204 : 404));
 app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
