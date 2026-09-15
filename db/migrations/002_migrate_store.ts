@@ -17,7 +17,11 @@ function verify(expected: Record<string, unknown>, actual: Record<string, unknow
 async function copy(db: any, model: any, select: string, insert: string, fields: string[], values: (item: any) => unknown[]) {
   const records = await Resource.find(model, new Query());
   for (const record of records) {
-    const params = values(record);
+    const params = values(record).map((value) => value === undefined ? null : value);
+    if (params[0] === null || params[0] === '') {
+      console.warn(`Skipping empty ${model.name} record during migration`);
+      continue;
+    }
     await db.run(insert, params);
     const actual = await db.get(select, [params[0]]);
     if (!actual) throw new Error(`Migration could not read back ${model.name}`);
@@ -30,11 +34,12 @@ export async function up() {
   await initStore();
   await upSchema();
   const db = await getDb();
+  await db.run("DELETE FROM auth_user WHERE user_id IS NULL OR user_id = ''");
   try { await db.exec("ALTER TABLE auth_property ADD COLUMN value_type TEXT NOT NULL DEFAULT 'text'"); } catch {}
   const applied = await db.get('SELECT version FROM schema_migrations WHERE version = ?', ['002_migrate_store']);
   if (applied) return;
 
-  await copy(db, User, 'SELECT * FROM auth_user WHERE user_id = ?', `INSERT OR REPLACE INTO auth_user (user_id, profile_id, profile, access_token, refresh_token, name, email, photo, last_seen, recovery_codes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ['user_id', 'profile_id', 'profile', 'access_token', 'refresh_token', 'name', 'email', 'photo', 'last_seen', 'recovery_codes'], (item) => [item.userId, item.profileId, encoded(item.profile).value, item.accessToken, item.refreshToken, item.name, item.email, item.photo, item.lastSeen, encoded(item.recoveryCodes).value]);
+  await copy(db, User, 'SELECT * FROM auth_user WHERE user_id = ?', `INSERT OR REPLACE INTO auth_user (user_id, profile_id, profile, access_token, refresh_token, name, email, photo, last_seen, recovery_codes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ['user_id', 'profile_id', 'profile', 'access_token', 'refresh_token', 'name', 'email', 'photo', 'last_seen', 'recovery_codes'], (item) => [item.userId, item.profileId || '', encoded(item.profile).value, item.accessToken || '', item.refreshToken || '', item.name || '', item.email || '', item.photo || '', item.lastSeen || '', encoded(item.recoveryCodes).value]);
   await copy(db, UserProperty, 'SELECT * FROM auth_property WHERE uid = ?', `INSERT OR REPLACE INTO auth_property (uid, user_id, key, value, value_type) VALUES (?, ?, ?, ?, ?)`, ['uid', 'user_id', 'key', 'value', 'value_type'], (item) => { const value = encoded(item.value); return [item.uid, item.userId, item.key, value.value, value.type]; });
   await copy(db, UserSession, 'SELECT * FROM auth_session WHERE sid = ?', `INSERT OR REPLACE INTO auth_session (sid, session) VALUES (?, ?)`, ['sid', 'session'], (item) => [item.sid, encoded(item.session).value]);
   await copy(db, Authenticator, 'SELECT * FROM auth_authenticator WHERE credential_id = ?', `INSERT OR REPLACE INTO auth_authenticator (credential_id, user_id, public_key, counter, transports, label, created_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, ['credential_id', 'user_id', 'public_key', 'counter', 'transports', 'label', 'created_at', 'last_used_at', 'revoked_at'], (item) => [item.credentialId, item.userId, item.publicKey, item.counter, encoded(item.transports).value, item.label, item.createdAt, item.lastUsedAt, item.revokedAt]);

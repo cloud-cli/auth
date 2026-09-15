@@ -2,12 +2,12 @@
   "name": "auth",
   "private": true,
   "version": "0.0.0",
-  "main": "./dist/index.js",
+  "main": "./dist/src/index.js",
   "type": "module",
   "scripts": {
     "build": "tsc",
     "migrate": "pnpm build && node ./dist/db/migrations/002_migrate_store.js",
-    "start": "node ./dist/index.js"
+    "start": "node ./dist/src/index.js"
   },
   "prettier": "@cloud-cli/prettier-config",
   "repository": {

@@ -5,10 +5,10 @@
     "module": "nodenext",
     "lib": ["esnext", "dom"],
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "noImplicitAny": false
   },
-  "include": ["src/"]
+  "include": ["src/", "db/"]
 }
