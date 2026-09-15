@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { run, rows, AuditEvent } from './database.js';
+import { all, run, rows, AuditEvent } from './database.js';
 
 type AuditInput = {
   userId?: string;
@@ -17,9 +17,15 @@ export async function recordAudit(input: AuditInput) {
   }
 }
 
-export async function getAuditEvents(userId: string) {
-  const events = await rows<AuditEvent>('auth_audit_event', 'user_id = ?', [userId]);
-  return events
-    .map(({ event, app, result, timestamp, redirectUri }) => ({ event, app, result, timestamp, redirectUri }))
-    .sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+export async function getAuditEvents(userId: string, options: { app?: string; event?: string; limit?: number; offset?: number } = {}) {
+  const clauses = ['user_id = ?'];
+  const params: unknown[] = [userId];
+  if (options.app) { clauses.push('app = ?'); params.push(options.app); }
+  if (options.event) { clauses.push('event = ?'); params.push(options.event); }
+  const limit = Math.min(Math.max(options.limit || 50, 1), 50);
+  const offset = Math.max(options.offset || 0, 0);
+  const where = clauses.join(' AND ');
+  const events = await rows<AuditEvent>('auth_audit_event', `${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+  const total = await all<{ count: number }>(`SELECT COUNT(*) AS count FROM auth_audit_event WHERE ${where}`, params);
+  return { items: events.map(({ event, app, result, timestamp, redirectUri }) => ({ event, app, result, timestamp, redirectUri })), total: total[0]?.count || 0, limit, offset };
 }
