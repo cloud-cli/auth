@@ -101,7 +101,7 @@ export async function removeOidcClient(id) {
 
 export async function getAuditEvents({ app = '', event = '', offset = 0 } = {}) {
   const url = new URL('/audit', authDomain);
-  url.searchParams.set('limit', '50'); url.searchParams.set('offset', String(offset));
+  url.searchParams.set('limit', '20'); url.searchParams.set('offset', String(offset));
   if (app) url.searchParams.set('app', app); if (event) url.searchParams.set('event', event);
   const response = await fetch(url, { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load authentication history');

@@ -238,7 +238,7 @@ app.get('/keys', adminRoute, async (_req, res) => res.json(await listSigningKeys
 app.post('/keys/rotate', express.json(), adminRoute, async (_req, res) => {
   try { res.status(201).json(await rotateSigningKey()); } catch (error) { res.status(503).json({ error: String(error) }); }
 });
-app.get('/audit', protectedRoute, async (req, res) => res.json(await getAuditEvents(req.user!.id, { app: typeof req.query.app === 'string' ? req.query.app : '', event: typeof req.query.event === 'string' ? req.query.event : '', limit: Number(req.query.limit) || 50, offset: Number(req.query.offset) || 0 })));
+app.get('/audit', protectedRoute, async (req, res) => res.json(await getAuditEvents(req.user!.id, { app: typeof req.query.app === 'string' ? req.query.app : '', event: typeof req.query.event === 'string' ? req.query.event : '', limit: Number(req.query.limit) || 20, offset: Number(req.query.offset) || 0 })));
 app.get('/audit/options', protectedRoute, async (req, res) => res.json(await getAuditOptions(req.user!.id)));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
