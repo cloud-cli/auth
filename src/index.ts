@@ -542,7 +542,7 @@ app.get('/ui/:asset', (req, res) => {
     : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(req.params.asset)
       ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`).replace(' if="tab === \'overview\'"', ' class-hidden="tab !== \'overview\'"').replace(' if="tab === \'scopes\'"', ' class-hidden="tab !== \'scopes\'"').replace(' if="tab === \'tokens\'"', ' class-hidden="tab !== \'tokens\'"')
       : asset;
-  res.type(type).send(
+  res.set('Cache-Control', 'no-store').type(type).send(
     req.params.asset === 'embed.mjs'
       ? source.replace(
           '__EMBED_ALLOWED_ORIGINS__',
