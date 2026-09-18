@@ -147,6 +147,11 @@ export async function createApiToken(clientId, label, scopes) {
   return result;
 }
 
+export async function revokeApiToken(clientId, label) {
+  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(label), authDomain), { credentials: 'include', method: 'DELETE' });
+  if (!response.ok) throw new Error('Could not revoke API token');
+}
+
 export async function rotateSigningKey() {
   const response = await fetch(new URL('/keys/rotate', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   if (!response.ok) throw new Error('Could not rotate signing key');
