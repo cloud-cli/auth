@@ -59,6 +59,8 @@ The OpenAPI 3.1 document is served at `GET /api`.
 
 `POST /session/token` exchanges an authenticated browser session for a short-lived RS256 JWT. Its JSON body must include an audience configured in `JWT_AUDIENCES`; browser callers must originate from `AUTH_ALLOWED_ORIGINS`. Public signing keys are available at `GET /.well-known/jwks.json`.
 
+OIDC clients can discover provider metadata at `/.well-known/openid-configuration`.
+
 OIDC `POST /token` also requires JWT signing configuration. Generate an RSA key once and store it as a deployment secret:
 
 ```bash

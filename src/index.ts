@@ -373,6 +373,24 @@ app.get('/api', (req, res) => {
   const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.host;
   res.type('application/json').send(openApiSpec.replace('__HOSTNAME__', host));
 });
+app.get('/.well-known/openid-configuration', (_req, res) => {
+  const issuer = (process.env.AUTH_DOMAIN || '').replace(/\/$/, '');
+  res.json({
+    issuer,
+    authorization_endpoint: `${issuer}/authorize`,
+    token_endpoint: `${issuer}/token`,
+    userinfo_endpoint: `${issuer}/userinfo`,
+    jwks_uri: `${issuer}/.well-known/jwks.json`,
+    introspection_endpoint: `${issuer}/oauth/introspect`,
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code'],
+    subject_types_supported: ['public'],
+    id_token_signing_alg_values_supported: ['RS256'],
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
+    code_challenge_methods_supported: ['S256'],
+    scopes_supported: ['openid', 'profile', 'email'],
+  });
+});
 app.get('/oidc/clients', adminRoute, async (_req, res) => res.json(await listManagedClients()));
 app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
   try {

@@ -551,6 +551,13 @@
         }
       }
     },
+    "/.well-known/openid-configuration": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get the OpenID Connect discovery document",
+        "responses": { "200": { "description": "OpenID Connect provider metadata" } }
+      }
+    },
     "/userinfo": {
       "get": {
         "tags": ["Authentication"],
