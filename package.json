@@ -2,13 +2,13 @@
   "name": "auth",
   "private": true,
   "version": "0.0.0",
-  "main": "./dist/src/index.js",
+  "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && esbuild dist/src/index.js --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --define:__TEST__=${BUILD_TEST_ROUTES:-false}",
     "test:integration": "playwright test",
     "migrate": "pnpm build && node ./dist/db/migrations/002_migrate_store.js",
-    "start": "node ./dist/src/index.js"
+    "start": "node ./dist/index.js"
   },
   "prettier": "@cloud-cli/prettier-config",
   "repository": {
@@ -28,6 +28,7 @@
     "@types/node": "^26.1.2",
     "@types/passport": "^1.0.12",
     "@types/passport-google-oauth20": "^2.0.11",
+    "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   },
   "dependencies": {

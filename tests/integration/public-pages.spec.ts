@@ -37,3 +37,18 @@ test('profile API remains protected', async ({ request }) => {
   const response = await request.get('/profile');
   expect(response.status()).toBe(401);
 });
+
+test('test-only session can access the dashboard sections', async ({ page }) => {
+  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  await page.goto('/');
+  const response = await page.evaluate(async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }).then((result) => result.status), process.env.AUTH_TEST_SECRET);
+  expect(response).toBe(204);
+  await page.goto('/me#security');
+  await expect(page.getByText('Passkeys')).toBeVisible();
+  await page.goto('/me#properties');
+  await expect(page.getByRole('heading', { name: 'Properties' })).toBeVisible();
+  await page.goto('/me#activity');
+  await expect(page.getByText('Authentication history')).toBeVisible();
+  await page.goto('/me#oidc');
+  await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
+});

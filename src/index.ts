@@ -219,6 +219,22 @@ app.get('/profile', browserCors, protectedRouteWithRedirect, async (req, res) =>
 
   res.status(404).send('{}');
 });
+if (__TEST__) {
+  app.post('/__test__/login', express.json(), async (req, res) => {
+    if (!process.env.AUTH_TEST_SECRET || req.get('x-test-secret') !== process.env.AUTH_TEST_SECRET) return res.sendStatus(404);
+    const userId = process.env.AUTH_TEST_USER_ID || 'integration-test-user';
+    let user = await findByUserId(userId);
+    if (!user) {
+      user = { userId, profileId: 'integration-test-profile', accessToken: '', refreshToken: '', name: 'Integration Test User', email: 'integration@example.test', photo: '', lastSeen: new Date().toISOString() };
+      const { saveUser } = await import('./database.js');
+      await saveUser(user);
+    }
+    req.login(userAsJSON(user), (error) => {
+      if (error) return res.status(500).send('Could not create test session');
+      req.session.save((saveError) => saveError ? res.status(500).send('Could not persist test session') : res.status(204).send(''));
+    });
+  });
+}
 app.head('/profile', browserCors, protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
@@ -604,6 +620,6 @@ app.get('/properties/:key', protectedRoute, async (req, res) => {
 const PORT = Number(process.env.PORT);
 app.listen(PORT, async () => {
   await initDatabase();
-  await initializeSigningKeys();
+  if (!__TEST__) await initializeSigningKeys();
   log('Auth is running on port ' + PORT);
 });
