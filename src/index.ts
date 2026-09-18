@@ -400,8 +400,8 @@ app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
     res.status(400).json({ error: String(error) });
   }
 });
-app.get('/api-tokens/:clientId', protectedRoute, async (req, res) => res.json(await listApiTokens(req.user!.id, req.params.clientId)));
 app.get('/api-tokens/apps', protectedRoute, async (_req, res) => res.json(await listManagedClients()));
+app.get('/api-tokens/:clientId', protectedRoute, async (req, res) => res.json(await listApiTokens(req.user!.id, req.params.clientId)));
 app.post('/api-tokens/:clientId', express.json(), protectedRoute, async (req, res) => {
   try { res.status(201).json(await createApiToken(req.user!.id, req.params.clientId, String(req.body?.label || ''), Array.isArray(req.body?.scopes) ? req.body.scopes : [])); } catch (error) { res.status(400).json({ error: String(error) }); }
 });
