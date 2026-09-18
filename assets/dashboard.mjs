@@ -99,6 +99,12 @@ export async function removeOidcClient(id) {
   if (!response.ok) throw new Error('Could not remove OIDC client');
 }
 
+export async function addOidcScopes(id, scopes) {
+  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scopes }) });
+  if (!response.ok) throw new Error('Could not add OIDC scopes');
+  return response.json();
+}
+
 export async function getAuditEvents({ app = '', event = '', offset = 0 } = {}) {
   const url = new URL('/audit', authDomain);
   url.searchParams.set('limit', '20'); url.searchParams.set('offset', String(offset));

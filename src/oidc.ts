@@ -92,3 +92,12 @@ export async function removeManagedClient(id: string) {
   await run('DELETE FROM auth_oidc_client WHERE id = ?', [id]);
   return true;
 }
+
+export async function addManagedClientScopes(id: string, scopes: string[]) {
+  const client = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [id]))[0];
+  if (!client) throw new Error('Client not found');
+  const additions = scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope));
+  client.scopes = [...new Set([...(client.scopes || []), ...additions])];
+  await run('UPDATE auth_oidc_client SET scopes = ? WHERE id = ?', [json(client.scopes), id]);
+  return client.scopes;
+}

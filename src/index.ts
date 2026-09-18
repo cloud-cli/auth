@@ -17,7 +17,7 @@ import {
   rotateSigningKey,
   verifyAccessToken,
 } from './token.js';
-import { createAuthorizationCode, createManagedClient, exchangeAuthorizationCode, getClient, isOidcClient, listManagedClients, removeManagedClient, tokenResponse } from './oidc.js';
+import { addManagedClientScopes, createAuthorizationCode, createManagedClient, exchangeAuthorizationCode, getClient, isOidcClient, listManagedClients, removeManagedClient, tokenResponse } from './oidc.js';
 import {
   authenticate,
   authenticationOptions,
@@ -413,6 +413,9 @@ app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (re
   res.set('Cache-Control', 'private, max-age=30').set('X-Token-Expires-At', String(result?.exp || 0)).json(result || { active: false });
 });
 app.delete('/oidc/clients/:id', adminRoute, async (req, res) => res.sendStatus((await removeManagedClient(req.params.id)) ? 204 : 404));
+app.post('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
+  try { res.json({ scopes: await addManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []) }); } catch (error) { res.status(400).json({ error: String(error) }); }
+});
 app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
 app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
   const audience = typeof req.body?.audience === 'string' ? req.body.audience : '';
@@ -521,7 +524,7 @@ app.get('/ui/:asset', (req, res) => {
   const source = req.params.asset === 'profile.html'
     ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
     : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(req.params.asset)
-      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`)
+      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replace(' if="tab === \'overview\'"', ' class-hidden="tab !== \'overview\'"').replace(' if="tab === \'scopes\'"', ' class-hidden="tab !== \'scopes\'"').replace(' if="tab === \'tokens\'"', ' class-hidden="tab !== \'tokens\'"')
       : asset;
   res.type(type).send(
     req.params.asset === 'embed.mjs'
