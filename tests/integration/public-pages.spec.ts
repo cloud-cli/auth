@@ -52,3 +52,17 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   await page.goto('/me#oidc');
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
 });
+
+test('authenticated Applications section exposes app and token management', async ({ page }) => {
+  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  await page.goto('/');
+  await page.evaluate(async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }), process.env.AUTH_TEST_SECRET);
+  await page.goto('/me#oidc');
+  await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
+  const app = page.locator('details').first();
+  if (await app.count()) {
+    await app.locator('summary').click();
+    await expect(app.getByText('Scopes')).toBeVisible();
+    await expect(app.getByText('Tokens')).toBeVisible();
+  }
+});
