@@ -524,7 +524,7 @@ app.get('/ui/:asset', (req, res) => {
   const source = req.params.asset === 'profile.html'
     ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
     : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(req.params.asset)
-      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replace(' if="tab === \'overview\'"', ' class-hidden="tab !== \'overview\'"').replace(' if="tab === \'scopes\'"', ' class-hidden="tab !== \'scopes\'"').replace(' if="tab === \'tokens\'"', ' class-hidden="tab !== \'tokens\'"')
+      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`).replace(' if="tab === \'overview\'"', ' class-hidden="tab !== \'overview\'"').replace(' if="tab === \'scopes\'"', ' class-hidden="tab !== \'scopes\'"').replace(' if="tab === \'tokens\'"', ' class-hidden="tab !== \'tokens\'"')
       : asset;
   res.type(type).send(
     req.params.asset === 'embed.mjs'
