@@ -79,7 +79,6 @@ export async function createManagedClient(id: string, redirectUris: string[], sc
   const normalizedUris = redirectUris.filter(isSecureRedirectUri);
   if (!normalizedUris.length) throw new Error('At least one HTTPS redirect URI is required');
   const normalizedScopes = scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope));
-  if (!normalizedScopes.length) throw new Error('At least one scope is required');
   if (await getClient(id)) throw new Error('Client already exists');
   const secret = randomBytes(32).toString('base64url');
   await run('INSERT INTO auth_oidc_client (id, secret_hash, redirect_uris, scopes, created_at) VALUES (?, ?, ?, ?, ?)', [id, hashSecret(secret), json(normalizedUris), json(normalizedScopes), new Date().toISOString()]);
