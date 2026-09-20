@@ -17,7 +17,7 @@ import {
   rotateSigningKey,
   verifyAccessToken,
 } from './token.js';
-import { addManagedClientScopes, createAuthorizationCode, createManagedClient, exchangeAuthorizationCode, getClient, isOidcClient, listManagedClients, removeManagedClient, tokenResponse } from './oidc.js';
+import { addManagedClientScopes, createAuthorizationCode, createManagedClient, exchangeAuthorizationCode, getClient, isOidcClient, listManagedClients, removeManagedClient, tokenResponse, updateManagedClientRedirectUris } from './oidc.js';
 import {
   authenticate,
   authenticationOptions,
@@ -432,6 +432,9 @@ app.delete('/oidc/clients/:id', adminRoute, async (req, res) => res.sendStatus((
 app.post('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
   try { res.json({ scopes: await addManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []) }); } catch (error) { res.status(400).json({ error: String(error) }); }
 });
+app.put('/oidc/clients/:id/callbacks', express.json(), adminRoute, async (req, res) => {
+  try { res.json({ redirectUris: await updateManagedClientRedirectUris(req.params.id, Array.isArray(req.body?.redirectUris) ? req.body.redirectUris : []) }); } catch (error) { res.status(400).json({ error: String(error) }); }
+});
 app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
 app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
   const audience = typeof req.body?.audience === 'string' ? req.body.audience : '';
@@ -540,7 +543,7 @@ app.get('/ui/:asset', (req, res) => {
   const source = req.params.asset === 'profile.html'
     ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
     : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(req.params.asset)
-      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`).replace('<summary class="cursor-pointer font-bold">{{ app.id }}</summary>', '<summary class="cursor-pointer font-bold">{{ app.id }}</summary><div class="mt-3 rounded-xl bg-violet/5 p-3 text-sm"><strong>Callback URLs</strong><template for="uri of app.redirectUris"><span class="mt-1 block break-all text-slate-600">{{ uri }}</span></template></div>').replace(' if="tab === \'overview\'"', ' class-hidden="tab !== \'overview\'"').replace(' if="tab === \'scopes\'"', ' class-hidden="tab !== \'scopes\'"').replace(' if="tab === \'tokens\'"', ' class-hidden="tab !== \'tokens\'"')
+      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`).replace("import { addOidcScopes,createApiToken,createOidcClient,getApiTokens,getTokenApps,revokeApiToken }", "import { addOidcScopes,createApiToken,createOidcClient,getApiTokens,getTokenApps,revokeApiToken,updateOidcCallbacks }").replace('const showTokenForm=', "const editCallbacks=async(app)=>{const value=prompt('Callback URLs, one per line',app.redirectUris.join('\\n'));if(value===null)return;const result=await updateOidcCallbacks(app.id,value.split('\\n').map((item)=>item.trim()).filter(Boolean));app.redirectUris=result.redirectUris};const showTokenForm=").replace('addScope,showTokenForm,createToken', 'addScope,editCallbacks,showTokenForm,createToken').replace('<summary class="cursor-pointer font-bold">{{ app.id }}</summary>', '<summary class="cursor-pointer font-bold">{{ app.id }}</summary><div class="mt-3 rounded-xl bg-violet/5 p-3 text-sm"><strong>Callback URLs</strong><template for="uri of app.redirectUris"><span class="mt-1 block break-all text-slate-600">{{ uri }}</span></template><template if="admin"><button class="mt-2 rounded-lg border border-violet px-3 py-1 font-semibold text-violet" on-click="editCallbacks(app)">Edit callbacks</button></template></div>').replace(' if="tab === \'overview\'"', ' class-hidden="tab !== \'overview\'"').replace(' if="tab === \'scopes\'"', ' class-hidden="tab !== \'scopes\'"').replace(' if="tab === \'tokens\'"', ' class-hidden="tab !== \'tokens\'"')
       : asset;
   res.set('Cache-Control', 'no-store').type(type).send(
     req.params.asset === 'embed.mjs'

@@ -76,13 +76,22 @@ export async function listManagedClients() {
 
 export async function createManagedClient(id: string, redirectUris: string[], scopes: string[]) {
   if (!id || !/^[a-zA-Z0-9._-]{1,80}$/.test(id)) throw new Error('Invalid client ID');
-  const normalizedUris = redirectUris.filter(isSecureRedirectUri);
-  if (!normalizedUris.length) throw new Error('At least one HTTPS redirect URI is required');
+  const defaultUri = `https://${id}/auth/callback`;
+  const normalizedUris = [...new Set([defaultUri, ...redirectUris].filter(isSecureRedirectUri))];
   const normalizedScopes = scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope));
   if (await getClient(id)) throw new Error('Client already exists');
   const secret = randomBytes(32).toString('base64url');
   await run('INSERT INTO auth_oidc_client (id, secret_hash, redirect_uris, scopes, created_at) VALUES (?, ?, ?, ?, ?)', [id, hashSecret(secret), json(normalizedUris), json(normalizedScopes), new Date().toISOString()]);
   return { id, secret, redirectUris: normalizedUris, scopes: normalizedScopes };
+}
+
+export async function updateManagedClientRedirectUris(id: string, redirectUris: string[]) {
+  const client = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [id]))[0];
+  if (!client) throw new Error('Client not found');
+  const defaultUri = `https://${id}/auth/callback`;
+  const normalizedUris = [...new Set([defaultUri, ...redirectUris].filter(isSecureRedirectUri))];
+  await run('UPDATE auth_oidc_client SET redirect_uris = ? WHERE id = ?', [json(normalizedUris), id]);
+  return normalizedUris;
 }
 
 export async function removeManagedClient(id: string) {

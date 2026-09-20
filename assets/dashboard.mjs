@@ -105,6 +105,12 @@ export async function addOidcScopes(id, scopes) {
   return response.json();
 }
 
+export async function updateOidcCallbacks(id, redirectUris) {
+  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/callbacks', authDomain), { credentials: 'include', method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirectUris }) });
+  if (!response.ok) throw new Error('Could not update callback URLs');
+  return response.json();
+}
+
 export async function getAuditEvents({ app = '', event = '', offset = 0 } = {}) {
   const url = new URL('/audit', authDomain);
   url.searchParams.set('limit', '20'); url.searchParams.set('offset', String(offset));
