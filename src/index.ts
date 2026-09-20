@@ -540,7 +540,7 @@ app.get('/ui/:asset', (req, res) => {
   const source = req.params.asset === 'profile.html'
     ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
     : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(req.params.asset)
-      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`).replace(' if="tab === \'overview\'"', ' class-hidden="tab !== \'overview\'"').replace(' if="tab === \'scopes\'"', ' class-hidden="tab !== \'scopes\'"').replace(' if="tab === \'tokens\'"', ' class-hidden="tab !== \'tokens\'"')
+      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`).replace('<summary class="cursor-pointer font-bold">{{ app.id }}</summary>', '<summary class="cursor-pointer font-bold">{{ app.id }}</summary><div class="mt-3 rounded-xl bg-violet/5 p-3 text-sm"><strong>Callback URLs</strong><template for="uri of app.redirectUris"><span class="mt-1 block break-all text-slate-600">{{ uri }}</span></template></div>').replace(' if="tab === \'overview\'"', ' class-hidden="tab !== \'overview\'"').replace(' if="tab === \'scopes\'"', ' class-hidden="tab !== \'scopes\'"').replace(' if="tab === \'tokens\'"', ' class-hidden="tab !== \'tokens\'"')
       : asset;
   res.set('Cache-Control', 'no-store').type(type).send(
     req.params.asset === 'embed.mjs'
