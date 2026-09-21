@@ -154,7 +154,10 @@ export function createAuthClient({
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body,
     });
-    if (!response.ok) throw new Error(`Could not exchange authorization code: ${response.status}`);
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`Could not exchange authorization code: ${response.status} ${detail}`);
+    }
     return response.json();
   }
 
