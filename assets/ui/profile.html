@@ -16,6 +16,8 @@
     <link rel="component" href="/ui/properties.html" />
     <link rel="component" href="/ui/activity.html" />
     <link rel="component" href="/ui/oidc-apps.html" />
+    <link rel="component" href="/ui/keys.html" />
+    <link rel="component" href="/ui/tokens.html" />
     <script type="module" src="/ui/app.mjs"></script>
   </head>
   <body data-page="profile" class="min-h-dvh bg-violet/5 p-5 text-ink">
@@ -46,7 +48,9 @@
         <auth-nav></auth-nav><template if="section === 'security'"><dashboard-security></dashboard-security></template
         ><template if="section === 'properties'"><dashboard-properties></dashboard-properties></template
         ><template if="section === 'activity'"><dashboard-activity></dashboard-activity></template
-        ><template if="section === 'oidc'"><dashboard-oidc></dashboard-oidc></template>
+        ><template if="section === 'oidc'"><dashboard-oidc></dashboard-oidc></template
+        ><template if="section === 'keys'"><signing-key-manager></signing-key-manager></template
+        ><template if="section === 'tokens'"><dashboard-tokens></dashboard-tokens></template>
         <script setup src="/ui/app.mjs"></script></main
     ></template>
   </body>
