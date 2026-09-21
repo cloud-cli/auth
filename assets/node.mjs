@@ -26,11 +26,13 @@ export function getCookies(request) {
   const header = request.headers?.get ? request.headers.get('cookie') : request.headers?.cookie;
   if (!header) return {};
 
-  return Object.fromEntries(header.split(';').map((part) => {
-    const separator = part.indexOf('=');
-    if (separator === -1) return [part.trim(), ''];
-    return [part.slice(0, separator).trim(), decodeURIComponent(part.slice(separator + 1).trim())];
-  }));
+  return Object.fromEntries(
+    header.split(';').map((part) => {
+      const separator = part.indexOf('=');
+      if (separator === -1) return [part.trim(), ''];
+      return [part.slice(0, separator).trim(), decodeURIComponent(part.slice(separator + 1).trim())];
+    }),
+  );
 }
 
 export function getSessionCookie(request, cookieName = 'connect.sid') {
@@ -38,7 +40,12 @@ export function getSessionCookie(request, cookieName = 'connect.sid') {
   return value ? `${cookieName}=${encodeURIComponent(value)}` : '';
 }
 
-export function createAuthClient({ issuer = defaultIssuer, clientId, clientSecret, sessionCookieName = 'connect.sid' } = {}) {
+export function createAuthClient({
+  issuer = defaultIssuer,
+  clientId,
+  clientSecret,
+  sessionCookieName = 'connect.sid',
+} = {}) {
   if (!clientId) throw new Error('A client ID is required');
 
   let jwks;
@@ -68,7 +75,8 @@ export function createAuthClient({ issuer = defaultIssuer, clientId, clientSecre
 
     const now = Math.floor(Date.now() / 1000);
     const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    if (payload.iss !== issuer || !audiences.includes(clientId) || typeof payload.sub !== 'string') throw new Error('Invalid JWT claims');
+    if (payload.iss !== issuer || !audiences.includes(clientId) || typeof payload.sub !== 'string')
+      throw new Error('Invalid JWT claims');
     if (typeof payload.exp !== 'number' || payload.exp <= now) throw new Error('Expired JWT');
     if (typeof payload.nbf === 'number' && payload.nbf > now) throw new Error('JWT is not active');
 
@@ -87,7 +95,11 @@ export function createAuthClient({ issuer = defaultIssuer, clientId, clientSecre
 
   async function introspectToken(token) {
     const credentials = Buffer.from(`${clientId}:${clientSecret || ''}`).toString('base64');
-    const response = await fetch(new URL('/oauth/introspect', issuer), { method: 'POST', headers: { Authorization: `Basic ${credentials}`, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token, token_type_hint: 'access_token' }) });
+    const response = await fetch(new URL('/oauth/introspect', issuer), {
+      method: 'POST',
+      headers: { Authorization: `Basic ${credentials}`, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token, token_type_hint: 'access_token' }),
+    });
     if (!response.ok) throw new Error(`Could not introspect token: ${response.status}`);
     return response.json();
   }
@@ -129,11 +141,31 @@ export function createAuthClient({ issuer = defaultIssuer, clientId, clientSecre
   }
 
   async function exchangeCode({ code, codeVerifier, redirectUri, clientSecret }) {
-    const body = new URLSearchParams({ grant_type: 'authorization_code', code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, code_verifier: codeVerifier });
-    const response = await fetch(new URL('/token', issuer), { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body });
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+    });
+    const response = await fetch(new URL('/token', issuer), {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+    });
     if (!response.ok) throw new Error(`Could not exchange authorization code: ${response.status}`);
     return response.json();
   }
 
-  return { createAuthorizationRequest, exchangeCode, verifyToken, getProfile, introspectToken, getSessionProfile, isSessionAuthenticated, requireSession };
+  return {
+    createAuthorizationRequest,
+    exchangeCode,
+    verifyToken,
+    getProfile,
+    introspectToken,
+    getSessionProfile,
+    isSessionAuthenticated,
+    requireSession,
+  };
 }

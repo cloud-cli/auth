@@ -1,12 +1,12 @@
-const authDomain = "__API_URL__";
-const fetchOptions = { credentials: "include", mode: "cors" };
+const authDomain = '__API_URL__';
+const fetchOptions = { credentials: 'include', mode: 'cors' };
 
 async function toJson(r) {
   if (r.ok) {
     return await r.json();
   }
 
-  throw new Error(r.status + ": " + r.statusText);
+  throw new Error(r.status + ': ' + r.statusText);
 }
 
 function toBoolean(r) {
@@ -14,46 +14,43 @@ function toBoolean(r) {
     return true;
   }
 
-  throw new Error(r.status + ": " + r.statusText);
+  throw new Error(r.status + ': ' + r.statusText);
 }
 
 async function getProfile() {
-  const r = await fetch(new URL("/profile", authDomain), fetchOptions);
+  const r = await fetch(new URL('/profile', authDomain), fetchOptions);
   return toJson(r);
 }
 
 async function isAuthenticated() {
-  const r = await fetch(new URL("/profile", authDomain), { ...fetchOptions, method: "HEAD" });
+  const r = await fetch(new URL('/profile', authDomain), { ...fetchOptions, method: 'HEAD' });
   return Boolean(r.ok && r.status < 300);
 }
 
 async function signOut() {
-  const r = await fetch(new URL("/profile", authDomain), {
+  const r = await fetch(new URL('/profile', authDomain), {
     ...fetchOptions,
-    method: "DELETE",
+    method: 'DELETE',
   });
 
   return toBoolean(r);
 }
 
 async function getProperties() {
-  const r = await fetch(new URL("/properties", authDomain), fetchOptions);
+  const r = await fetch(new URL('/properties', authDomain), fetchOptions);
   return await toJson(r);
 }
 
 async function getProperty(property) {
-  const r = await fetch(
-    new URL("/properties/" + property, authDomain),
-    fetchOptions
-  );
-  return r.ok ? (await toJson(r)).value : "";
+  const r = await fetch(new URL('/properties/' + property, authDomain), fetchOptions);
+  return r.ok ? (await toJson(r)).value : '';
 }
 
 async function setProperty(property, value) {
-  const r = await fetch(new URL("/properties", authDomain), {
+  const r = await fetch(new URL('/properties', authDomain), {
     ...fetchOptions,
-    method: "PUT",
-    headers: { "content-type": "application/json" },
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ key: property, value }),
   });
 
@@ -61,9 +58,9 @@ async function setProperty(property, value) {
 }
 
 async function deleteProperty(key) {
-  const r = await fetch(new URL("/properties/" + key, authDomain), {
+  const r = await fetch(new URL('/properties/' + key, authDomain), {
     ...fetchOptions,
-    method: "DELETE",
+    method: 'DELETE',
   });
 
   return toBoolean(r);

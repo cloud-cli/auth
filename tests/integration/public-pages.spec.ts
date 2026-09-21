@@ -41,7 +41,13 @@ test('profile API remains protected', async ({ request }) => {
 test('test-only session can access the dashboard sections', async ({ page }) => {
   test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
   await page.goto('/');
-  const response = await page.evaluate(async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }).then((result) => result.status), process.env.AUTH_TEST_SECRET);
+  const response = await page.evaluate(
+    async (secret) =>
+      fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }).then(
+        (result) => result.status,
+      ),
+    process.env.AUTH_TEST_SECRET,
+  );
   expect(response).toBe(204);
   await page.goto('/me#security');
   await expect(page.getByText('Passkeys')).toBeVisible();
@@ -56,7 +62,10 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
 test('authenticated Applications section exposes app and token management', async ({ page }) => {
   test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
   await page.goto('/');
-  await page.evaluate(async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }), process.env.AUTH_TEST_SECRET);
+  await page.evaluate(
+    async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }),
+    process.env.AUTH_TEST_SECRET,
+  );
   await page.goto('/me#oidc');
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
   const app = page.locator('details').first();

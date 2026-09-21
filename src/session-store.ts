@@ -1,4 +1,4 @@
-import session from "express-session";
+import session from 'express-session';
 import { UserSession, json, rows, run } from './database.js';
 
 class SessionStoreImpl extends session.Store {

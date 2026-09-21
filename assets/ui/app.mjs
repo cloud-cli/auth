@@ -1,7 +1,20 @@
 import { load } from '@li3/web';
 import '@li3/web';
 import { ref, templateRef } from '@li3/web';
-import { createOidcClient, deleteProperty, generateRecoveryCodes, getAuditEvents, getOidcClients, getPasskeys, getProperties, registerPasskey, removeOidcClient as removeManagedOidcClient, revokePasskey, setProperty, signInWithPasskey } from '/dashboard.mjs';
+import {
+  createOidcClient,
+  deleteProperty,
+  generateRecoveryCodes,
+  getAuditEvents,
+  getOidcClients,
+  getPasskeys,
+  getProperties,
+  registerPasskey,
+  removeOidcClient as removeManagedOidcClient,
+  revokePasskey,
+  setProperty,
+  signInWithPasskey,
+} from '/dashboard.mjs';
 
 const page = document.body.dataset.page;
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
@@ -42,7 +55,7 @@ export default function () {
     try {
       await signInWithPasskey();
       setMessage('Passkey confirmed. Finishing sign-in...');
-      setTimeout(() => location.href = value('url') || '/me', 450);
+      setTimeout(() => (location.href = value('url') || '/me'), 450);
     } catch (reason) {
       setMessage(reason.message || 'Passkey sign-in was cancelled.', true);
     } finally {
@@ -94,7 +107,13 @@ export default function () {
   }
 
   async function addOidcClient() {
-    const result = await createOidcClient(clientId.value.value.trim(), redirectUris.value.value.split('\n').map((value) => value.trim()).filter(Boolean));
+    const result = await createOidcClient(
+      clientId.value.value.trim(),
+      redirectUris.value.value
+        .split('\n')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    );
     createdSecret.value = `Secret for ${result.id} (copy now): ${result.secret}`;
     clientId.value.value = '';
     redirectUris.value.value = '';
@@ -149,15 +168,17 @@ export default function () {
     pwaUrl.value = transaction.pwaUrl;
     status.value = 'Waiting for approval on your phone...';
     const poll = async () => {
-      const result = await fetch('/qr-login/status?transaction=' + encodeURIComponent(transaction.token), { credentials: 'include' });
+      const result = await fetch('/qr-login/status?transaction=' + encodeURIComponent(transaction.token), {
+        credentials: 'include',
+      });
       if (!result.ok) return setMessage('This QR code expired. Start again.', true);
       const current = await result.json();
       if (current.status === 'approved') {
         approved.value = true;
         status.value = 'Approved. Completing your secure sign-in...';
-        return setTimeout(() => location.href = current.returnUrl, 700);
+        return setTimeout(() => (location.href = current.returnUrl), 700);
       }
-      if (current.status === 'denied') return status.value = 'Approval was denied on your phone.';
+      if (current.status === 'denied') return (status.value = 'Approval was denied on your phone.');
       setTimeout(poll, 1000);
     };
     poll();
@@ -180,18 +201,63 @@ export default function () {
     sessionStorage.removeItem('auth.returnUrl');
     sessionStorage.removeItem('auth.loginPending');
     if (returnUrl && loginPending) {
-      setTimeout(() => location.href = returnUrl, 300);
+      setTimeout(() => (location.href = returnUrl), 300);
     }
-    addEventListener('hashchange', () => section.value = location.hash.slice(1) || 'security');
+    addEventListener('hashchange', () => (section.value = location.hash.slice(1) || 'security'));
     loadProfile().catch((reason) => setMessage(reason.message, true));
-    getAuditEvents().then((value) => audit.value = value).catch(() => {});
-    getOidcClients().then((value) => clients.value = value).catch(() => {});
+    getAuditEvents()
+      .then((value) => (audit.value = value))
+      .catch(() => {});
+    getOidcClients()
+      .then((value) => (clients.value = value))
+      .catch(() => {});
   }
   if (page === 'passkey') setTimeout(signIn, 0);
   // The profile document declares the navigation component directly.
-  if (page === 'oidc') getOidcClients().then((value) => clients.value = value).catch((reason) => setMessage(reason.message, true));
-  if (page === 'audit') getAuditEvents().then((value) => audit.value = value).catch((reason) => setMessage(reason.message, true));
+  if (page === 'oidc')
+    getOidcClients()
+      .then((value) => (clients.value = value))
+      .catch((reason) => setMessage(reason.message, true));
+  if (page === 'audit')
+    getAuditEvents()
+      .then((value) => (audit.value = value))
+      .catch((reason) => setMessage(reason.message, true));
   if (page === 'qr') loadQr().catch((reason) => setMessage(reason.message, true));
 
-  return { propertyKey, propertyValue, clientId, redirectUris, clients, createdSecret, audit, section, busy, message, error, user, passkeys, properties, codes, qr, pwaUrl, qrUrl, passkeyUrl, recoveryUrl, status, approved, signIn, addPasskey, revoke, recoveryCodes, saveProperty, removeProperty, addProperty, addOidcClient, removeOidcClient, copyCreatedSecret, copyUserId, signOut };
+  return {
+    propertyKey,
+    propertyValue,
+    clientId,
+    redirectUris,
+    clients,
+    createdSecret,
+    audit,
+    section,
+    busy,
+    message,
+    error,
+    user,
+    passkeys,
+    properties,
+    codes,
+    qr,
+    pwaUrl,
+    qrUrl,
+    passkeyUrl,
+    recoveryUrl,
+    status,
+    approved,
+    signIn,
+    addPasskey,
+    revoke,
+    recoveryCodes,
+    saveProperty,
+    removeProperty,
+    addProperty,
+    addOidcClient,
+    removeOidcClient,
+    copyCreatedSecret,
+    copyUserId,
+    signOut,
+  };
 }

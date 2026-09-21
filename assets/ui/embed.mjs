@@ -5,9 +5,14 @@ window.addEventListener('message', (event) => {
     const hostname = new URL(event.origin).hostname;
     const allowed = allowedOrigins.some((value) => {
       if (value === event.origin) return true;
-      const domain = value.replace(/^https?:\/\//, '').replace(/^\./, '').split('/')[0];
+      const domain = value
+        .replace(/^https?:\/\//, '')
+        .replace(/^\./, '')
+        .split('/')[0];
       return domain && (hostname === domain || hostname.endsWith('.' + domain));
     });
     if (allowed) runCommand(event);
-  } catch {}
+  } catch {
+    return;
+  }
 });

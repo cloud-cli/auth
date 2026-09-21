@@ -4,7 +4,10 @@ import { QrLoginTransaction, rows, run } from './database.js';
 import { findByUserId, userAsJSON } from './user.js';
 
 const configuredLifetime = Number(process.env.QR_LOGIN_TTL_SECONDS || 300);
-const lifetime = (Number.isInteger(configuredLifetime) && configuredLifetime >= 60 && configuredLifetime <= 600 ? configuredLifetime : 300) * 1000;
+const lifetime =
+  (Number.isInteger(configuredLifetime) && configuredLifetime >= 60 && configuredLifetime <= 600
+    ? configuredLifetime
+    : 300) * 1000;
 
 function safeReturnUrl(value: string) {
   if (!value) return '/';
@@ -27,7 +30,17 @@ export async function createQrLogin(sessionId: string, returnUrl: string) {
     userId: '',
     status: 'pending',
   };
-  await run('INSERT INTO auth_qr_login (token, session_id, return_url, created_at, user_id, status) VALUES (?, ?, ?, ?, ?, ?)', [transaction.token, transaction.sessionId, transaction.returnUrl, transaction.createdAt, transaction.userId, transaction.status]);
+  await run(
+    'INSERT INTO auth_qr_login (token, session_id, return_url, created_at, user_id, status) VALUES (?, ?, ?, ?, ?, ?)',
+    [
+      transaction.token,
+      transaction.sessionId,
+      transaction.returnUrl,
+      transaction.createdAt,
+      transaction.userId,
+      transaction.status,
+    ],
+  );
   return transaction;
 }
 
@@ -41,7 +54,8 @@ export async function qrLoginPage(sessionId: string, returnUrl: string) {
 async function getTransaction(token: string) {
   const all = await rows<QrLoginTransaction>('auth_qr_login', 'token = ?', [token]);
   const transaction = all[0];
-  if (!transaction || Date.parse(transaction.createdAt) + lifetime < Date.now()) throw new Error('Invalid or expired QR login');
+  if (!transaction || Date.parse(transaction.createdAt) + lifetime < Date.now())
+    throw new Error('Invalid or expired QR login');
   return transaction;
 }
 
@@ -55,7 +69,11 @@ export async function approveQrLogin(token: string, userId: string) {
   if (transaction.status !== 'pending') throw new Error('QR login is no longer pending');
   transaction.userId = userId;
   transaction.status = 'approved';
-  await run('UPDATE auth_qr_login SET user_id = ?, status = ? WHERE token = ?', [transaction.userId, transaction.status, transaction.token]);
+  await run('UPDATE auth_qr_login SET user_id = ?, status = ? WHERE token = ?', [
+    transaction.userId,
+    transaction.status,
+    transaction.token,
+  ]);
 }
 
 export async function denyQrLogin(token: string) {

@@ -37,17 +37,24 @@ export default function () {
       const token = result.map((item) => new URL(item.rawValue).searchParams.get('transaction')).find(Boolean);
       if (!token) return requestAnimationFrame(frame);
       stream.getTracks().forEach((track) => track.stop());
-      const detail = await fetch('/qr-login/details?transaction=' + encodeURIComponent(token), { credentials: 'include' });
-      if (detail.status === 401) return location.href = '/login?url=/pwa/';
+      const detail = await fetch('/qr-login/details?transaction=' + encodeURIComponent(token), {
+        credentials: 'include',
+      });
+      if (detail.status === 401) return (location.href = '/login?url=/pwa/');
       if (!detail.ok) throw new Error('This QR code expired. Return to the laptop and start a new approval.');
       const login = await detail.json();
       if (!confirm('Approve sign-in to ' + login.returnUrl + '?')) return;
-      const response = await fetch('/qr-login/approve', { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ transaction: token }) });
+      const response = await fetch('/qr-login/approve', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ transaction: token }),
+      });
       if (!response.ok) throw new Error('Approval failed.');
       approved.value = true;
       message.value = 'Approved. The other device is signing in now.';
     };
-    requestAnimationFrame(() => frame().catch((error) => message.value = error.message));
+    requestAnimationFrame(() => frame().catch((error) => (message.value = error.message)));
   };
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/pwa/sw.js');

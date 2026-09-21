@@ -3,14 +3,23 @@ import { json, OidcClient, User, rows, run } from './database.js';
 import { accessTokenTtl, createAccessToken, createIdentityToken } from './token.js';
 
 type Client = { id: string; redirectUris: string[]; scopes: string[]; secretHash: string };
-type AuthorizationCode = { clientId: string; redirectUri: string; userId: string; codeChallenge: string; expiresAt: number };
+type AuthorizationCode = {
+  clientId: string;
+  redirectUri: string;
+  userId: string;
+  codeChallenge: string;
+  expiresAt: number;
+};
 
 const codes = new Map<string, AuthorizationCode>();
 
 function isSecureRedirectUri(uri: string) {
   try {
     const url = new URL(uri);
-    return url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname));
+    return (
+      url.protocol === 'https:' ||
+      (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))
+    );
   } catch {
     return false;
   }
@@ -31,7 +40,14 @@ function matchesSecret(secret: string, stored: string) {
 export async function getClient(clientId: string) {
   try {
     const stored = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [clientId]))[0];
-    return stored ? { id: stored.id, redirectUris: stored.redirectUris, scopes: stored.scopes || [], secretHash: stored.secretHash } as Client : undefined;
+    return stored
+      ? ({
+          id: stored.id,
+          redirectUris: stored.redirectUris,
+          scopes: stored.scopes || [],
+          secretHash: stored.secretHash,
+        } as Client)
+      : undefined;
   } catch {
     return undefined;
   }
@@ -51,13 +67,23 @@ export function createAuthorizationCode(client: Client, redirectUri: string, use
   return code;
 }
 
-export async function exchangeAuthorizationCode({ code, clientId, clientSecret, redirectUri, codeVerifier }: Record<string, string>) {
+export async function exchangeAuthorizationCode({
+  code,
+  clientId,
+  clientSecret,
+  redirectUri,
+  codeVerifier,
+}: Record<string, string>) {
   const authorizationCode = codes.get(code);
   codes.delete(code);
   if (!authorizationCode || authorizationCode.expiresAt < Date.now()) return null;
   const client = await getClient(clientId);
   if (!client || authorizationCode.clientId !== clientId || authorizationCode.redirectUri !== redirectUri) return null;
-  if (!matchesSecret(clientSecret, client.secretHash) || codeChallenge(codeVerifier) !== authorizationCode.codeChallenge) return null;
+  if (
+    !matchesSecret(clientSecret, client.secretHash) ||
+    codeChallenge(codeVerifier) !== authorizationCode.codeChallenge
+  )
+    return null;
   return authorizationCode;
 }
 
@@ -66,7 +92,12 @@ function codeChallenge(verifier: string) {
 }
 
 export async function tokenResponse(user: User, clientId: string) {
-  return { access_token: await createAccessToken(user.userId, clientId), id_token: await createIdentityToken(user, clientId), token_type: 'Bearer', expires_in: accessTokenTtl() };
+  return {
+    access_token: await createAccessToken(user.userId, clientId),
+    id_token: await createIdentityToken(user, clientId),
+    token_type: 'Bearer',
+    expires_in: accessTokenTtl(),
+  };
 }
 
 export async function listManagedClients() {
@@ -81,7 +112,10 @@ export async function createManagedClient(id: string, redirectUris: string[], sc
   const normalizedScopes = scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope));
   if (await getClient(id)) throw new Error('Client already exists');
   const secret = randomBytes(32).toString('base64url');
-  await run('INSERT INTO auth_oidc_client (id, secret_hash, redirect_uris, scopes, created_at) VALUES (?, ?, ?, ?, ?)', [id, hashSecret(secret), json(normalizedUris), json(normalizedScopes), new Date().toISOString()]);
+  await run(
+    'INSERT INTO auth_oidc_client (id, secret_hash, redirect_uris, scopes, created_at) VALUES (?, ?, ?, ?, ?)',
+    [id, hashSecret(secret), json(normalizedUris), json(normalizedScopes), new Date().toISOString()],
+  );
   return { id, secret, redirectUris: normalizedUris, scopes: normalizedScopes };
 }
 

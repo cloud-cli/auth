@@ -101,7 +101,10 @@ CREATE INDEX IF NOT EXISTS idx_auth_audit_user_time ON auth_audit_event(user_id,
 export async function up() {
   const db = await getDb();
   await db.exec(schema);
-  await db.run('INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)', ['001_create-db', new Date().toISOString()]);
+  await db.run('INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)', [
+    '001_create-db',
+    new Date().toISOString(),
+  ]);
 }
 
 export default up;

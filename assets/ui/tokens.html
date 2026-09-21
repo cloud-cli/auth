@@ -1,1 +1,75 @@
-<template component="dashboard-tokens"><section class="mt-5 rounded-3xl bg-white p-6 shadow-xl shadow-violet/5"><h2 class="text-xl font-extrabold tracking-[-.03em]">API tokens</h2><p class="mt-1 text-slate-500">Create scoped tokens for your connected applications.</p><select class="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2" bind-value="selected" on-change="loadTokens()"><option value="">Choose an app</option><template for="app of apps"><option attr-value="app.id">{{ app.id }}</option></template></select><template if="selected"><form class="mt-4 grid gap-3 rounded-2xl bg-violet/5 p-4" on-submit.prevent="create()"><input ref="label" class="rounded-xl border border-slate-200 px-3 py-2" placeholder="Token label" required><input ref="scopes" class="rounded-xl border border-slate-200 px-3 py-2" placeholder="Scopes, space separated" required><button class="rounded-xl bg-violet px-4 py-3 font-bold text-white">Generate token</button></form></template><template if="created"><div class="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 font-mono text-sm font-semibold text-emerald-900">{{ created }}<span class="mt-2 block font-sans font-normal">Copy this token now. It will not be shown again.</span></div></template><div class="mt-5 divide-y divide-slate-100"><template for="token of tokens"><article class="flex items-start justify-between gap-4 py-4"><div><strong>{{ token.label }}</strong><p class="text-sm text-slate-500">{{ token.scopes.join(', ') }} · expires {{ token.expiresAt }}</p></div><span class="text-sm text-slate-400">{{ token.revokedAt ? 'revoked' : 'active' }}</span></article></template></div></section><script setup>import { ref,templateRef } from '@li3/web';import { createApiToken,getApiTokens,getTokenApps } from '/dashboard.mjs';export default function(){const apps=ref([]),selected=ref(''),tokens=ref([]),created=ref(''),label=templateRef('label'),scopes=templateRef('scopes');const loadTokens=async()=>{if(selected.value)tokens.value=await getApiTokens(selected.value)};const create=async()=>{const result=await createApiToken(selected.value,label.value.value.trim(),scopes.value.value.split(/\s+/).filter(Boolean));created.value=result.token;label.value.value='';scopes.value.value='';await loadTokens()};getTokenApps().then((value)=>apps.value=value);return{apps,selected,tokens,created,label,scopes,loadTokens,create}}</script></template>
+<template component="dashboard-tokens"
+  ><section class="mt-5 rounded-3xl bg-white p-6 shadow-xl shadow-violet/5">
+    <h2 class="text-xl font-extrabold tracking-[-.03em]">API tokens</h2>
+    <p class="mt-1 text-slate-500">Create scoped tokens for your connected applications.</p>
+    <select
+      class="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2"
+      bind-value="selected"
+      on-change="loadTokens()"
+    >
+      <option value="">Choose an app</option>
+      <template for="app of apps"><option attr-value="app.id">{{ app.id }}</option></template></select
+    ><template if="selected"
+      ><form class="mt-4 grid gap-3 rounded-2xl bg-violet/5 p-4" on-submit.prevent="create()">
+        <input
+          ref="label"
+          class="rounded-xl border border-slate-200 px-3 py-2"
+          placeholder="Token label"
+          required
+        /><input
+          ref="scopes"
+          class="rounded-xl border border-slate-200 px-3 py-2"
+          placeholder="Scopes, space separated"
+          required
+        /><button class="rounded-xl bg-violet px-4 py-3 font-bold text-white">Generate token</button>
+      </form></template
+    ><template if="created"
+      ><div
+        class="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 font-mono text-sm font-semibold text-emerald-900"
+      >
+        {{ created }}<span class="mt-2 block font-sans font-normal"
+          >Copy this token now. It will not be shown again.</span
+        >
+      </div></template
+    >
+    <div class="mt-5 divide-y divide-slate-100">
+      <template for="token of tokens"
+        ><article class="flex items-start justify-between gap-4 py-4">
+          <div>
+            <strong>{{ token.label }}</strong>
+            <p class="text-sm text-slate-500">{{ token.scopes.join(', ') }} · expires {{ token.expiresAt }}</p>
+          </div>
+          <span class="text-sm text-slate-400">{{ token.revokedAt ? 'revoked' : 'active' }}</span>
+        </article></template
+      >
+    </div>
+  </section>
+  <script setup>
+    import { ref, templateRef } from '@li3/web';
+    import { createApiToken, getApiTokens, getTokenApps } from '/dashboard.mjs';
+    export default function () {
+      const apps = ref([]),
+        selected = ref(''),
+        tokens = ref([]),
+        created = ref(''),
+        label = templateRef('label'),
+        scopes = templateRef('scopes');
+      const loadTokens = async () => {
+        if (selected.value) tokens.value = await getApiTokens(selected.value);
+      };
+      const create = async () => {
+        const result = await createApiToken(
+          selected.value,
+          label.value.value.trim(),
+          scopes.value.value.split(/\s+/).filter(Boolean),
+        );
+        created.value = result.token;
+        label.value.value = '';
+        scopes.value.value = '';
+        await loadTokens();
+      };
+      getTokenApps().then((value) => (apps.value = value));
+      return { apps, selected, tokens, created, label, scopes, loadTokens, create };
+    }
+  </script></template
+>

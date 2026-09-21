@@ -1,11 +1,17 @@
-const authDomain = "__API_URL__";
+const authDomain = '__API_URL__';
 
 function encode(value) {
-  return btoa(String.fromCharCode(...new Uint8Array(value))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(String.fromCharCode(...new Uint8Array(value)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 function decode(value) {
-  return Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - value.length % 4) % 4)), (character) => character.charCodeAt(0));
+  return Uint8Array.from(
+    atob(value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (value.length % 4)) % 4)),
+    (character) => character.charCodeAt(0),
+  );
 }
 
 function credentialJSON(credential) {
@@ -18,7 +24,12 @@ function credentialJSON(credential) {
     transports: response.getTransports?.() || [],
     response: isRegistration
       ? { clientDataJSON: encode(response.clientDataJSON), attestationObject: encode(response.attestationObject) }
-      : { clientDataJSON: encode(response.clientDataJSON), authenticatorData: encode(response.authenticatorData), signature: encode(response.signature), userHandle: response.userHandle ? encode(response.userHandle) : null },
+      : {
+          clientDataJSON: encode(response.clientDataJSON),
+          authenticatorData: encode(response.authenticatorData),
+          signature: encode(response.signature),
+          userHandle: response.userHandle ? encode(response.userHandle) : null,
+        },
   };
 }
 
@@ -30,7 +41,12 @@ export async function registerPasskey(label = 'Passkey') {
   options.user.id = decode(options.user.id);
   options.excludeCredentials = (options.excludeCredentials || []).map((item) => ({ ...item, id: decode(item.id) }));
   const credential = await navigator.credentials.create({ publicKey: options });
-  const response = await fetch(new URL('/webauthn/register/verify', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...credentialJSON(credential), label }) });
+  const response = await fetch(new URL('/webauthn/register/verify', authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...credentialJSON(credential), label }),
+  });
   if (!response.ok) throw new Error('Could not register passkey');
   return response.json();
 }
@@ -44,7 +60,12 @@ export async function signInWithPasskey(loginHint = '') {
   options.challenge = decode(options.challenge);
   options.allowCredentials = (options.allowCredentials || []).map((item) => ({ ...item, id: decode(item.id) }));
   const credential = await navigator.credentials.get({ publicKey: options });
-  const response = await fetch(new URL('/webauthn/authentication/verify', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(credentialJSON(credential)) });
+  const response = await fetch(new URL('/webauthn/authentication/verify', authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(credentialJSON(credential)),
+  });
   if (!response.ok) throw new Error('Could not authenticate with passkey');
 }
 
@@ -55,12 +76,20 @@ export async function getPasskeys() {
 }
 
 export async function revokePasskey(credentialId) {
-  const response = await fetch(new URL('/webauthn/credentials/' + encodeURIComponent(credentialId), authDomain), { credentials: 'include', method: 'DELETE' });
+  const response = await fetch(new URL('/webauthn/credentials/' + encodeURIComponent(credentialId), authDomain), {
+    credentials: 'include',
+    method: 'DELETE',
+  });
   if (!response.ok) throw new Error('Could not revoke passkey');
 }
 
 export async function generateRecoveryCodes() {
-  const response = await fetch(new URL('/recovery-codes', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  const response = await fetch(new URL('/recovery-codes', authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  });
   if (!response.ok) throw new Error('Could not generate recovery codes');
   return (await response.json()).codes;
 }
@@ -72,12 +101,20 @@ export async function getProperties() {
 }
 
 export async function setProperty(key, value) {
-  const response = await fetch(new URL('/properties', authDomain), { credentials: 'include', method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, value }) });
+  const response = await fetch(new URL('/properties', authDomain), {
+    credentials: 'include',
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ key, value }),
+  });
   if (!response.ok) throw new Error('Could not save property');
 }
 
 export async function deleteProperty(key) {
-  const response = await fetch(new URL('/properties/' + encodeURIComponent(key), authDomain), { credentials: 'include', method: 'DELETE' });
+  const response = await fetch(new URL('/properties/' + encodeURIComponent(key), authDomain), {
+    credentials: 'include',
+    method: 'DELETE',
+  });
   if (!response.ok) throw new Error('Could not remove property');
 }
 
@@ -88,33 +125,53 @@ export async function getOidcClients() {
 }
 
 export async function createOidcClient(id, redirectUris, scopes) {
-  const response = await fetch(new URL('/oidc/clients', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, redirectUris, scopes }) });
+  const response = await fetch(new URL('/oidc/clients', authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, redirectUris, scopes }),
+  });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Could not create OIDC client');
   return result;
 }
 
 export async function removeOidcClient(id) {
-  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id), authDomain), { credentials: 'include', method: 'DELETE' });
+  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id), authDomain), {
+    credentials: 'include',
+    method: 'DELETE',
+  });
   if (!response.ok) throw new Error('Could not remove OIDC client');
 }
 
 export async function addOidcScopes(id, scopes) {
-  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scopes }) });
+  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ scopes }),
+  });
   if (!response.ok) throw new Error('Could not add OIDC scopes');
   return response.json();
 }
 
 export async function updateOidcCallbacks(id, redirectUris) {
-  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/callbacks', authDomain), { credentials: 'include', method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirectUris }) });
+  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/callbacks', authDomain), {
+    credentials: 'include',
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ redirectUris }),
+  });
   if (!response.ok) throw new Error('Could not update callback URLs');
   return response.json();
 }
 
 export async function getAuditEvents({ app = '', event = '', offset = 0 } = {}) {
   const url = new URL('/audit', authDomain);
-  url.searchParams.set('limit', '20'); url.searchParams.set('offset', String(offset));
-  if (app) url.searchParams.set('app', app); if (event) url.searchParams.set('event', event);
+  url.searchParams.set('limit', '20');
+  url.searchParams.set('offset', String(offset));
+  if (app) url.searchParams.set('app', app);
+  if (event) url.searchParams.set('event', event);
   const response = await fetch(url, { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load authentication history');
   return response.json();
@@ -141,25 +198,40 @@ export async function getTokenApps() {
 }
 
 export async function getApiTokens(clientId) {
-  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), { credentials: 'include' });
+  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), {
+    credentials: 'include',
+  });
   if (!response.ok) throw new Error('Could not load API tokens');
   return response.json();
 }
 
 export async function createApiToken(clientId, label, scopes) {
-  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ label, scopes }) });
+  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ label, scopes }),
+  });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Could not create API token');
   return result;
 }
 
 export async function revokeApiToken(clientId, label) {
-  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(label), authDomain), { credentials: 'include', method: 'DELETE' });
+  const response = await fetch(
+    new URL('/api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(label), authDomain),
+    { credentials: 'include', method: 'DELETE' },
+  );
   if (!response.ok) throw new Error('Could not revoke API token');
 }
 
 export async function rotateSigningKey() {
-  const response = await fetch(new URL('/keys/rotate', authDomain), { credentials: 'include', method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  const response = await fetch(new URL('/keys/rotate', authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  });
   if (!response.ok) throw new Error('Could not rotate signing key');
   return response.json();
 }

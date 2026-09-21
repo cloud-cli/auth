@@ -17,7 +17,18 @@ import {
   rotateSigningKey,
   verifyAccessToken,
 } from './token.js';
-import { addManagedClientScopes, createAuthorizationCode, createManagedClient, exchangeAuthorizationCode, getClient, isOidcClient, listManagedClients, removeManagedClient, tokenResponse, updateManagedClientRedirectUris } from './oidc.js';
+import {
+  addManagedClientScopes,
+  createAuthorizationCode,
+  createManagedClient,
+  exchangeAuthorizationCode,
+  getClient,
+  isOidcClient,
+  listManagedClients,
+  removeManagedClient,
+  tokenResponse,
+  updateManagedClientRedirectUris,
+} from './oidc.js';
 import {
   authenticate,
   authenticationOptions,
@@ -163,7 +174,13 @@ function adminRoute(req, res, next) {
 }
 
 function isOidcAdmin(userId: string | undefined) {
-  return Boolean(userId && (process.env.OIDC_ADMIN_USER_IDS || '').split(',').map((value) => value.trim()).includes(userId));
+  return Boolean(
+    userId &&
+    (process.env.OIDC_ADMIN_USER_IDS || '')
+      .split(',')
+      .map((value) => value.trim())
+      .includes(userId),
+  );
 }
 
 function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
@@ -171,7 +188,10 @@ function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
     const hostname = new URL(origin).hostname;
     return configuredOrigins.some((value) => {
       if (value === origin) return true;
-      const domain = value.replace(/^https?:\/\//, '').replace(/^\./, '').split('/')[0];
+      const domain = value
+        .replace(/^https?:\/\//, '')
+        .replace(/^\./, '')
+        .split('/')[0];
       return hostname === domain || hostname.endsWith('.' + domain);
     });
   } catch {
@@ -181,9 +201,20 @@ function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
 
 function serveUi(name: string) {
   return (_req, res) => {
-    const source = name === 'profile.html'
-      ? uiAssets[name].replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"').replace('ACCOUNT SECURITY', '').replace('<link rel="component" href="/ui/oidc-apps.html">', '<link rel="component" href="/ui/oidc-apps.html"><link rel="component" href="/ui/keys.html"><link rel="component" href="/ui/tokens.html">').replace('<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template>', '<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template><template if="section === \'keys\'"><signing-key-manager></signing-key-manager></template><template if="section === \'tokens\'"><dashboard-tokens></dashboard-tokens></template>')
-      : uiAssets[name];
+    const source =
+      name === 'profile.html'
+        ? uiAssets[name]
+            .replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
+            .replace('ACCOUNT SECURITY', '')
+            .replace(
+              '<link rel="component" href="/ui/oidc-apps.html">',
+              '<link rel="component" href="/ui/oidc-apps.html"><link rel="component" href="/ui/keys.html"><link rel="component" href="/ui/tokens.html">',
+            )
+            .replace(
+              '<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template>',
+              '<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template><template if="section === \'keys\'"><signing-key-manager></signing-key-manager></template><template if="section === \'tokens\'"><dashboard-tokens></dashboard-tokens></template>',
+            )
+        : uiAssets[name];
     res.type('html').send(source.replaceAll('@apphor/', '@app/'));
   };
 }
@@ -221,17 +252,29 @@ app.get('/profile', browserCors, protectedRouteWithRedirect, async (req, res) =>
 });
 if (__TEST__) {
   app.post('/__test__/login', express.json(), async (req, res) => {
-    if (!process.env.AUTH_TEST_SECRET || req.get('x-test-secret') !== process.env.AUTH_TEST_SECRET) return res.sendStatus(404);
+    if (!process.env.AUTH_TEST_SECRET || req.get('x-test-secret') !== process.env.AUTH_TEST_SECRET)
+      return res.sendStatus(404);
     const userId = process.env.AUTH_TEST_USER_ID || 'integration-test-user';
     let user = await findByUserId(userId);
     if (!user) {
-      user = { userId, profileId: 'integration-test-profile', accessToken: '', refreshToken: '', name: 'Integration Test User', email: 'integration@example.test', photo: '', lastSeen: new Date().toISOString() };
+      user = {
+        userId,
+        profileId: 'integration-test-profile',
+        accessToken: '',
+        refreshToken: '',
+        name: 'Integration Test User',
+        email: 'integration@example.test',
+        photo: '',
+        lastSeen: new Date().toISOString(),
+      };
       const { saveUser } = await import('./database.js');
       await saveUser(user);
     }
     req.login(userAsJSON(user), (error) => {
       if (error) return res.status(500).send('Could not create test session');
-      req.session.save((saveError) => saveError ? res.status(500).send('Could not persist test session') : res.status(204).send(''));
+      req.session.save((saveError) =>
+        saveError ? res.status(500).send('Could not persist test session') : res.status(204).send(''),
+      );
     });
   });
 }
@@ -252,9 +295,22 @@ app.get('/oidc', adminRoute, (_req, res) => res.redirect('/me#oidc'));
 app.get('/oidc/access', protectedRoute, (req, res) => res.json({ admin: isOidcAdmin(req.user!.id) }));
 app.get('/keys', adminRoute, async (_req, res) => res.json(await listSigningKeys()));
 app.post('/keys/rotate', express.json(), adminRoute, async (_req, res) => {
-  try { res.status(201).json(await rotateSigningKey()); } catch (error) { res.status(503).json({ error: String(error) }); }
+  try {
+    res.status(201).json(await rotateSigningKey());
+  } catch (error) {
+    res.status(503).json({ error: String(error) });
+  }
 });
-app.get('/audit', protectedRoute, async (req, res) => res.json(await getAuditEvents(req.user!.id, { app: typeof req.query.app === 'string' ? req.query.app : '', event: typeof req.query.event === 'string' ? req.query.event : '', limit: Number(req.query.limit) || 20, offset: Number(req.query.offset) || 0 })));
+app.get('/audit', protectedRoute, async (req, res) =>
+  res.json(
+    await getAuditEvents(req.user!.id, {
+      app: typeof req.query.app === 'string' ? req.query.app : '',
+      event: typeof req.query.event === 'string' ? req.query.event : '',
+      limit: Number(req.query.limit) || 20,
+      offset: Number(req.query.offset) || 0,
+    }),
+  ),
+);
 app.get('/audit/options', protectedRoute, async (req, res) => res.json(await getAuditOptions(req.user!.id)));
 app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
@@ -410,30 +466,73 @@ app.get('/.well-known/openid-configuration', (_req, res) => {
 app.get('/oidc/clients', adminRoute, async (_req, res) => res.json(await listManagedClients()));
 app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
   try {
-    const result = await createManagedClient(String(req.body?.id || ''), Array.isArray(req.body?.redirectUris) ? req.body.redirectUris.filter((value) => typeof value === 'string') : [], Array.isArray(req.body?.scopes) ? req.body.scopes.filter((value) => typeof value === 'string') : []);
+    const result = await createManagedClient(
+      String(req.body?.id || ''),
+      Array.isArray(req.body?.redirectUris) ? req.body.redirectUris.filter((value) => typeof value === 'string') : [],
+      Array.isArray(req.body?.scopes) ? req.body.scopes.filter((value) => typeof value === 'string') : [],
+    );
     res.status(201).json(result);
   } catch (error) {
     res.status(400).json({ error: String(error) });
   }
 });
 app.get('/api-tokens/apps', protectedRoute, async (_req, res) => res.json(await listManagedClients()));
-app.get('/api-tokens/:clientId', protectedRoute, async (req, res) => res.json(await listApiTokens(req.user!.id, req.params.clientId)));
+app.get('/api-tokens/:clientId', protectedRoute, async (req, res) =>
+  res.json(await listApiTokens(req.user!.id, req.params.clientId)),
+);
 app.post('/api-tokens/:clientId', express.json(), protectedRoute, async (req, res) => {
-  try { res.status(201).json(await createApiToken(req.user!.id, req.params.clientId, String(req.body?.label || ''), Array.isArray(req.body?.scopes) ? req.body.scopes : [])); } catch (error) { res.status(400).json({ error: String(error) }); }
+  try {
+    res
+      .status(201)
+      .json(
+        await createApiToken(
+          req.user!.id,
+          req.params.clientId,
+          String(req.body?.label || ''),
+          Array.isArray(req.body?.scopes) ? req.body.scopes : [],
+        ),
+      );
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
 });
-app.delete('/api-tokens/:clientId/:label', protectedRoute, async (req, res) => res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.label)) ? 204 : 404));
+app.delete('/api-tokens/:clientId/:label', protectedRoute, async (req, res) =>
+  res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.label)) ? 204 : 404),
+);
 app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (req, res) => {
   const authorization = req.get('authorization') || '';
-  const [clientId, clientSecret] = authorization.startsWith('Basic ') ? Buffer.from(authorization.slice(6), 'base64').toString().split(':') : ['', ''];
+  const [clientId, clientSecret] = authorization.startsWith('Basic ')
+    ? Buffer.from(authorization.slice(6), 'base64').toString().split(':')
+    : ['', ''];
   const result = await introspectApiToken(String(req.body?.token || ''), clientId, clientSecret);
-  res.set('Cache-Control', 'private, max-age=30').set('X-Token-Expires-At', String(result?.exp || 0)).json(result || { active: false });
+  res
+    .set('Cache-Control', 'private, max-age=30')
+    .set('X-Token-Expires-At', String(result?.exp || 0))
+    .json(result || { active: false });
 });
-app.delete('/oidc/clients/:id', adminRoute, async (req, res) => res.sendStatus((await removeManagedClient(req.params.id)) ? 204 : 404));
+app.delete('/oidc/clients/:id', adminRoute, async (req, res) =>
+  res.sendStatus((await removeManagedClient(req.params.id)) ? 204 : 404),
+);
 app.post('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
-  try { res.json({ scopes: await addManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []) }); } catch (error) { res.status(400).json({ error: String(error) }); }
+  try {
+    res.json({
+      scopes: await addManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []),
+    });
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
 });
 app.put('/oidc/clients/:id/callbacks', express.json(), adminRoute, async (req, res) => {
-  try { res.json({ redirectUris: await updateManagedClientRedirectUris(req.params.id, Array.isArray(req.body?.redirectUris) ? req.body.redirectUris : []) }); } catch (error) { res.status(400).json({ error: String(error) }); }
+  try {
+    res.json({
+      redirectUris: await updateManagedClientRedirectUris(
+        req.params.id,
+        Array.isArray(req.body?.redirectUris) ? req.body.redirectUris : [],
+      ),
+    });
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
 });
 app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
 app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
@@ -469,7 +568,13 @@ app.get('/authorize', async (req, res) => {
   }
 
   const code = createAuthorizationCode(client, redirectUri, req.user.id, code_challenge);
-  await recordAudit({ userId: req.user.id, event: 'oidc-authorization', app: clientId, result: 'success', redirectUri });
+  await recordAudit({
+    userId: req.user.id,
+    event: 'oidc-authorization',
+    app: clientId,
+    result: 'success',
+    redirectUri,
+  });
   const callback = new URL(redirectUri);
   callback.searchParams.set('code', code);
   callback.searchParams.set('state', state);
@@ -503,7 +608,13 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
     return res.status(400).json({ error: 'invalid_grant' });
   }
 
-  await recordAudit({ userId: user.userId, event: 'oidc-token-exchange', app: client_id, result: 'success', redirectUri: redirect_uri });
+  await recordAudit({
+    userId: user.userId,
+    event: 'oidc-token-exchange',
+    app: client_id,
+    result: 'success',
+    redirectUri: redirect_uri,
+  });
 
   res.json(await tokenResponse(user, client_id));
 });
@@ -538,28 +649,59 @@ app.get('/ui/google.svg', (_req, res) => res.type('image/svg+xml').send(readFile
 app.get('/ui/:asset', (req, res) => {
   const asset = uiAssets[req.params.asset];
   if (!asset) return res.sendStatus(404);
-  const type = req.params.asset.endsWith('.css') ? 'text/css' : req.params.asset.endsWith('.svg') ? 'image/svg+xml' : 'text/javascript';
+  const type = req.params.asset.endsWith('.css')
+    ? 'text/css'
+    : req.params.asset.endsWith('.svg')
+      ? 'image/svg+xml'
+      : 'text/javascript';
   const dashboardUrl = new URL('/dashboard.mjs', process.env.AUTH_DOMAIN || `https://${req.get('host')}`);
-  const source = req.params.asset === 'profile.html'
-    ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
-    : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(req.params.asset)
-      ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`).replace('const showTokenForm=', "const editingApp=ref(null),editingCallbackText=hook('');const beginEdit=(app)=>{editingApp.value=app;editingCallbackText.value=app.redirectUris.join('\\n')};const setEditingCallbackText=(value)=>editingCallbackText.value=value;const saveEdit=async()=>{const response=await fetch('/oidc/clients/'+encodeURIComponent(editingApp.value.id)+'/callbacks',{method:'PUT',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({redirectUris:editingCallbackText.value.split('\\n').map((value)=>value.trim()).filter(Boolean)})});if(!response.ok)throw new Error('Could not update callbacks');editingApp.value.redirectUris=(await response.json()).redirectUris;editingApp.value=null};const showTokenForm=").replace('addScope,showTokenForm,createToken', 'addScope,editingApp,editingCallbackText,setEditingCallbackText,beginEdit,saveEdit,showTokenForm,createToken').replace('Edit callbacks</button></template>', 'Edit callbacks</button><div class="mt-2 grid gap-2" class-hidden="editingApp !== app"><textarea class="min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2" bind-value="editingCallbackText" on-input="setEditingCallbackText($event.target.value)"></textarea><div class="flex gap-2"><button class="rounded-lg bg-violet px-3 py-1 font-semibold text-white" on-click="saveEdit()">Save</button><button class="rounded-lg border border-slate-200 px-3 py-1" on-click="setEditingApp(null)">Cancel</button></div></div></template>').replace('mt-5 rounded-3xl bg-white p-6', 'mt-3 rounded-2xl bg-white p-4').replace('mt-5 grid gap-3', 'mt-3 grid gap-2').replace('mt-4 grid gap-5', 'mt-3 grid gap-3').replace('p-4" on-toggle', 'p-3" on-toggle')
-      : asset;
+  const source =
+    req.params.asset === 'profile.html'
+      ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
+      : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(
+            req.params.asset,
+          )
+        ? asset
+            .replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`)
+            .replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`)
+            .replace(
+              'const showTokenForm=',
+              "const editingApp=ref(null),editingCallbackText=hook('');const beginEdit=(app)=>{editingApp.value=app;editingCallbackText.value=app.redirectUris.join('\\n')};const setEditingCallbackText=(value)=>editingCallbackText.value=value;const saveEdit=async()=>{const response=await fetch('/oidc/clients/'+encodeURIComponent(editingApp.value.id)+'/callbacks',{method:'PUT',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({redirectUris:editingCallbackText.value.split('\\n').map((value)=>value.trim()).filter(Boolean)})});if(!response.ok)throw new Error('Could not update callbacks');editingApp.value.redirectUris=(await response.json()).redirectUris;editingApp.value=null};const showTokenForm=",
+            )
+            .replace(
+              'addScope,showTokenForm,createToken',
+              'addScope,editingApp,editingCallbackText,setEditingCallbackText,beginEdit,saveEdit,showTokenForm,createToken',
+            )
+            .replace(
+              'Edit callbacks</button></template>',
+              'Edit callbacks</button><div class="mt-2 grid gap-2" class-hidden="editingApp !== app"><textarea class="min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2" bind-value="editingCallbackText" on-input="setEditingCallbackText($event.target.value)"></textarea><div class="flex gap-2"><button class="rounded-lg bg-violet px-3 py-1 font-semibold text-white" on-click="saveEdit()">Save</button><button class="rounded-lg border border-slate-200 px-3 py-1" on-click="setEditingApp(null)">Cancel</button></div></div></template>',
+            )
+            .replace('mt-5 rounded-3xl bg-white p-6', 'mt-3 rounded-2xl bg-white p-4')
+            .replace('mt-5 grid gap-3', 'mt-3 grid gap-2')
+            .replace('mt-4 grid gap-5', 'mt-3 grid gap-3')
+            .replace('p-4" on-toggle', 'p-3" on-toggle')
+        : asset;
   let editBlockSeen = false;
-  const output = source.replace(/const editingApp=ref\(null\),editingCallbackText=hook\(''\);const beginEdit=.*?;const showTokenForm=/g, (match) => editBlockSeen ? 'const showTokenForm=' : ((editBlockSeen = true), match));
-  res.set('Cache-Control', 'no-store').type(type).send(
-    req.params.asset === 'embed.mjs'
-      ? output.replace(
-          '__EMBED_ALLOWED_ORIGINS__',
-          JSON.stringify(
-            (process.env.EMBED_ALLOWED_ORIGINS || '')
-              .split(',')
-              .map((value) => value.trim())
-              .filter(Boolean),
-          ),
-        )
-      : output.replaceAll('@apphor/', '@app/'),
+  const output = source.replace(
+    /const editingApp=ref\(null\),editingCallbackText=hook\(''\);const beginEdit=.*?;const showTokenForm=/g,
+    (match) => (editBlockSeen ? 'const showTokenForm=' : ((editBlockSeen = true), match)),
   );
+  res
+    .set('Cache-Control', 'no-store')
+    .type(type)
+    .send(
+      req.params.asset === 'embed.mjs'
+        ? output.replace(
+            '__EMBED_ALLOWED_ORIGINS__',
+            JSON.stringify(
+              (process.env.EMBED_ALLOWED_ORIGINS || '')
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean),
+            ),
+          )
+        : output.replaceAll('@apphor/', '@app/'),
+    );
 });
 
 app.put('/properties', protectedRoute, async (req, res) => {

@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "build": "tsc && esbuild dist/src/index.js --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --define:__TEST__=${BUILD_TEST_ROUTES:-false}",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
     "test:integration": "playwright test",
     "migrate": "pnpm build && node ./dist/db/migrations/002_migrate_store.js",
     "start": "node ./dist/index.js"
@@ -21,6 +24,7 @@
   "devDependencies": {
     "@cloud-cli/prettier-config": "^1.0.0",
     "@cloud-cli/typescript-config": "^1.0.0",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
@@ -29,6 +33,9 @@
     "@types/passport": "^1.0.12",
     "@types/passport-google-oauth20": "^2.0.11",
     "esbuild": "^0.28.2",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.8",
     "typescript": "^7.0.2"
   },
   "dependencies": {

@@ -25,7 +25,8 @@ function saveChallenge(challenge: string, type: 'registration' | 'authentication
 function takeChallenge(challenge: string, type: 'registration' | 'authentication') {
   const saved = challenges.get(challenge);
   challenges.delete(challenge);
-  if (!saved || saved.type !== type || saved.expiresAt < Date.now()) throw new Error('Invalid or expired WebAuthn challenge');
+  if (!saved || saved.type !== type || saved.expiresAt < Date.now())
+    throw new Error('Invalid or expired WebAuthn challenge');
   return { ...saved, challenge };
 }
 
@@ -40,7 +41,9 @@ export async function registrationOptions(userId: string) {
     userDisplayName: user.name || user.email || user.userId,
     userID: Buffer.from(user.userId),
     attestationType: 'none',
-    excludeCredentials: authenticators.filter((item) => !item.revokedAt).map((item) => ({ id: item.credentialId, transports: item.transports })),
+    excludeCredentials: authenticators
+      .filter((item) => !item.revokedAt)
+      .map((item) => ({ id: item.credentialId, transports: item.transports })),
     authenticatorSelection: {
       residentKey: 'preferred',
       userVerification: 'preferred',
@@ -51,7 +54,12 @@ export async function registrationOptions(userId: string) {
 }
 
 export async function registerAuthenticator(userId: string, response: any, label: string) {
-  const challenge = takeChallenge(response.response?.clientDataJSON ? JSON.parse(Buffer.from(response.response.clientDataJSON, 'base64url').toString()).challenge : '', 'registration');
+  const challenge = takeChallenge(
+    response.response?.clientDataJSON
+      ? JSON.parse(Buffer.from(response.response.clientDataJSON, 'base64url').toString()).challenge
+      : '',
+    'registration',
+  );
   if (challenge.userId !== userId) throw new Error('Challenge user mismatch');
   const verification = await verifyRegistrationResponse({
     response,
@@ -82,7 +90,9 @@ export async function authenticationOptions(userId?: string) {
   const options = await generateAuthenticationOptions({
     rpID,
     userVerification: 'preferred',
-    allowCredentials: authenticators.filter((item) => !item.revokedAt).map((item) => ({ id: item.credentialId, transports: item.transports })),
+    allowCredentials: authenticators
+      .filter((item) => !item.revokedAt)
+      .map((item) => ({ id: item.credentialId, transports: item.transports })),
   });
   saveChallenge(options.challenge, 'authentication');
   return options;
@@ -110,7 +120,11 @@ export async function authenticate(response: any) {
 
   authenticator.counter = verification.authenticationInfo.newCounter;
   authenticator.lastUsedAt = new Date().toISOString();
-  await run('UPDATE auth_authenticator SET counter = ?, last_used_at = ? WHERE credential_id = ?', [authenticator.counter, authenticator.lastUsedAt, authenticator.credentialId]);
+  await run('UPDATE auth_authenticator SET counter = ?, last_used_at = ? WHERE credential_id = ?', [
+    authenticator.counter,
+    authenticator.lastUsedAt,
+    authenticator.credentialId,
+  ]);
   return { userId: authenticator.userId, challenge: challenge.challenge };
 }
 
@@ -122,6 +136,9 @@ export async function revokeAuthenticator(userId: string, credentialId: string) 
   const authenticator = await findAuthenticator(credentialId);
   if (!authenticator || authenticator.userId !== userId) return false;
   authenticator.revokedAt = new Date().toISOString();
-  await run('UPDATE auth_authenticator SET revoked_at = ? WHERE credential_id = ?', [authenticator.revokedAt, authenticator.credentialId]);
+  await run('UPDATE auth_authenticator SET revoked_at = ? WHERE credential_id = ?', [
+    authenticator.revokedAt,
+    authenticator.credentialId,
+  ]);
   return true;
 }

@@ -12,7 +12,12 @@ async function onUserSignIn(accessToken: string, refreshToken: string, profile: 
     user = {
       userId: randomUUID(),
       profileId: profile.id,
-      accessToken: '', refreshToken: '', name: '', email: '', photo: '', lastSeen: '',
+      accessToken: '',
+      refreshToken: '',
+      name: '',
+      email: '',
+      photo: '',
+      lastSeen: '',
     };
   }
 
