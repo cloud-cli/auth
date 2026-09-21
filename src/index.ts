@@ -184,7 +184,7 @@ function serveUi(name: string) {
     const source = name === 'profile.html'
       ? uiAssets[name].replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"').replace('ACCOUNT SECURITY', '').replace('<link rel="component" href="/ui/oidc-apps.html">', '<link rel="component" href="/ui/oidc-apps.html"><link rel="component" href="/ui/keys.html"><link rel="component" href="/ui/tokens.html">').replace('<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template>', '<template if="section === \'oidc\'"><dashboard-oidc></dashboard-oidc></template><template if="section === \'keys\'"><signing-key-manager></signing-key-manager></template><template if="section === \'tokens\'"><dashboard-tokens></dashboard-tokens></template>')
       : uiAssets[name];
-    res.type('html').send(source);
+    res.type('html').send(source.replaceAll('@apphor/', '@app/'));
   };
 }
 
@@ -556,7 +556,7 @@ app.get('/ui/:asset', (req, res) => {
               .filter(Boolean),
           ),
         )
-      : source,
+      : source.replaceAll('@apphor/', '@app/'),
   );
 });
 
