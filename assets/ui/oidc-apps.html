@@ -51,9 +51,14 @@
               ><button
                 class="mt-2 rounded-lg border border-violet px-3 py-1 font-semibold text-violet"
                 on-click="beginEdit(app)"
-              >
+                >
                 Edit callbacks
-              </button></template
+              </button>
+              <div class="mt-2 grid gap-2" class-hidden="editingApp !== app">
+                <textarea class="min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2" bind-value="editingCallbackText" on-input="setEditingCallbackText($event.target.value)"></textarea>
+                <div class="flex gap-2"><button class="rounded-lg bg-violet px-3 py-1 font-semibold text-white" on-click="saveEdit()">Save</button><button class="rounded-lg border border-slate-200 px-3 py-1" on-click="setEditingApp(null)">Cancel</button></div>
+              </div>
+            </template
             >
           </div>
           <div class="mt-3">
