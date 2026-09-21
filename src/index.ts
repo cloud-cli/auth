@@ -545,9 +545,11 @@ app.get('/ui/:asset', (req, res) => {
     : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(req.params.asset)
       ? asset.replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`).replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`).replace('const showTokenForm=', "const editingApp=ref(null),editingCallbackText=hook('');const beginEdit=(app)=>{editingApp.value=app;editingCallbackText.value=app.redirectUris.join('\\n')};const setEditingCallbackText=(value)=>editingCallbackText.value=value;const saveEdit=async()=>{const response=await fetch('/oidc/clients/'+encodeURIComponent(editingApp.value.id)+'/callbacks',{method:'PUT',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({redirectUris:editingCallbackText.value.split('\\n').map((value)=>value.trim()).filter(Boolean)})});if(!response.ok)throw new Error('Could not update callbacks');editingApp.value.redirectUris=(await response.json()).redirectUris;editingApp.value=null};const showTokenForm=").replace('addScope,showTokenForm,createToken', 'addScope,editingApp,editingCallbackText,setEditingCallbackText,beginEdit,saveEdit,showTokenForm,createToken').replace('Edit callbacks</button></template>', 'Edit callbacks</button><div class="mt-2 grid gap-2" class-hidden="editingApp !== app"><textarea class="min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2" bind-value="editingCallbackText" on-input="setEditingCallbackText($event.target.value)"></textarea><div class="flex gap-2"><button class="rounded-lg bg-violet px-3 py-1 font-semibold text-white" on-click="saveEdit()">Save</button><button class="rounded-lg border border-slate-200 px-3 py-1" on-click="setEditingApp(null)">Cancel</button></div></div></template>').replace('mt-5 rounded-3xl bg-white p-6', 'mt-3 rounded-2xl bg-white p-4').replace('mt-5 grid gap-3', 'mt-3 grid gap-2').replace('mt-4 grid gap-5', 'mt-3 grid gap-3').replace('p-4" on-toggle', 'p-3" on-toggle')
       : asset;
+  let editBlockSeen = false;
+  const output = source.replace(/const editingApp=ref\(null\),editingCallbackText=hook\(''\);const beginEdit=.*?;const showTokenForm=/g, (match) => editBlockSeen ? 'const showTokenForm=' : ((editBlockSeen = true), match));
   res.set('Cache-Control', 'no-store').type(type).send(
     req.params.asset === 'embed.mjs'
-      ? source.replace(
+      ? output.replace(
           '__EMBED_ALLOWED_ORIGINS__',
           JSON.stringify(
             (process.env.EMBED_ALLOWED_ORIGINS || '')
@@ -556,7 +558,7 @@ app.get('/ui/:asset', (req, res) => {
               .filter(Boolean),
           ),
         )
-      : source.replaceAll('@apphor/', '@app/'),
+      : output.replaceAll('@apphor/', '@app/'),
   );
 });
 
