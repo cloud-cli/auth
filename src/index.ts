@@ -628,7 +628,8 @@ app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 
 const serveEsModule = (source) => (req, res) => {
-  const host = req.headers['x-forwarded-host'] || req.headers['x-forwarded-for'] || 'localhost';
+  const forwardedHost = req.headers['x-forwarded-host'];
+  const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.get('host') || 'localhost';
   const forwardedProtocol = req.headers['x-forwarded-proto'];
   const protocol = Array.isArray(forwardedProtocol) ? forwardedProtocol[0] : forwardedProtocol || req.protocol;
   const es = source.replace('__API_URL__', `${protocol}://${host}`);
@@ -648,32 +649,16 @@ app.get('/ui/:asset', (req, res) => {
     : req.params.asset.endsWith('.svg')
       ? 'image/svg+xml'
       : 'text/javascript';
-  const dashboardUrl = new URL('/dashboard.mjs', process.env.AUTH_DOMAIN || `https://${req.get('host')}`);
   const source =
     req.params.asset === 'profile.html'
       ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
-      : ['security.html', 'properties.html', 'activity.html', 'oidc-apps.html', 'keys.html', 'tokens.html'].includes(
-            req.params.asset,
-          )
-        ? asset
-            .replaceAll("from '/dashboard.mjs'", `from '${dashboardUrl}'`)
-            .replaceAll("from '@apphor/dashboard.mjs'", `from '${dashboardUrl}'`)
-            .replace('mt-5 rounded-3xl bg-white p-6', 'mt-3 rounded-2xl bg-white p-4')
-            .replace('mt-5 grid gap-3', 'mt-3 grid gap-2')
-            .replace('mt-4 grid gap-5', 'mt-3 grid gap-3')
-            .replace('p-4" on-toggle', 'p-3" on-toggle')
-        : asset;
-  let editBlockSeen = false;
-  const output = source.replace(
-    /const editingApp=ref\(null\),editingCallbackText=hook\(''\);const beginEdit=.*?;const showTokenForm=/g,
-    (match) => (editBlockSeen ? 'const showTokenForm=' : ((editBlockSeen = true), match)),
-  );
+      : asset.replaceAll("from '/dashboard.mjs'", `from '${req.protocol}://${req.get('host')}/dashboard.mjs'`);
   res
     .set('Cache-Control', 'no-store')
     .type(type)
     .send(
       req.params.asset === 'embed.mjs'
-        ? output.replace(
+        ? source.replace(
             '__EMBED_ALLOWED_ORIGINS__',
             JSON.stringify(
               (process.env.EMBED_ALLOWED_ORIGINS || '')
@@ -682,7 +667,7 @@ app.get('/ui/:asset', (req, res) => {
                 .filter(Boolean),
             ),
           )
-        : output.replaceAll('@apphor/', '@app/'),
+        : source.replaceAll('@apphor/', '@app/'),
     );
 });
 
