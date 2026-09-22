@@ -309,12 +309,16 @@
             const scopes = document.createElement('p');
             scopes.className = 'break-words text-slate-600';
             scopes.textContent = `Scopes: ${token.scopes.join(', ')}`;
+            const status = document.createElement('p');
+            status.className = token.revokedAt ? 'text-rose-600' : 'text-emerald-600';
+            status.textContent = token.revokedAt ? `Revoked ${token.revokedAt}` : 'Active';
             const revoke = document.createElement('button');
             revoke.className = 'mt-1 text-rose-600';
             revoke.type = 'button';
             revoke.textContent = 'Revoke';
             revoke.onclick = () => revokeToken(app, token, details);
-            item.append(label, created, scopes, revoke);
+            item.append(label, created, scopes, status);
+            if (!token.revokedAt) item.append(revoke);
             return item;
           }),
         );

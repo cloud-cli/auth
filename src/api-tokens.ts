@@ -44,16 +44,18 @@ export async function listApiTokens(userId: string, clientId: string) {
 }
 
 export async function revokeApiToken(userId: string, clientId: string, label: string) {
+  const revokedAt = new Date().toISOString();
   const tokens = await rows<ApiToken>('auth_api_token', 'user_id = ? AND client_id = ? AND label = ?', [
     userId,
     clientId,
     label,
   ]);
   if (!tokens[0]) return false;
-  tokens[0].revokedAt = new Date().toISOString();
-  await run('UPDATE auth_api_token SET revoked_at = ? WHERE token_hash = ?', [
-    tokens[0].revokedAt,
-    tokens[0].tokenHash,
+  await run('UPDATE auth_api_token SET revoked_at = ? WHERE user_id = ? AND client_id = ? AND label = ?', [
+    revokedAt,
+    userId,
+    clientId,
+    label,
   ]);
   return true;
 }
