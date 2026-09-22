@@ -327,16 +327,19 @@
         }
         try {
           const result = await createApiToken(app.id, tokenLabel.value, tokenScopes.value);
-          const section = event.currentTarget.closest('section');
-          section.querySelector('[data-generated-token-value]').textContent = result.token;
-          section.querySelector('[data-generated-token]').hidden = false;
-          section.querySelector('[data-copy-generated-token]').onclick = () =>
-            navigator.clipboard.writeText(result.token);
           setTokenLabel('');
           tokenScopes.value = [];
           tokenError.value = '';
           const details = event.currentTarget.closest('details');
           await renderTokens(app, details);
+          setTimeout(() => {
+            const resultPanel = document.querySelector('[data-generated-token]');
+            if (!resultPanel) return;
+            resultPanel.querySelector('[data-generated-token-value]').textContent = result.token;
+            resultPanel.hidden = false;
+            resultPanel.querySelector('[data-copy-generated-token]').onclick = () =>
+              navigator.clipboard.writeText(result.token);
+          }, 20);
           setTimeout(() => {
             const current = [...document.querySelectorAll('details')].find(
               (element) => element.querySelector('summary')?.textContent === app.id,
