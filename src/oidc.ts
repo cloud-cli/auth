@@ -107,8 +107,8 @@ export async function listManagedClients() {
 
 export async function createManagedClient(id: string, redirectUris: string[], scopes: string[]) {
   if (!id || !/^[a-zA-Z0-9._-]{1,80}$/.test(id)) throw new Error('Invalid client ID');
-  const defaultUri = `https://${id}/auth/callback`;
-  const normalizedUris = [...new Set([defaultUri, ...redirectUris].filter(isSecureRedirectUri))];
+  const normalizedUris = [...new Set(redirectUris.filter(isSecureRedirectUri))];
+  if (!normalizedUris.length) throw new Error('At least one HTTPS callback URL is required');
   const normalizedScopes = scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope));
   if (await getClient(id)) throw new Error('Client already exists');
   const secret = randomBytes(32).toString('base64url');
@@ -122,8 +122,7 @@ export async function createManagedClient(id: string, redirectUris: string[], sc
 export async function updateManagedClientRedirectUris(id: string, redirectUris: string[]) {
   const client = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [id]))[0];
   if (!client) throw new Error('Client not found');
-  const defaultUri = `https://${id}/auth/callback`;
-  const normalizedUris = [...new Set([defaultUri, ...redirectUris].filter(isSecureRedirectUri))];
+  const normalizedUris = [...new Set(redirectUris.filter(isSecureRedirectUri))];
   await run('UPDATE auth_oidc_client SET redirect_uris = ? WHERE id = ?', [json(normalizedUris), id]);
   return normalizedUris;
 }

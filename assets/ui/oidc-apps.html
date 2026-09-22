@@ -9,82 +9,105 @@
       >
     </div>
     <template if="formOpen"
-      ><form class="mt-3 grid gap-2 rounded-xl bg-violet/5 p-3 sm:grid-cols-2" on-submit.prevent="createApp()">
+      ><form class="mt-3 grid gap-3 rounded-xl bg-violet/5 p-3 sm:grid-cols-2" on-submit.prevent="createApp()">
         <input
           class="rounded-lg border border-slate-200 px-3 py-2"
           placeholder="App ID"
           bind-value="newId"
           on-input="setNewId($event.target.value)"
           required
-        /><textarea
-          class="min-h-16 rounded-lg border border-slate-200 px-3 py-2 sm:col-span-2"
-          placeholder="One HTTPS callback URL per line"
-          bind-value="newCallback"
-          on-input="setNewCallback($event.target.value)"
-          required
-        ></textarea
-        ><input
-          class="rounded-lg border border-slate-200 px-3 py-2 sm:col-span-2"
-          placeholder="API scopes, one per line or separated by spaces"
-          bind-value="newApiScopes"
-          on-input="setNewApiScopes($event.target.value)"
         />
+        <div class="grid gap-2 sm:col-span-2">
+          <strong class="text-sm">Callback URLs</strong>
+          <template for="uri of newCallbacks"
+            ><div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+              <span class="min-w-0 flex-1 break-all">{{ uri }}</span>
+              <button class="text-rose-600" type="button" on-click="removeNewCallback(uri)">Remove</button>
+            </div></template
+          >
+          <div class="flex gap-2">
+            <input
+              class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              placeholder="https://app.example/callback"
+              bind-value="newCallbackInput"
+              on-input="setNewCallbackInput($event.target.value)"
+            /><button
+              class="rounded-lg border border-violet px-3 py-2 text-sm font-semibold text-violet"
+              type="button"
+              on-click="addNewCallback()"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+        <div class="grid gap-2 sm:col-span-2">
+          <strong class="text-sm">Scopes</strong>
+          <div class="flex flex-wrap gap-1">
+            <template for="scope of newScopes"
+              ><button
+                class="rounded-full bg-violet/10 px-2 py-1 text-xs text-violet"
+                type="button"
+                on-click="removeNewScope(scope)"
+              >
+                {{ scope }} <span aria-hidden="true">x</span>
+              </button></template
+            >
+          </div>
+          <div class="flex gap-2">
+            <input
+              class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              placeholder="new:scope"
+              bind-value="newScopeInput"
+              on-input="setNewScopeInput($event.target.value)"
+            /><button
+              class="rounded-lg border border-violet px-3 py-2 text-sm font-semibold text-violet"
+              type="button"
+              on-click="addNewScope()"
+            >
+              Add
+            </button>
+          </div>
+        </div>
         <p class="text-sm text-rose-600 sm:col-span-2">{{ formError }}</p>
         <button class="rounded-lg bg-violet px-4 py-2 font-bold text-white sm:col-span-2">Create app</button>
       </form></template
     ><template if="createdSecret"
-      ><div
-        class="mt-3 break-all rounded-2xl border border-emerald-300 bg-emerald-50 p-3 font-mono text-sm font-semibold text-emerald-900"
-      >
-        {{ createdSecret }}
+      ><div class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
+        <div class="break-all font-mono text-sm font-semibold">{{ createdSecret }}</div>
+        <button
+          class="mt-2 text-sm font-semibold text-emerald-800 underline"
+          type="button"
+          on-click="copyCreatedSecret()"
+        >
+          Copy secret
+        </button>
       </div></template
     >
     <div class="mt-3 grid gap-2">
       <template for="app of apps"
         ><details class="rounded-xl border border-slate-200 p-3" on-toggle="open(app,$event)">
           <summary class="cursor-pointer text-sm font-bold">{{ app.id }}</summary>
-          <div class="callback-settings mt-2 rounded-xl bg-violet/5 p-3 text-sm">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <strong>Callback URLs</strong>
-              <template if="admin"
-                ><button
-                  class="rounded-lg border border-violet px-2.5 py-1 text-xs font-semibold text-violet"
-                  type="button"
-                  on-click="beginEdit(app,$event)"
-                >
-                  Edit callbacks
-                </button></template
-              >
-            </div>
+          <div class="mt-2 rounded-xl bg-violet/5 p-3 text-sm">
+            <strong>Callback URLs</strong>
             <template for="uri of app.redirectUris"
-              ><span class="mt-1 block break-all text-slate-600">{{ uri }}</span></template
+              ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2">
+                <span class="min-w-0 flex-1 break-all text-slate-600">{{ uri }}</span>
+                <template if="admin"
+                  ><button class="text-rose-600" type="button" on-click="removeCallback(app,uri)">
+                    Remove
+                  </button></template
+                >
+              </div></template
             ><template if="admin"
-              ><form
-                class="mt-3 grid gap-2 border-t border-violet/10 pt-3"
-                hidden
-                on-submit.prevent="saveEdit(app,$event)"
-              >
-                <label class="text-xs font-semibold text-slate-600">One HTTPS URL per line</label>
-                <textarea
-                  class="min-h-20 w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
-                  bind-value="editingCallbackText"
-                  on-input="setEditingCallbackText($event.target.value)"
+              ><form class="mt-3 flex gap-2 border-t border-violet/10 pt-3" on-submit.prevent="addCallback(app,$event)">
+                <input
+                  class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2"
+                  name="callback"
+                  placeholder="https://app.example/callback"
                   required
-                ></textarea>
-                <p class="text-xs text-rose-600">{{ callbackError }}</p>
-                <div class="flex flex-col gap-2 sm:flex-row">
-                  <button class="rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-white" type="submit">
-                    Save callbacks
-                  </button>
-                  <button
-                    class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold"
-                    type="button"
-                    on-click="cancelEdit($event)"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form></template
+                /><button class="rounded-lg border border-violet px-3 py-2 font-semibold text-violet">Add</button>
+              </form>
+              <p class="mt-2 text-xs text-rose-600">{{ callbackError }}</p></template
             >
           </div>
           <div class="mt-3 grid gap-4 lg:grid-cols-2">
@@ -99,13 +122,12 @@
                 ><div class="mt-2 flex gap-2">
                   <input
                     class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                    bind-value="scopeInput"
-                    on-input="setScopeInput($event.target.value)"
                     placeholder="new:scope"
-                  /><button
+                  />
+                  <button
                     class="rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-white"
                     type="button"
-                    on-click="addScope(app)"
+                    on-click="addScope(app,$event)"
                   >
                     Add
                   </button>
@@ -175,12 +197,12 @@
         formError = ref(''),
         createdSecret = ref(''),
         [newId, setNewId] = hook(''),
-        [newCallback, setNewCallback] = hook(''),
-        [newApiScopes, setNewApiScopes] = hook(''),
-        [scopeInput, setScopeInput] = hook(''),
+        newCallbacks = ref([]),
+        newScopes = ref([]),
+        [newCallbackInput, setNewCallbackInput] = hook(''),
+        [newScopeInput, setNewScopeInput] = hook(''),
         [tokenLabel, setTokenLabel] = hook(''),
         [tokenScopes, setTokenScopes] = hook(''),
-        [editingCallbackText, setEditingCallbackText] = hook(''),
         callbackError = ref('');
       const load = async () => (apps.value = await getTokenApps());
       const open = async (app, event) => {
@@ -191,54 +213,67 @@
       };
       const toggleForm = () => (formOpen.value = !formOpen.value);
       const createApp = async () => {
-        const callbacks = newCallback.value
-            .split('\n')
-            .map((value) => value.trim())
-            .filter(Boolean),
-          scopes = newApiScopes.value.split(/[\s,]+/).filter(Boolean);
-        formError.value = callbacks.some((value) => !value.startsWith('https://')) ? 'Callbacks must use HTTPS.' : '';
+        formError.value = newCallbacks.value.length ? '' : 'Add at least one HTTPS callback URL.';
         if (formError.value) return;
         try {
-          const result = await createOidcClient(newId.value.trim(), callbacks, scopes);
+          const result = await createOidcClient(newId.value.trim(), newCallbacks.value, newScopes.value);
           createdSecret.value = `Secret for ${result.id}: ${result.secret}`;
           formOpen.value = false;
+          newCallbacks.value = [];
+          newScopes.value = [];
           await load();
         } catch (error) {
           formError.value = error.message;
         }
       };
-      const beginEdit = (app, event) => {
-        setEditingCallbackText(app.redirectUris.join('\n'));
-        callbackError.value = '';
-        event.currentTarget.closest('.callback-settings').querySelector('form').hidden = false;
+      const addNewCallback = () => {
+        const callback = newCallbackInput.value.trim();
+        if (!callback.startsWith('https://')) return (formError.value = 'Callbacks must use HTTPS.');
+        newCallbacks.value = [...new Set([...newCallbacks.value, callback])];
+        setNewCallbackInput('');
+        formError.value = '';
       };
-      const cancelEdit = (event) => {
-        callbackError.value = '';
-        event.currentTarget.closest('form').hidden = true;
+      const removeNewCallback = (callback) => {
+        newCallbacks.value = newCallbacks.value.filter((value) => value !== callback);
       };
-      const saveEdit = async (app, event) => {
-        const callbacks = editingCallbackText.value
-          .split('\n')
-          .map((value) => value.trim())
-          .filter(Boolean);
-        if (callbacks.some((value) => !value.startsWith('https://'))) {
-          callbackError.value = 'Callbacks must use HTTPS.';
-          return;
-        }
+      const addNewScope = () => {
+        const scope = newScopeInput.value.trim();
+        if (!/^[a-zA-Z0-9:._-]{1,80}$/.test(scope)) return;
+        newScopes.value = [...new Set([...newScopes.value, scope])];
+        setNewScopeInput('');
+      };
+      const removeNewScope = (scope) => {
+        newScopes.value = newScopes.value.filter((value) => value !== scope);
+      };
+      const updateCallbacks = async (app, callbacks) => {
         try {
           const result = await updateOidcCallbacks(app.id, callbacks);
           app.redirectUris = result.redirectUris;
-          event.currentTarget.hidden = true;
           callbackError.value = '';
         } catch (error) {
           callbackError.value = error.message || 'Could not save callback URLs.';
         }
       };
-      const addScope = async (app) => {
-        const result = await addOidcScopes(app.id, [scopeInput.value.trim()]);
-        app.scopes = result.scopes;
-        setScopeInput('');
+      const addCallback = async (app, event) => {
+        const callback = event.currentTarget.elements.callback.value.trim();
+        if (!callback.startsWith('https://')) return (callbackError.value = 'Callbacks must use HTTPS.');
+        await updateCallbacks(app, [...app.redirectUris, callback]);
+        if (!callbackError.value) event.currentTarget.reset();
       };
+      const removeCallback = async (app, callback) => {
+        await updateCallbacks(
+          app,
+          app.redirectUris.filter((value) => value !== callback),
+        );
+      };
+      const addScope = async (app, event) => {
+        const scope = event.currentTarget.previousElementSibling.value.trim();
+        if (!scope) return;
+        const result = await addOidcScopes(app.id, [scope]);
+        app.scopes = result.scopes;
+        event.currentTarget.previousElementSibling.value = '';
+      };
+      const copyCreatedSecret = () => navigator.clipboard.writeText(createdSecret.value.replace(/^.*?: /, ''));
       const showTokenForm = (app) => (selected.value = app.id);
       const createToken = async (app) => {
         await createApiToken(app.id, tokenLabel.value, tokenScopes.value.split(/[\s,]+/).filter(Boolean));
@@ -266,26 +301,28 @@
         createdSecret,
         newId,
         setNewId,
-        newCallback,
-        setNewCallback,
-        newApiScopes,
-        setNewApiScopes,
-        scopeInput,
-        setScopeInput,
+        newCallbacks,
+        newScopes,
+        newCallbackInput,
+        setNewCallbackInput,
+        newScopeInput,
+        setNewScopeInput,
         tokenLabel,
         setTokenLabel,
         tokenScopes,
         setTokenScopes,
-        editingCallbackText,
-        setEditingCallbackText,
         callbackError,
         open,
         toggleForm,
         createApp,
-        beginEdit,
-        cancelEdit,
-        saveEdit,
+        addNewCallback,
+        removeNewCallback,
+        addNewScope,
+        removeNewScope,
+        addCallback,
+        removeCallback,
         addScope,
+        copyCreatedSecret,
         showTokenForm,
         createToken,
         revokeToken,
