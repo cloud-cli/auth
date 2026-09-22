@@ -536,14 +536,20 @@ app.get('/authorize', async (req, res) => {
   const redirectUri = typeof redirect_uri === 'string' ? redirect_uri : '';
   const client = await getClient(clientId);
 
-  if (
-    response_type !== 'code' ||
-    !client ||
-    !client.redirectUris.includes(redirectUri) ||
-    typeof state !== 'string' ||
-    typeof code_challenge !== 'string' ||
-    code_challenge_method !== 'S256'
-  ) {
+  const validationErrors = [
+    response_type !== 'code' && 'unsupported_response_type',
+    !client && 'unknown_client',
+    client && !client.redirectUris.includes(redirectUri) && 'redirect_uri_not_allowed',
+    typeof state !== 'string' && 'missing_state',
+    typeof code_challenge !== 'string' && 'missing_code_challenge',
+    code_challenge_method !== 'S256' && 'invalid_code_challenge_method',
+  ].filter(Boolean);
+  if (validationErrors.length) {
+    console.warn('OIDC authorization rejected', {
+      clientId: clientId || undefined,
+      redirectUri: redirectUri || undefined,
+      validationErrors,
+    });
     await recordAudit({ event: 'oidc-authorization', app: clientId || 'unknown', result: 'failure', redirectUri });
     return res.status(400).send('Invalid authorization request');
   }
@@ -551,7 +557,7 @@ app.get('/authorize', async (req, res) => {
     return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
   }
 
-  const code = createAuthorizationCode(client, redirectUri, req.user.id, code_challenge);
+  const code = createAuthorizationCode(client!, redirectUri, req.user.id, code_challenge as string);
   await recordAudit({
     userId: req.user.id,
     event: 'oidc-authorization',
@@ -561,7 +567,7 @@ app.get('/authorize', async (req, res) => {
   });
   const callback = new URL(redirectUri);
   callback.searchParams.set('code', code);
-  callback.searchParams.set('state', state);
+  callback.searchParams.set('state', state as string);
   res.redirect(String(callback));
 });
 app.post('/token', express.urlencoded({ extended: false }), async (req, res) => {
