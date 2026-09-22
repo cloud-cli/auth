@@ -1,5 +1,6 @@
 import express from 'express';
 import { readFileSync } from 'fs';
+import migrate from '../db/migrations/003_add_user_roles.js';
 import { findByEmail, findByUserId, userAsJSON } from './user.js';
 import { initDatabase } from './database.js';
 import session from './session.js';
@@ -723,8 +724,14 @@ app.get('/properties/:key', protectedRoute, async (req, res) => {
 });
 
 const PORT = Number(process.env.PORT);
-app.listen(PORT, async () => {
+async function start() {
+  await migrate();
   await initDatabase();
   if (!__TEST__) await initializeSigningKeys();
-  log('Auth is running on port ' + PORT);
+  app.listen(PORT, () => log('Auth is running on port ' + PORT));
+}
+
+start().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
 });
