@@ -8,219 +8,125 @@
         </button></template
       >
     </div>
-    <template if="formOpen"
-      ><form class="mt-3 grid gap-3 rounded-xl bg-violet/5 p-3 sm:grid-cols-2" on-submit.prevent="createApp()">
-        <input
-          class="rounded-lg border border-slate-200 px-3 py-2"
-          placeholder="App ID"
-          bind-value="newId"
-          on-input="setNewId($event.target.value)"
-          required
-        />
-        <div class="grid gap-2 sm:col-span-2">
-          <strong class="text-sm">Callback URLs</strong>
-          <template for="uri of newCallbacks"
-            ><div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-              <span class="min-w-0 flex-1 break-all">{{ uri }}</span>
-              <button class="text-rose-600" type="button" on-click="removeNewCallback(uri)">Remove</button>
-            </div></template
-          >
-          <div class="flex gap-2">
-            <input
-              class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-              placeholder="https://app.example/callback"
-              bind-value="newCallbackInput"
-              on-input="setNewCallbackInput($event.target.value)"
-            /><button
-              class="rounded-lg border border-violet px-3 py-2 text-sm font-semibold text-violet"
-              type="button"
-              on-click="addNewCallback()"
-            >
-              Add
-            </button>
-          </div>
-        </div>
-        <div class="grid gap-2 sm:col-span-2">
-          <strong class="text-sm">Scopes</strong>
-          <div class="flex flex-wrap gap-1">
-            <template for="scope of newScopes"
-              ><button
-                class="rounded-full bg-violet/10 px-2 py-1 text-xs text-violet"
-                type="button"
-                on-click="removeNewScope(scope)"
-              >
-                {{ scope }} <span aria-hidden="true">x</span>
-              </button></template
-            >
-          </div>
-          <div class="flex gap-2">
-            <input
-              class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-              placeholder="new:scope"
-              bind-value="newScopeInput"
-              on-input="setNewScopeInput($event.target.value)"
-            /><button
-              class="rounded-lg border border-violet px-3 py-2 text-sm font-semibold text-violet"
-              type="button"
-              on-click="addNewScope()"
-            >
-              Add
-            </button>
-          </div>
-        </div>
-        <p class="text-sm text-rose-600 sm:col-span-2">{{ formError }}</p>
-        <button class="rounded-lg bg-violet px-4 py-2 font-bold text-white sm:col-span-2">Create app</button>
-      </form></template
-    ><template if="createdSecret"
-      ><div class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
-        <div class="break-all font-mono text-sm font-semibold">{{ createdSecret }}</div>
-        <button
-          class="mt-2 text-sm font-semibold text-emerald-800 underline"
-          type="button"
-          on-click="copyCreatedSecret()"
-        >
-          Copy secret
-        </button>
-      </div></template
-    >
-    <div
-      class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900"
-      data-generated-token
-      hidden
-    >
-      <div class="break-all font-mono text-sm font-semibold" data-generated-token-value></div>
-      <p class="mt-1 text-sm">Copy this token now. It will not be shown again.</p>
-      <button class="mt-2 text-sm font-semibold text-emerald-800 underline" type="button" data-copy-generated-token>
-        Copy token
-      </button>
-    </div>
+    <app-form bind-admin="admin" bind-form-open="formOpen" on-created="load()"></app-form>
     <div class="mt-3 grid gap-2">
       <template for="app of apps"
-        ><details class="rounded-xl border border-slate-200 p-3" on-toggle="open(app,$event)">
+        ><details class="rounded-xl border border-slate-200 p-3">
           <summary class="cursor-pointer text-sm font-bold">{{ app.id }}</summary>
-          <div class="mt-2 rounded-xl bg-violet/5 p-3 text-sm">
-            <strong>Callback URLs</strong>
-            <template for="uri of app.redirectUris"
-              ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2">
-                <span class="min-w-0 flex-1 break-all text-slate-600">{{ uri }}</span>
-                <template if="admin"
-                  ><button class="text-rose-600" type="button" on-click="removeCallback(app,uri)">
-                    Remove
-                  </button></template
-                >
-              </div></template
-            ><template if="admin"
-              ><form class="mt-3 flex gap-2 border-t border-violet/10 pt-3" on-submit.prevent="addCallback(app,$event)">
-                <input
-                  class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2"
-                  name="callback"
-                  placeholder="https://app.example/callback"
-                  required
-                /><button class="rounded-lg border border-violet px-3 py-2 font-semibold text-violet">Add</button>
-              </form>
-              <p class="mt-2 text-xs text-rose-600">{{ callbackError }}</p></template
-            >
-          </div>
-          <div class="mt-3 grid gap-4 lg:grid-cols-2">
-            <div>
-              <h3 class="font-bold">Scopes</h3>
-              <div class="mt-1 flex flex-wrap gap-1">
-                <template for="scope of app.scopes"
-                  ><span class="rounded-full bg-violet/10 px-2 py-1 text-xs text-violet">{{ scope }}</span></template
-                >
-              </div>
-              <template if="admin"
-                ><div class="mt-2 flex gap-2">
-                  <input
-                    class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                    placeholder="new:scope"
-                  />
-                  <button
-                    class="rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-white"
-                    type="button"
-                    on-click="addScope(app,$event)"
-                  >
-                    Add
-                  </button>
-                </div></template
-              >
-            </div>
-            <div>
-              <h3 class="font-bold">Tokens</h3>
-              <div class="mt-2 grid gap-2 rounded-lg bg-violet/5 p-2">
-                <input
-                  class="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  bind-value="tokenLabel"
-                  on-input="setTokenLabel($event.target.value)"
-                  placeholder="Token label"
-                  required
-                />
-                <div class="grid gap-1">
-                  <template for="scope of app.scopes"
-                    ><label
-                      class="flex items-center gap-2 rounded-lg border border-violet/20 bg-white px-2 py-1 text-xs text-violet"
-                    >
-                      <input
-                        class="mr-1 accent-violet"
-                        type="checkbox"
-                        attr-checked.bool="tokenScopes.includes(scope)"
-                        on-change="toggleTokenScope(scope)"
-                      />{{ scope }}
-                    </label></template
-                  >
-                </div>
-                <p class="text-xs text-rose-600">{{ tokenError }}</p>
-                <button
-                  class="rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-white"
-                  type="button"
-                  on-click="createToken(app,$event)"
-                >
-                  Generate token
-                </button>
-              </div>
-              <p class="mt-2 text-sm text-slate-500" data-token-empty>No tokens yet.</p>
-              <div data-token-list></div>
-            </div>
-          </div></details
-      ></template>
+          <app-editor bind-app="app" bind-admin="admin"></app-editor>
+        </details>
+        ></template
+      >
     </div>
   </section>
   <script setup>
-    import { hook, ref } from '@li3/web';
-    import {
-      addOidcScopes,
-      createApiToken,
-      createOidcClient,
-      getApiTokens,
-      getProfile,
-      getTokenApps,
-      revokeApiToken,
-      updateOidcCallbacks,
-    } from '/dashboard.mjs';
+    import { ref } from '@li3/web';
+    import { getProfile, getTokenApps } from '/dashboard.mjs';
     export default function () {
       const apps = ref([]),
         admin = ref(false),
-        formOpen = ref(false),
+        formOpen = ref(false);
+      const load = async () => (apps.value = await getTokenApps());
+      const toggleForm = () => (formOpen.value = !formOpen.value);
+      load();
+      getProfile()
+        .then((profile) => (admin.value = profile.role === 'admin'))
+        .catch(() => {});
+      return { apps, admin, formOpen, load, toggleForm };
+    }
+  </script></template
+>
+
+<template component="app-form"
+  ><template if="admin && formOpen"
+    ><form class="mt-3 grid gap-3 rounded-xl bg-violet/5 p-3 sm:grid-cols-2" on-submit.prevent="createApp()">
+      <input
+        class="rounded-lg border border-slate-200 px-3 py-2"
+        placeholder="App ID"
+        bind-value="newId"
+        on-input="setNewId($event.target.value)"
+        required
+      />
+      <div class="grid gap-2 sm:col-span-2">
+        <strong class="text-sm">Callback URLs</strong>
+        <template for="uri of newCallbacks"
+          ><div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+            <span class="min-w-0 flex-1 break-all">{{ uri }}</span>
+            <button class="text-rose-600" type="button" on-click="removeNewCallback(uri)">Remove</button>
+          </div></template
+        >
+        <div class="flex gap-2">
+          <input
+            class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+            placeholder="https://app.example/callback"
+            bind-value="newCallbackInput"
+            on-input="setNewCallbackInput($event.target.value)"
+          /><button
+            class="rounded-lg border border-violet px-3 py-2 text-sm font-semibold text-violet"
+            type="button"
+            on-click="addNewCallback()"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+      <div class="grid gap-2 sm:col-span-2">
+        <strong class="text-sm">Scopes</strong>
+        <div class="flex flex-wrap gap-1">
+          <template for="scope of newScopes"
+            ><button
+              class="rounded-full bg-violet/10 px-2 py-1 text-xs text-violet"
+              type="button"
+              on-click="removeNewScope(scope)"
+            >
+              {{ scope }} <span aria-hidden="true">x</span>
+            </button></template
+          >
+        </div>
+        <div class="flex gap-2">
+          <input
+            class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+            placeholder="new:scope"
+            bind-value="newScopeInput"
+            on-input="setNewScopeInput($event.target.value)"
+          /><button
+            class="rounded-lg border border-violet px-3 py-2 text-sm font-semibold text-violet"
+            type="button"
+            on-click="addNewScope()"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+      <p class="text-sm text-rose-600 sm:col-span-2">{{ formError }}</p>
+      <button class="rounded-lg bg-violet px-4 py-2 font-bold text-white sm:col-span-2">Create app</button>
+    </form></template
+  ><template if="createdSecret"
+    ><div class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
+      <div class="break-all font-mono text-sm font-semibold">{{ createdSecret }}</div>
+      <button
+        class="mt-2 text-sm font-semibold text-emerald-800 underline"
+        type="button"
+        on-click="copyCreatedSecret()"
+      >
+        Copy secret
+      </button>
+    </div></template
+  >
+  <script setup>
+    import { defineEvent, defineProp, hook, ref } from '@li3/web';
+    import { createOidcClient } from '/dashboard.mjs';
+    export default function () {
+      const admin = defineProp('admin', { default: false }),
+        formOpen = defineProp('formOpen', { default: false }),
         formError = ref(''),
         createdSecret = ref(''),
-        [newId, setNewId] = hook(''),
         newCallbacks = ref([]),
         newScopes = ref([]),
+        [newId, setNewId] = hook(''),
         [newCallbackInput, setNewCallbackInput] = hook(''),
-        [newScopeInput, setNewScopeInput] = hook(''),
-        [tokenLabel, setTokenLabel] = hook(''),
-        tokenScopes = ref([]),
-        callbackError = ref(''),
-        tokenError = ref('');
-      let createdToken = '';
-      const load = async () => (apps.value = await getTokenApps());
-      const open = async (app, event) => {
-        if (event.target.open) {
-          await renderTokens(app, event.target);
-          tokenError.value = '';
-        }
-      };
-      const toggleForm = () => (formOpen.value = !formOpen.value);
+        [newScopeInput, setNewScopeInput] = hook('');
+      const onCreated = defineEvent('created');
       const createApp = async () => {
         formError.value = newCallbacks.value.length ? '' : 'Add at least one HTTPS callback URL.';
         if (formError.value) return;
@@ -230,7 +136,7 @@
           formOpen.value = false;
           newCallbacks.value = [];
           newScopes.value = [];
-          await load();
+          onCreated();
         } catch (error) {
           formError.value = error.message;
         }
@@ -242,128 +148,17 @@
         setNewCallbackInput('');
         formError.value = '';
       };
-      const removeNewCallback = (callback) => {
-        newCallbacks.value = newCallbacks.value.filter((value) => value !== callback);
-      };
+      const removeNewCallback = (callback) =>
+        (newCallbacks.value = newCallbacks.value.filter((value) => value !== callback));
       const addNewScope = () => {
         const scope = newScopeInput.value.trim();
         if (!/^[a-zA-Z0-9:._-]{1,80}$/.test(scope)) return;
         newScopes.value = [...new Set([...newScopes.value, scope])];
         setNewScopeInput('');
       };
-      const removeNewScope = (scope) => {
-        newScopes.value = newScopes.value.filter((value) => value !== scope);
-      };
-      const updateCallbacks = async (app, callbacks) => {
-        try {
-          const result = await updateOidcCallbacks(app.id, callbacks);
-          app.redirectUris = result.redirectUris;
-          callbackError.value = '';
-        } catch (error) {
-          callbackError.value = error.message || 'Could not save callback URLs.';
-        }
-      };
-      const addCallback = async (app, event) => {
-        const callback = event.currentTarget.elements.callback.value.trim();
-        if (!callback.startsWith('https://')) return (callbackError.value = 'Callbacks must use HTTPS.');
-        await updateCallbacks(app, [...app.redirectUris, callback]);
-        if (!callbackError.value) event.currentTarget.reset();
-      };
-      const removeCallback = async (app, callback) => {
-        await updateCallbacks(
-          app,
-          app.redirectUris.filter((value) => value !== callback),
-        );
-      };
-      const addScope = async (app, event) => {
-        const scope = event.currentTarget.previousElementSibling.value.trim();
-        if (!scope) return;
-        const result = await addOidcScopes(app.id, [scope]);
-        app.scopes = result.scopes;
-        event.currentTarget.previousElementSibling.value = '';
-      };
+      const removeNewScope = (scope) => (newScopes.value = newScopes.value.filter((value) => value !== scope));
       const copyCreatedSecret = () => navigator.clipboard.writeText(createdSecret.value.replace(/^.*?: /, ''));
-      const toggleTokenScope = (scope) => {
-        tokenScopes.value = tokenScopes.value.includes(scope)
-          ? tokenScopes.value.filter((value) => value !== scope)
-          : [...tokenScopes.value, scope];
-      };
-      const renderTokens = async (app, details) => {
-        const tokens = await getApiTokens(app.id);
-        const list = details.querySelector('[data-token-list]');
-        const empty = details.querySelector('[data-token-empty]');
-        list.replaceChildren(
-          ...tokens.map((token) => {
-            const item = document.createElement('article');
-            item.className = 'mt-2 rounded-lg border border-slate-100 p-2 text-sm';
-            item.dataset.tokenLabel = token.label;
-            const label = document.createElement('strong');
-            label.textContent = token.label;
-            const created = document.createElement('p');
-            created.className = 'text-slate-600';
-            created.textContent = `Created ${token.createdAt}`;
-            const scopes = document.createElement('p');
-            scopes.className = 'break-words text-slate-600';
-            scopes.textContent = `Scopes: ${token.scopes.join(', ')}`;
-            const status = document.createElement('p');
-            status.className = token.revokedAt ? 'text-rose-600' : 'text-emerald-600';
-            status.textContent = token.revokedAt ? `Revoked ${token.revokedAt}` : 'Active';
-            const revoke = document.createElement('button');
-            revoke.className = 'mt-1 text-rose-600';
-            revoke.type = 'button';
-            revoke.textContent = 'Revoke';
-            revoke.onclick = () => revokeToken(app, token, details);
-            item.append(label, created, scopes, status);
-            if (!token.revokedAt) item.append(revoke);
-            return item;
-          }),
-        );
-        empty.hidden = tokens.length > 0;
-      };
-      const createToken = async (app, event) => {
-        if (!tokenScopes.value.length) {
-          tokenError.value = 'Choose at least one scope.';
-          return;
-        }
-        try {
-          const result = await createApiToken(app.id, tokenLabel.value, tokenScopes.value);
-          setTokenLabel('');
-          tokenScopes.value = [];
-          tokenError.value = '';
-          const details = event.currentTarget.closest('details');
-          await renderTokens(app, details);
-          setTimeout(() => {
-            const resultPanel = document.querySelector('[data-generated-token]');
-            if (!resultPanel) return;
-            resultPanel.querySelector('[data-generated-token-value]').textContent = result.token;
-            resultPanel.hidden = false;
-            resultPanel.querySelector('[data-copy-generated-token]').onclick = () =>
-              navigator.clipboard.writeText(result.token);
-          }, 20);
-          setTimeout(() => {
-            const current = [...document.querySelectorAll('details')].find(
-              (element) => element.querySelector('summary')?.textContent === app.id,
-            );
-            if (current) renderTokens(app, current);
-          }, 20);
-        } catch (error) {
-          tokenError.value = error.message || 'Could not create token.';
-        }
-      };
-      const revokeToken = async (app, token, details) => {
-        if (confirm('Revoke this token?')) {
-          await revokeApiToken(app.id, token.label);
-          details.querySelector(`[data-token-label="${CSS.escape(token.label)}"]`)?.remove();
-          details.querySelector('[data-token-empty]').hidden = false;
-          await renderTokens(app, details);
-        }
-      };
-      load();
-      getProfile()
-        .then((profile) => (admin.value = profile.role === 'admin'))
-        .catch(() => {});
       return {
-        apps,
         admin,
         formOpen,
         formError,
@@ -376,25 +171,242 @@
         setNewCallbackInput,
         newScopeInput,
         setNewScopeInput,
-        tokenLabel,
-        setTokenLabel,
-        tokenScopes,
-        callbackError,
-        tokenError,
-        open,
-        toggleForm,
         createApp,
         addNewCallback,
         removeNewCallback,
         addNewScope,
         removeNewScope,
-        addCallback,
-        removeCallback,
-        addScope,
         copyCreatedSecret,
+      };
+    }
+  </script></template
+>
+
+<template component="app-editor"
+  ><callback-editor bind-app="app" bind-admin="admin"></callback-editor>
+  <div class="mt-3 grid gap-4 lg:grid-cols-2">
+    <scope-editor bind-app="app" bind-admin="admin"></scope-editor>
+    <token-editor bind-app="app"></token-editor>
+  </div>
+  <script setup>
+    import { defineProp } from '@li3/web';
+    export default function () {
+      const app = defineProp('app'),
+        admin = defineProp('admin', { default: false });
+      return { app, admin };
+    }
+  </script></template
+>
+
+<template component="callback-editor"
+  ><div class="mt-2 rounded-xl bg-violet/5 p-3 text-sm">
+    <strong>Callback URLs</strong>
+    <template for="uri of app.redirectUris"
+      ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2">
+        <span class="min-w-0 flex-1 break-all text-slate-600">{{ uri }}</span
+        ><template if="admin"
+          ><button class="text-rose-600" type="button" on-click="removeCallback(uri)">Remove</button></template
+        >
+      </div></template
+    >
+    <template if="admin"
+      ><form class="mt-3 flex gap-2 border-t border-violet/10 pt-3" on-submit.prevent="addCallback()">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2"
+          bind-value="callbackInput"
+          on-input="setCallbackInput($event.target.value)"
+          placeholder="https://app.example/callback"
+          required
+        /><button class="rounded-lg border border-violet px-3 py-2 font-semibold text-violet">Add</button>
+      </form>
+      <p class="mt-2 text-xs text-rose-600">{{ callbackError }}</p></template
+    >
+  </div>
+  <script setup>
+    import { defineProp, hook, ref } from '@li3/web';
+    import { updateOidcCallbacks } from '/dashboard.mjs';
+    export default function () {
+      const app = defineProp('app'),
+        admin = defineProp('admin', { default: false }),
+        callbackError = ref('');
+      const [callbackInput, setCallbackInput] = hook('');
+      const updateCallbacks = async (callbacks) => {
+        try {
+          app.value.redirectUris = (await updateOidcCallbacks(app.value.id, callbacks)).redirectUris;
+          callbackError.value = '';
+        } catch (error) {
+          callbackError.value = error.message || 'Could not save callback URLs.';
+        }
+      };
+      const addCallback = async () => {
+        const callback = callbackInput.value.trim();
+        if (!callback.startsWith('https://')) return (callbackError.value = 'Callbacks must use HTTPS.');
+        await updateCallbacks([...app.value.redirectUris, callback]);
+        if (!callbackError.value) setCallbackInput('');
+      };
+      const removeCallback = (callback) =>
+        updateCallbacks(app.value.redirectUris.filter((value) => value !== callback));
+      return { app, admin, callbackError, callbackInput, setCallbackInput, addCallback, removeCallback };
+    }
+  </script></template
+>
+
+<template component="scope-editor"
+  ><div>
+    <h3 class="font-bold">Scopes</h3>
+    <div class="mt-1 flex flex-wrap gap-1">
+      <template for="scope of app.scopes"
+        ><span class="rounded-full bg-violet/10 px-2 py-1 text-xs text-violet">{{ scope }}</span></template
+      >
+    </div>
+    <template if="admin"
+      ><div class="mt-2 flex gap-2">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          placeholder="new:scope"
+          bind-value="scopeInput"
+          on-input="setScopeInput($event.target.value)"
+        />
+        <button
+          class="rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-white"
+          type="button"
+          on-click="addScope($event)"
+        >
+          Add
+        </button>
+      </div></template
+    >
+  </div>
+  <script setup>
+    import { defineProp } from '@li3/web';
+    import { addOidcScopes } from '/dashboard.mjs';
+    export default function () {
+      const app = defineProp('app'),
+        admin = defineProp('admin', { default: false }),
+        [scopeInput, setScopeInput] = hook('');
+      const addScope = async (event) => {
+        const scope = scopeInput.value.trim();
+        if (!scope) return;
+        const result = await addOidcScopes(app.value.id, [scope]);
+        app.value.scopes = result.scopes;
+        setScopeInput('');
+      };
+      return { app, admin, scopeInput, setScopeInput, addScope };
+    }
+  </script></template
+>
+
+<template component="token-editor"
+  ><div>
+    <h3 class="font-bold">Tokens</h3>
+    <div class="mt-2 grid gap-2 rounded-lg bg-violet/5 p-2">
+      <input
+        class="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+        bind-value="tokenLabel"
+        on-input="setTokenLabel($event.target.value)"
+        placeholder="Token label"
+        required
+      />
+      <div class="grid gap-1">
+        <template for="scope of app.scopes"
+          ><label
+            class="flex items-center gap-2 rounded-lg border border-violet/20 bg-white px-2 py-1 text-xs text-violet"
+          >
+            <input
+              class="mr-1 accent-violet"
+              type="checkbox"
+              attr-checked.bool="tokenScopes.includes(scope)"
+              on-change="toggleTokenScope(scope)"
+            />{{ scope }}
+          </label></template
+        >
+      </div>
+      <p class="text-xs text-rose-600">{{ tokenError }}</p>
+      <button
+        class="rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-white"
+        type="button"
+        on-click="createToken()"
+      >
+        Generate token
+      </button>
+    </div>
+    <template if="createdToken"
+      ><div class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
+        <div class="break-all font-mono text-sm font-semibold">{{ createdToken }}</div>
+        <p class="mt-1 text-sm">Copy this token now. It will not be shown again.</p>
+        <button class="mt-2 text-sm font-semibold text-emerald-800 underline" type="button" on-click="copyToken()">
+          Copy token
+        </button>
+      </div></template
+    >
+    <p class="mt-2 text-sm text-slate-500" hidden="false" bind-hidden.bool="tokens.length > 0">No tokens yet.</p>
+    <div class="mt-2 grid gap-2">
+      <template for="token of tokens"
+        ><article class="rounded-lg border border-slate-100 p-2 text-sm">
+          <strong>{{ token.label }}</strong>
+          <p class="text-slate-600">Created {{ token.createdAt }}</p>
+          <p class="break-words text-slate-600">Scopes: {{ token.scopes.join(', ') }}</p>
+          <template if="token.revokedAt"><p class="text-rose-600">Revoked {{ token.revokedAt }}</p></template>
+          <template if="!token.revokedAt"><p class="text-emerald-600">Active</p></template>
+          <template if="!token.revokedAt"
+            ><button class="mt-1 text-rose-600" type="button" on-click="revokeToken(token)">Revoke</button></template
+          >
+        </article></template
+      >
+    </div>
+  </div>
+  <script setup>
+    import { defineProp, hook, onInit, ref } from '@li3/web';
+    import { createApiToken, getApiTokens, revokeApiToken } from '/dashboard.mjs';
+    export default function () {
+      const app = defineProp('app'),
+        tokens = ref([]),
+        createdToken = ref(''),
+        tokenScopes = ref([]),
+        tokenError = ref(''),
+        [tokenLabel, setTokenLabel] = hook('');
+      const load = async () => (tokens.value = await getApiTokens(app.value.id));
+      const toggleTokenScope = (scope) => {
+        tokenScopes.value = tokenScopes.value.includes(scope)
+          ? tokenScopes.value.filter((value) => value !== scope)
+          : [...tokenScopes.value, scope];
+      };
+      const createToken = async () => {
+        if (!tokenScopes.value.length) {
+          tokenError.value = 'Choose at least one scope.';
+          return;
+        }
+        try {
+          const result = await createApiToken(app.value.id, tokenLabel.value, tokenScopes.value);
+          setTokenLabel('');
+          tokenScopes.value = [];
+          tokenError.value = '';
+          createdToken.value = result.token;
+          await load();
+        } catch (error) {
+          tokenError.value = error.message || 'Could not create token.';
+        }
+      };
+      const revokeToken = async (token) => {
+        if (confirm('Revoke this token?')) {
+          await revokeApiToken(app.value.id, token.label);
+          await load();
+        }
+      };
+      const copyToken = () => navigator.clipboard.writeText(createdToken.value);
+      onInit(load);
+      return {
+        app,
+        tokens,
+        createdToken,
+        tokenScopes,
+        tokenError,
+        tokenLabel,
+        setTokenLabel,
         toggleTokenScope,
         createToken,
         revokeToken,
+        copyToken,
       };
     }
   </script></template
