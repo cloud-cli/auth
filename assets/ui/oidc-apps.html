@@ -326,12 +326,12 @@
         }
         try {
           const result = await createApiToken(app.id, tokenLabel.value, tokenScopes.value);
+          generatedToken.value = result.token;
           setTokenLabel('');
           tokenScopes.value = [];
           tokenError.value = '';
           const details = event.currentTarget.closest('details');
           await renderTokens(app, details);
-          generatedToken.value = result.token;
           setTimeout(() => {
             const current = [...document.querySelectorAll('details')].find(
               (element) => element.querySelector('summary')?.textContent === app.id,
