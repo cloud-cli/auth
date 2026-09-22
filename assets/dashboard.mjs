@@ -1,4 +1,5 @@
 const authDomain = '__API_URL__';
+let profileRequest;
 
 function encode(value) {
   return btoa(String.fromCharCode(...new Uint8Array(value)))
@@ -76,9 +77,14 @@ export async function getPasskeys() {
 }
 
 export async function getProfile() {
-  const response = await fetch(new URL('/profile', authDomain), { credentials: 'include' });
-  if (!response.ok) throw new Error('Could not load profile');
-  return response.json();
+  if (!profileRequest) {
+    profileRequest = fetch(new URL('/profile', authDomain), { credentials: 'include' }).then(async (response) => {
+      if (!response.ok) throw new Error('Could not load profile');
+      return response.json();
+    });
+    profileRequest.catch(() => (profileRequest = undefined));
+  }
+  return profileRequest;
 }
 
 export async function revokePasskey(credentialId) {

@@ -8,6 +8,7 @@ import {
   getAuditEvents,
   getOidcClients,
   getPasskeys,
+  getProfile,
   getProperties,
   registerPasskey,
   removeOidcClient as removeManagedOidcClient,
@@ -64,7 +65,7 @@ export default function () {
   }
 
   async function loadProfile() {
-    const profile = await fetch('/profile', { credentials: 'include' }).then((response) => response.json());
+    const profile = await getProfile();
     user.value = profile;
     if (window.opener) window.opener.postMessage({ event: 'signin', detail: profile }, location.origin);
   }
