@@ -300,6 +300,7 @@
           ...tokens.map((token) => {
             const item = document.createElement('article');
             item.className = 'mt-2 rounded-lg border border-slate-100 p-2 text-sm';
+            item.dataset.tokenLabel = token.label;
             const label = document.createElement('strong');
             label.textContent = token.label;
             const created = document.createElement('p');
@@ -345,6 +346,8 @@
       const revokeToken = async (app, token, details) => {
         if (confirm('Revoke this token?')) {
           await revokeApiToken(app.id, token.label);
+          details.querySelector(`[data-token-label="${CSS.escape(token.label)}"]`)?.remove();
+          details.querySelector('[data-token-empty]').hidden = false;
           await renderTokens(app, details);
         }
       };
