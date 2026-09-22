@@ -149,7 +149,7 @@
             </div>
             <div>
               <h3 class="font-bold">Tokens</h3>
-              <form class="mt-2 grid gap-2 rounded-lg bg-violet/5 p-2" on-submit.prevent="createToken(app,$event)">
+              <div class="mt-2 grid gap-2 rounded-lg bg-violet/5 p-2">
                 <input
                   class="rounded-lg border border-slate-200 px-3 py-2 text-sm"
                   bind-value="tokenLabel"
@@ -157,9 +157,11 @@
                   placeholder="Token label"
                   required
                 />
-                <div class="flex flex-wrap gap-1">
+                <div class="grid gap-1">
                   <template for="scope of app.scopes"
-                    ><label class="rounded-full border border-violet/20 bg-white px-2 py-1 text-xs text-violet">
+                    ><label
+                      class="flex items-center gap-2 rounded-lg border border-violet/20 bg-white px-2 py-1 text-xs text-violet"
+                    >
                       <input
                         class="mr-1 accent-violet"
                         type="checkbox"
@@ -170,8 +172,14 @@
                   >
                 </div>
                 <p class="text-xs text-rose-600">{{ tokenError }}</p>
-                <button class="rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-white">Generate token</button>
-              </form>
+                <button
+                  class="rounded-lg bg-violet px-3 py-2 text-sm font-semibold text-white"
+                  type="button"
+                  on-click="createToken(app,$event)"
+                >
+                  Generate token
+                </button>
+              </div>
               <p class="mt-2 text-sm text-slate-500" data-token-empty>No tokens yet.</p>
               <div data-token-list></div>
             </div>
