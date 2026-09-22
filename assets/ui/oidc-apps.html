@@ -83,19 +83,17 @@
         </button>
       </div></template
     >
-    <template if="generatedToken"
-      ><div class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
-        <div class="break-all font-mono text-sm font-semibold">{{ generatedToken }}</div>
-        <p class="mt-1 text-sm">Copy this token now. It will not be shown again.</p>
-        <button
-          class="mt-2 text-sm font-semibold text-emerald-800 underline"
-          type="button"
-          on-click="copyGeneratedToken()"
-        >
-          Copy token
-        </button>
-      </div></template
+    <div
+      class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900"
+      data-generated-token
+      hidden
     >
+      <div class="break-all font-mono text-sm font-semibold" data-generated-token-value></div>
+      <p class="mt-1 text-sm">Copy this token now. It will not be shown again.</p>
+      <button class="mt-2 text-sm font-semibold text-emerald-800 underline" type="button" data-copy-generated-token>
+        Copy token
+      </button>
+    </div>
     <div class="mt-3 grid gap-2">
       <template for="app of apps"
         ><details class="rounded-xl border border-slate-200 p-3" on-toggle="open(app,$event)">
@@ -205,7 +203,6 @@
         formOpen = ref(false),
         formError = ref(''),
         createdSecret = ref(''),
-        generatedToken = ref(''),
         [newId, setNewId] = hook(''),
         newCallbacks = ref([]),
         newScopes = ref([]),
@@ -286,7 +283,6 @@
         event.currentTarget.previousElementSibling.value = '';
       };
       const copyCreatedSecret = () => navigator.clipboard.writeText(createdSecret.value.replace(/^.*?: /, ''));
-      const copyGeneratedToken = () => navigator.clipboard.writeText(generatedToken.value);
       const toggleTokenScope = (scope) => {
         tokenScopes.value = tokenScopes.value.includes(scope)
           ? tokenScopes.value.filter((value) => value !== scope)
@@ -331,7 +327,11 @@
         }
         try {
           const result = await createApiToken(app.id, tokenLabel.value, tokenScopes.value);
-          generatedToken.value = result.token;
+          const section = event.currentTarget.closest('section');
+          section.querySelector('[data-generated-token-value]').textContent = result.token;
+          section.querySelector('[data-generated-token]').hidden = false;
+          section.querySelector('[data-copy-generated-token]').onclick = () =>
+            navigator.clipboard.writeText(result.token);
           setTokenLabel('');
           tokenScopes.value = [];
           tokenError.value = '';
@@ -365,7 +365,6 @@
         formOpen,
         formError,
         createdSecret,
-        generatedToken,
         newId,
         setNewId,
         newCallbacks,
