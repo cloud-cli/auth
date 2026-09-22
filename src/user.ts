@@ -27,6 +27,6 @@ export async function findAuthenticatorsByUserId(userId: string) {
 }
 
 export function userAsJSON(user: User) {
-  const { userId, name, email, photo } = user;
-  return { id: userId, name, email, photo };
+  const { userId, name, email, photo, role } = user;
+  return { id: userId, name, email, photo, role };
 }

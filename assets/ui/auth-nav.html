@@ -42,12 +42,13 @@
   <link rel="component" href="https://sodium.static.apphor.de/lucide-icon.html" />
   <script setup>
     import { ref } from '@li3/web';
+    import { getProfile } from '/dashboard.mjs';
     export default function () {
       const current = ref(location.pathname + (location.hash || '#security'));
       const admin = ref(false);
-      fetch('/oidc/access', { credentials: 'include' })
-        .then((response) => (response.ok ? response.json() : null))
-        .then((result) => (admin.value = Boolean(result?.admin)));
+      getProfile()
+        .then((profile) => (admin.value = profile.role === 'admin'))
+        .catch(() => {});
       addEventListener('hashchange', () => (current.value = location.pathname + (location.hash || '#security')));
       return { current, admin };
     }

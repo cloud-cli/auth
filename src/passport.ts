@@ -18,6 +18,7 @@ async function onUserSignIn(accessToken: string, refreshToken: string, profile: 
       email: '',
       photo: '',
       lastSeen: '',
+      role: 'user',
     };
   }
 

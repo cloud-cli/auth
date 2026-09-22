@@ -75,6 +75,12 @@ export async function getPasskeys() {
   return response.json();
 }
 
+export async function getProfile() {
+  const response = await fetch(new URL('/profile', authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load profile');
+  return response.json();
+}
+
 export async function revokePasskey(credentialId) {
   const response = await fetch(new URL('/webauthn/credentials/' + encodeURIComponent(credentialId), authDomain), {
     credentials: 'include',

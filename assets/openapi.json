@@ -430,16 +430,6 @@
         }
       }
     },
-    "/oidc/access": {
-      "get": {
-        "tags": ["Authentication"],
-        "summary": "Check whether the current user can manage OIDC clients",
-        "responses": {
-          "200": { "description": "Administrator access state" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
-        }
-      }
-    },
     "/audit": {
       "get": {
         "tags": ["Authentication"],
@@ -853,7 +843,7 @@
     "schemas": {
       "User": {
         "type": "object",
-        "required": ["id", "name", "email", "photo"],
+        "required": ["id", "name", "email", "photo", "role"],
         "properties": {
           "id": {
             "type": "string"
@@ -867,6 +857,10 @@
           },
           "photo": {
             "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["user", "admin"]
           }
         }
       },

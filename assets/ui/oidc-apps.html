@@ -161,6 +161,7 @@
       createApiToken,
       createOidcClient,
       getApiTokens,
+      getProfile,
       getTokenApps,
       revokeApiToken,
       updateOidcCallbacks,
@@ -252,9 +253,9 @@
         }
       };
       load();
-      fetch('/oidc/access', { credentials: 'include' })
-        .then((response) => (response.ok ? response.json() : null))
-        .then((value) => (admin.value = Boolean(value?.admin)));
+      getProfile()
+        .then((profile) => (admin.value = profile.role === 'admin'))
+        .catch(() => {});
       return {
         apps,
         selected,

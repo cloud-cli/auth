@@ -168,19 +168,10 @@ function browserCors(req, res, next) {
   next();
 }
 
-function adminRoute(req, res, next) {
-  if (!req.isAuthenticated?.() || !isOidcAdmin(req.user?.id)) return res.status(403).send('');
+async function adminRoute(req, res, next) {
+  if (!req.isAuthenticated?.()) return res.status(403).send('');
+  if ((await findByUserId(req.user?.id))?.role !== 'admin') return res.status(403).send('');
   next();
-}
-
-function isOidcAdmin(userId: string | undefined) {
-  return Boolean(
-    userId &&
-    (process.env.OIDC_ADMIN_USER_IDS || '')
-      .split(',')
-      .map((value) => value.trim())
-      .includes(userId),
-  );
 }
 
 function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
@@ -258,6 +249,7 @@ if (__TEST__) {
         email: 'integration@example.test',
         photo: '',
         lastSeen: new Date().toISOString(),
+        role: 'user',
       };
       const { saveUser } = await import('./database.js');
       await saveUser(user);
@@ -284,7 +276,6 @@ app.get('/login', (req, res) => {
 app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
 app.get('/oidc', adminRoute, (_req, res) => res.redirect('/me#oidc'));
-app.get('/oidc/access', protectedRoute, (req, res) => res.json({ admin: isOidcAdmin(req.user!.id) }));
 app.get('/keys', adminRoute, async (_req, res) => res.json(await listSigningKeys()));
 app.post('/keys/rotate', express.json(), adminRoute, async (_req, res) => {
   try {

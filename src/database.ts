@@ -11,6 +11,7 @@ export type User = {
   photo: string;
   lastSeen: string;
   recoveryCodes?: string[];
+  role: 'user' | 'admin';
 };
 
 export type UserProperty = { uid: string; userId: string; key: string; value: unknown };
@@ -188,7 +189,7 @@ export async function initDatabase() {
 
 export async function saveUser(user: User) {
   await run(
-    'INSERT OR REPLACE INTO auth_user (user_id, profile_id, profile, access_token, refresh_token, name, email, photo, last_seen, recovery_codes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT OR REPLACE INTO auth_user (user_id, profile_id, profile, access_token, refresh_token, name, email, photo, last_seen, recovery_codes, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       user.userId,
       user.profileId || '',
@@ -200,6 +201,7 @@ export async function saveUser(user: User) {
       user.photo || '',
       user.lastSeen || '',
       json(user.recoveryCodes),
+      user.role || 'user',
     ],
   );
 }

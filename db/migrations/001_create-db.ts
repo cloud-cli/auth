@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS auth_user (
   email TEXT NOT NULL DEFAULT '',
   photo TEXT NOT NULL DEFAULT '',
   last_seen TEXT NOT NULL DEFAULT '',
-  recovery_codes TEXT
+  recovery_codes TEXT,
+  role TEXT NOT NULL DEFAULT 'user'
 );
 
 CREATE TABLE IF NOT EXISTS auth_property (
