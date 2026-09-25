@@ -32,10 +32,13 @@ export async function createApiToken(userId: string, clientId: string, label: st
 }
 
 export async function listApiTokens(userId: string, clientId: string) {
+  const client = await getClient(clientId);
+  const allowed = new Set(client?.scopes || []);
   const tokens = await rows<ApiToken>('auth_api_token', 'user_id = ? AND client_id = ?', [userId, clientId]);
-  return tokens.map(({ label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
+  return tokens.map(({ tokenHash, label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
+    tokenId: tokenHash,
     label,
-    scopes,
+    scopes: scopes.filter((scope) => allowed.has(scope)),
     createdAt,
     expiresAt,
     lastUsedAt,
@@ -43,19 +46,19 @@ export async function listApiTokens(userId: string, clientId: string) {
   }));
 }
 
-export async function revokeApiToken(userId: string, clientId: string, label: string) {
+export async function revokeApiToken(userId: string, clientId: string, tokenId: string) {
   const revokedAt = new Date().toISOString();
-  const tokens = await rows<ApiToken>('auth_api_token', 'user_id = ? AND client_id = ? AND label = ?', [
+  const tokens = await rows<ApiToken>('auth_api_token', 'user_id = ? AND client_id = ? AND token_hash = ?', [
     userId,
     clientId,
-    label,
+    tokenId,
   ]);
   if (!tokens[0]) return false;
-  await run('UPDATE auth_api_token SET revoked_at = ? WHERE user_id = ? AND client_id = ? AND label = ?', [
+  await run('UPDATE auth_api_token SET revoked_at = ? WHERE user_id = ? AND client_id = ? AND token_hash = ?', [
     revokedAt,
     userId,
     clientId,
-    label,
+    tokenId,
   ]);
   return true;
 }
@@ -66,13 +69,16 @@ export async function introspectApiToken(token: string, clientId: string, client
   const tokens = await rows<ApiToken>('auth_api_token', 'token_hash = ? AND client_id = ?', [hash(token), clientId]);
   const item = tokens[0];
   if (!item || item.revokedAt || Date.parse(item.expiresAt) <= Date.now()) return { active: false };
+  const allowed = new Set(client.scopes || []);
+  const scopes = item.scopes.filter((scope) => allowed.has(scope));
+  if (!scopes.length) return { active: false };
   item.lastUsedAt = new Date().toISOString();
   await run('UPDATE auth_api_token SET last_used_at = ? WHERE token_hash = ?', [item.lastUsedAt, item.tokenHash]);
   return {
     active: true,
     client_id: item.clientId,
     sub: item.userId,
-    scope: item.scopes.join(' '),
+    scope: scopes.join(' '),
     token_type: 'Bearer',
     iat: Math.floor(Date.parse(item.createdAt) / 1000),
     exp: Math.floor(Date.parse(item.expiresAt) / 1000),

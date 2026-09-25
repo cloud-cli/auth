@@ -452,6 +452,30 @@
         }
       }
     },
+    "/oidc/clients/{id}/scopes": {
+      "put": {
+        "tags": ["Authentication"],
+        "summary": "Replace the allowed API scopes for a managed OIDC client",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["scopes"],
+                "properties": { "scopes": { "type": "array", "items": { "type": "string" } } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated scopes" },
+          "400": { "description": "Invalid client or scope" },
+          "403": { "description": "Administrator access required" }
+        }
+      }
+    },
     "/api-tokens/{clientId}": {
       "get": {
         "tags": ["Authentication"],
@@ -488,13 +512,13 @@
         }
       }
     },
-    "/api-tokens/{clientId}/{label}": {
+    "/api-tokens/{clientId}/{tokenId}": {
       "delete": {
         "tags": ["Authentication"],
-        "summary": "Revoke a token by label",
+        "summary": "Revoke a token by stable token ID",
         "parameters": [
           { "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } },
-          { "name": "label", "in": "path", "required": true, "schema": { "type": "string" } }
+          { "name": "tokenId", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": { "204": { "description": "Revoked" }, "404": { "description": "Token not found" } }
       }

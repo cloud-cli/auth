@@ -142,3 +142,13 @@ export async function addManagedClientScopes(id: string, scopes: string[]) {
   await run('UPDATE auth_oidc_client SET scopes = ? WHERE id = ?', [json(client.scopes), id]);
   return client.scopes;
 }
+
+export async function updateManagedClientScopes(id: string, scopes: string[]) {
+  const client = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [id]))[0];
+  if (!client) throw new Error('Client not found');
+  const normalizedScopes = [
+    ...new Set(scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope))),
+  ];
+  await run('UPDATE auth_oidc_client SET scopes = ? WHERE id = ?', [json(normalizedScopes), id]);
+  return normalizedScopes;
+}

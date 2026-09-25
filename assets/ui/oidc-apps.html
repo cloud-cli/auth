@@ -256,7 +256,17 @@
     <h3 class="font-bold">Scopes</h3>
     <div class="mt-1 flex flex-wrap gap-1">
       <template for="scope of app.scopes"
-        ><span class="rounded-full bg-violet/10 px-2 py-1 text-xs text-violet">{{ scope }}</span></template
+        ><template if="admin"
+          ><button
+            class="inline-flex items-center gap-1 rounded-full bg-violet/10 px-2 py-1 text-xs text-violet"
+            type="button"
+            on-click="removeScope(scope)"
+          >
+            <span>{{ scope }}</span><span aria-hidden="true">x</span>
+          </button></template
+        ><template if="!admin"
+          ><span class="rounded-full bg-violet/10 px-2 py-1 text-xs text-violet">{{ scope }}</span></template
+        ></template
       >
     </div>
     <template if="admin"
@@ -279,7 +289,7 @@
   </div>
   <script setup>
     import { defineProp, hook } from '@li3/web';
-    import { addOidcScopes } from '/dashboard.mjs';
+    import { addOidcScopes, updateOidcScopes } from '/dashboard.mjs';
     export default function () {
       const app = defineProp('app'),
         admin = defineProp('admin', { default: false }),
@@ -291,7 +301,15 @@
         app.value.scopes = result.scopes;
         setScopeInput('');
       };
-      return { app, admin, scopeInput, setScopeInput, addScope };
+      const removeScope = async (scope) => {
+        if (!confirm(`Remove ${scope}? Existing tokens will lose this scope.`)) return;
+        const result = await updateOidcScopes(
+          app.value.id,
+          app.value.scopes.filter((value) => value !== scope),
+        );
+        app.value.scopes = result.scopes;
+      };
+      return { app, admin, scopeInput, setScopeInput, addScope, removeScope };
     }
   </script></template
 >
@@ -365,7 +383,10 @@
         tokenScopes = ref([]),
         tokenError = ref(''),
         [tokenLabel, setTokenLabel] = hook('');
-      const load = async () => (tokens.value = await getApiTokens(app.value.id));
+      const load = async () => {
+        if (!app.value?.id) return;
+        tokens.value = await getApiTokens(app.value.id);
+      };
       const toggleTokenScope = (scope) => {
         tokenScopes.value = tokenScopes.value.includes(scope)
           ? tokenScopes.value.filter((value) => value !== scope)
@@ -389,7 +410,7 @@
       };
       const revokeToken = async (token) => {
         if (confirm('Revoke this token?')) {
-          await revokeApiToken(app.value.id, token.label);
+          await revokeApiToken(app.value.id, token.tokenId);
           await load();
         }
       };

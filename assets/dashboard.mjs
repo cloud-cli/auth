@@ -167,6 +167,18 @@ export async function addOidcScopes(id, scopes) {
   return response.json();
 }
 
+export async function updateOidcScopes(id, scopes) {
+  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), {
+    credentials: 'include',
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ scopes }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not update OIDC scopes');
+  return result;
+}
+
 export async function updateOidcCallbacks(id, redirectUris) {
   const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/callbacks', authDomain), {
     credentials: 'include',
@@ -229,9 +241,9 @@ export async function createApiToken(clientId, label, scopes) {
   return result;
 }
 
-export async function revokeApiToken(clientId, label) {
+export async function revokeApiToken(clientId, tokenId) {
   const response = await fetch(
-    new URL('/api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(label), authDomain),
+    new URL('/api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(tokenId), authDomain),
     { credentials: 'include', method: 'DELETE' },
   );
   if (!response.ok) throw new Error('Could not revoke API token');
