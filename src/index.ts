@@ -1,6 +1,6 @@
 import express from 'express';
 import { readFileSync } from 'fs';
-import migrate from '../db/migrations/003_add_user_roles.js';
+import migrate from '../db/migrations/004_restrict_admin_role.js';
 import { findByEmail, findByUserId, userAsJSON } from './user.js';
 import { initDatabase } from './database.js';
 import session from './session.js';
