@@ -10,7 +10,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "test:integration": "playwright test",
-    "migrate": "pnpm build && node ./dist/db/migrations/004_restrict_admin_role.js",
+    "migrate": "pnpm build && node ./dist/db/migrations/003_add_user_roles.js",
     "start": "node ./dist/index.js"
   },
   "prettier": "@cloud-cli/prettier-config",
