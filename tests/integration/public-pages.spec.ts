@@ -38,6 +38,23 @@ test('profile API remains protected', async ({ request }) => {
   expect(response.status()).toBe(401);
 });
 
+test('non-admin users cannot access application or token management', async ({ page }) => {
+  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  await page.goto('/');
+  await page.evaluate(
+    async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }),
+    process.env.AUTH_TEST_SECRET,
+  );
+  const responses = await page.evaluate(async () =>
+    Promise.all([
+      fetch('/oidc/clients').then((response) => response.status),
+      fetch('/api-tokens/apps').then((response) => response.status),
+      fetch('/api-tokens/example').then((response) => response.status),
+    ]),
+  );
+  expect(responses).toEqual([403, 403, 403]);
+});
+
 test('test-only session can access the dashboard sections', async ({ page }) => {
   test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
   await page.goto('/');
@@ -102,6 +119,8 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await expect(page.locator('[data-generated-token-value]')).toContainText('apphor_');
   await expect(app.getByText('e2e token')).toBeVisible();
 
+  await app.getByRole('button', { name: 'read:profile x' }).click();
+  await expect(app.getByText('read:profile', { exact: true })).toHaveCount(0);
   await app.getByRole('button', { name: 'Revoke' }).click();
   await expect(app.getByText(/^Revoked /)).toBeVisible();
   await expect(app.getByText('Active')).toHaveCount(0);

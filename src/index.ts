@@ -29,6 +29,7 @@ import {
   removeManagedClient,
   tokenResponse,
   updateManagedClientRedirectUris,
+  updateManagedClientScopes,
 } from './oidc.js';
 import {
   authenticate,
@@ -460,11 +461,11 @@ app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
     res.status(400).json({ error: String(error) });
   }
 });
-app.get('/api-tokens/apps', protectedRoute, async (_req, res) => res.json(await listManagedClients()));
-app.get('/api-tokens/:clientId', protectedRoute, async (req, res) =>
+app.get('/api-tokens/apps', adminRoute, async (_req, res) => res.json(await listManagedClients()));
+app.get('/api-tokens/:clientId', adminRoute, async (req, res) =>
   res.json(await listApiTokens(req.user!.id, req.params.clientId)),
 );
-app.post('/api-tokens/:clientId', express.json(), protectedRoute, async (req, res) => {
+app.post('/api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
   try {
     res
       .status(201)
@@ -480,8 +481,8 @@ app.post('/api-tokens/:clientId', express.json(), protectedRoute, async (req, re
     res.status(400).json({ error: String(error) });
   }
 });
-app.delete('/api-tokens/:clientId/:label', protectedRoute, async (req, res) =>
-  res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.label)) ? 204 : 404),
+app.delete('/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
+  res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
 app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (req, res) => {
   const authorization = req.get('authorization') || '';
@@ -501,6 +502,15 @@ app.post('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res
   try {
     res.json({
       scopes: await addManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []),
+    });
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
+});
+app.put('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
+  try {
+    res.json({
+      scopes: await updateManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []),
     });
   } catch (error) {
     res.status(400).json({ error: String(error) });
