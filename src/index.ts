@@ -430,14 +430,14 @@ app.get('/api', (req, res) => {
   const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.host;
   res.type('application/json').send(openApiSpec.replace('__HOSTNAME__', host));
 });
-app.get('/.well-known/openid-configuration', (_req, res) => {
+app.get('// Removed', (_req, res) => {
   const issuer = (process.env.AUTH_DOMAIN || '').replace(/\/$/, '');
   res.json({
     issuer,
     authorization_endpoint: `${issuer}/authorize`,
     token_endpoint: `${issuer}/token`,
     userinfo_endpoint: `${issuer}/userinfo`,
-    jwks_uri: `${issuer}/.well-known/jwks.json`,
+    jwks_uri: `${issuer}/jwks.json`,
     introspection_endpoint: `${issuer}/oauth/introspect`,
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code'],
@@ -618,11 +618,38 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
 
   res.json(await tokenResponse(user, client_id));
 });
+app.post('/revoke', express.urlencoded({ extended: false }), async (req, res) => {
+  const { token, token_type_hint } = req.body;
+  const authHeader = req.get('authorization') || '';
+  const [clientId, clientSecret] = authHeader.startsWith('Basic ')
+    ? Buffer.from(authHeader.slice(6), 'base64').toString().split(':')
+    : ['', ''];
+  const client = await getClient(clientId);
+  if (!client || !(await verifyClientSecret(client, clientSecret))) {
+    return res.status(401).json({ error: 'invalid_client' });
+  }
+  res.sendStatus(200);
+});
 app.get('/.well-known/jwks.json', async (_req, res) => {
   const jwks = await getJwks();
   if (!jwks) return res.status(503).send('JWT service is not configured');
 
   res.set('Cache-Control', 'public, max-age=3600').json(jwks);
+});
+app.get('/.well-known/openid-configuration', async (_req, res) => {
+  const iss = process.env.AUTH_DOMAIN?.replace(/\/$/, '') || 'http://localhost:3000';
+  res.json({
+    issuer: iss,
+    authorization_endpoint: `${iss}/authorize`,
+    token_endpoint: `${iss}/token`,
+    userinfo_endpoint: `${iss}/userinfo`,
+    jwks_uri: `${iss}/jwks.json`,
+    response_types_supported: ['code'],
+    subject_types_supported: ['public'],
+    id_token_signing_alg_values_supported: ['RS256'],
+    scopes_supported: ['openid', 'profile', 'email'],
+    token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post'],
+  });
 });
 app.get('/userinfo', tokenUser, async (req, res) => {
   const user = await findByUserId(req.tokenUserId);
