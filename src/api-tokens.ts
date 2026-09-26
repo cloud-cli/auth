@@ -31,14 +31,15 @@ export async function createApiToken(userId: string, clientId: string, label: st
   return { token, expiresAt: new Date(Date.now() + ttl).toISOString() };
 }
 
-export async function listApiTokens(userId: string, clientId: string) {
-  const client = await getClient(clientId);
-  const allowed = new Set(client?.scopes || []);
-  const tokens = await rows<ApiToken>('auth_api_token', 'user_id = ? AND client_id = ?', [userId, clientId]);
+export async function listApiTokens(userId: string, clientId?: string) {
+  const allowedScopes = clientId ? new Set((await getClient(clientId))?.scopes || []) : new Set();
+  const filter = clientId ? 'user_id = ? AND client_id = ?' : 'user_id = ?';
+  const params = clientId ? [userId, clientId] : [userId];
+  const tokens = await rows<ApiToken>('auth_api_token', filter, params);
   return tokens.map(({ tokenHash, label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
     tokenId: tokenHash,
     label,
-    scopes: scopes.filter((scope) => allowed.has(scope)),
+    scopes: scopes.filter((scope) => allowedScopes.has(scope)),
     createdAt,
     expiresAt,
     lastUsedAt,

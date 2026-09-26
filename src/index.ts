@@ -484,6 +484,13 @@ app.post('/api-tokens/:clientId', express.json(), adminRoute, async (req, res) =
 app.delete('/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
   res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
+app.get('/api-tokens/me', protectedRoute, async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).send('');
+  const clientId = typeof req.query?.clientId === 'string' ? req.query.clientId : '';
+  const tokens = await listApiTokens(userId, clientId);
+  res.json(tokens);
+});
 app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (req, res) => {
   const authorization = req.get('authorization') || '';
   const [clientId, clientSecret] = authorization.startsWith('Basic ')
