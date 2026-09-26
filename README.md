@@ -4,22 +4,22 @@ Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved p
 
 ## Env
 
-| name                 | description                                                      | required            |
-| -------------------- | ---------------------------------------------------------------- | ------------------- |
-| PORT                 | http server port                                                 | true                |
-| GOOGLE_CLIENT_ID     | OAuth client id                                                  | true                |
-| GOOGLE_CLIENT_SECRET | OAuth client secret                                              | true                |
-| AUTH_DOMAIN          | Authentication host, e.g. https://auth.foo.com                   | true                |
-| SESSION_DOMAIN       | Domain to use for session cookie, e.g foo.com                    | false               |
-| SESSION_SECRET       | Session secret, used to store the user session                   | true                |
-| DATABASE_URL         | ES module URL for the application database API                   | true                |
-| JWT_PRIVATE_KEY      | PEM-encoded RSA private key used for JWT signing                 | for JWTs            |
-| JWT_AUDIENCES        | Comma-separated allowed JWT audiences                            | for JWTs            |
-| JWT_KEY_ID           | Signing key ID, defaults to `auth-1`                             | false               |
-| JWT_TTL_SECONDS      | JWT lifetime from 60 to 900 seconds, defaults to 300             | false               |
-| AUTH_ALLOWED_ORIGINS | Comma-separated browser origins allowed to request JWTs          | for browser JWTs    |
-| AUTH_NAME            | Relying-party name shown during passkey registration             | false               |
-| QR_LOGIN_TTL_SECONDS | QR approval lifetime from 60 to 600 seconds, defaults to 300     | false               |
+| name                 | description                                                  | required         |
+| -------------------- | ------------------------------------------------------------ | ---------------- |
+| PORT                 | http server port                                             | true             |
+| GOOGLE_CLIENT_ID     | OAuth client id                                              | true             |
+| GOOGLE_CLIENT_SECRET | OAuth client secret                                          | true             |
+| AUTH_DOMAIN          | Authentication host, e.g. https://auth.foo.com               | true             |
+| SESSION_DOMAIN       | Domain to use for session cookie, e.g foo.com                | false            |
+| SESSION_SECRET       | Session secret, used to store the user session               | true             |
+| DATABASE_URL         | ES module URL for the application database API               | true             |
+| JWT_PRIVATE_KEY      | PEM-encoded RSA private key used for JWT signing             | for JWTs         |
+| JWT_AUDIENCES        | Comma-separated allowed JWT audiences                        | for JWTs         |
+| JWT_KEY_ID           | Signing key ID, defaults to `auth-1`                         | false            |
+| JWT_TTL_SECONDS      | JWT lifetime from 60 to 900 seconds, defaults to 300         | false            |
+| AUTH_ALLOWED_ORIGINS | Comma-separated browser origins allowed to request JWTs      | for browser JWTs |
+| AUTH_NAME            | Relying-party name shown during passkey registration         | false            |
+| QR_LOGIN_TTL_SECONDS | QR approval lifetime from 60 to 600 seconds, defaults to 300 | false            |
 
 `AUTH_DOMAIN` must use HTTPS in production. WebAuthn, camera access, and the installable PWA require a secure context.
 

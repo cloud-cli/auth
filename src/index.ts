@@ -30,6 +30,7 @@ import {
   tokenResponse,
   updateManagedClientRedirectUris,
   updateManagedClientScopes,
+  verifyClientSecret,
 } from './oidc.js';
 import {
   authenticate,
@@ -430,24 +431,6 @@ app.get('/api', (req, res) => {
   const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.host;
   res.type('application/json').send(openApiSpec.replace('__HOSTNAME__', host));
 });
-app.get('// Removed', (_req, res) => {
-  const issuer = (process.env.AUTH_DOMAIN || '').replace(/\/$/, '');
-  res.json({
-    issuer,
-    authorization_endpoint: `${issuer}/authorize`,
-    token_endpoint: `${issuer}/token`,
-    userinfo_endpoint: `${issuer}/userinfo`,
-    jwks_uri: `${issuer}/jwks.json`,
-    introspection_endpoint: `${issuer}/oauth/introspect`,
-    response_types_supported: ['code'],
-    grant_types_supported: ['authorization_code'],
-    subject_types_supported: ['public'],
-    id_token_signing_alg_values_supported: ['RS256'],
-    token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
-    code_challenge_methods_supported: ['S256'],
-    scopes_supported: ['openid', 'profile', 'email'],
-  });
-});
 app.get('/oidc/clients', adminRoute, async (_req, res) => res.json(await listManagedClients()));
 app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
   try {
@@ -461,7 +444,12 @@ app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
     res.status(400).json({ error: String(error) });
   }
 });
-app.get('/api-tokens/apps', adminRoute, async (_req, res) => res.json(await listManagedClients()));
+app.get('/api-tokens/me', protectedRoute, async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).send('');
+  const clientId = typeof req.query?.clientId === 'string' ? req.query.clientId : undefined;
+  res.json(await listApiTokens(userId, clientId));
+});
 app.get('/api-tokens/:clientId', adminRoute, async (req, res) =>
   res.json(await listApiTokens(req.user!.id, req.params.clientId)),
 );
@@ -484,13 +472,6 @@ app.post('/api-tokens/:clientId', express.json(), adminRoute, async (req, res) =
 app.delete('/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
   res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
-app.get('/api-tokens/me', protectedRoute, async (req, res) => {
-  const userId = req.user?.id;
-  if (!userId) return res.status(401).send('');
-  const clientId = typeof req.query?.clientId === 'string' ? req.query.clientId : '';
-  const tokens = await listApiTokens(userId, clientId);
-  res.json(tokens);
-});
 app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (req, res) => {
   const authorization = req.get('authorization') || '';
   const [clientId, clientSecret] = authorization.startsWith('Basic ')
@@ -626,7 +607,6 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
   res.json(await tokenResponse(user, client_id));
 });
 app.post('/revoke', express.urlencoded({ extended: false }), async (req, res) => {
-  const { token, token_type_hint } = req.body;
   const authHeader = req.get('authorization') || '';
   const [clientId, clientSecret] = authHeader.startsWith('Basic ')
     ? Buffer.from(authHeader.slice(6), 'base64').toString().split(':')

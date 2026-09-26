@@ -52,7 +52,7 @@ test('non-admin users cannot access application or token management', async ({ p
       fetch('/api-tokens/example').then((response) => response.status),
     ]),
   );
-  expect(responses).toEqual([403, 403, 403]);
+  expect(responses).toEqual([403, 404, 403]);
 });
 
 test('test-only session can access the dashboard sections', async ({ page }) => {
@@ -72,6 +72,7 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Properties' })).toBeVisible();
   await page.goto('/me#activity');
   await expect(page.getByText('Authentication history')).toBeVisible();
+  await expect(page.getByText('OIDC subject (sub)')).toBeVisible();
   await page.goto('/me#oidc');
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
 });
@@ -89,8 +90,42 @@ test('authenticated Applications section exposes app and token management', asyn
   if (await app.count()) {
     await app.locator('summary').click();
     await expect(app.getByText('Scopes')).toBeVisible();
-    await expect(app.getByText('Tokens')).toBeVisible();
+    await expect(app.getByRole('heading', { name: 'Tokens' })).toBeVisible();
   }
+});
+
+test('existing tokens load when an application is opened and only one app list is fetched', async ({ page }) => {
+  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  const appId = `e2e-existing-token-${Date.now()}`;
+  await page.goto('/');
+  await page.evaluate(
+    async ({ secret, id }) => {
+      await fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } });
+      const app = await fetch('/oidc/clients', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, redirectUris: [`https://${id}.example/callback`], scopes: ['profile'] }),
+      });
+      if (!app.ok) throw new Error(`Could not create test app: ${app.status}`);
+      const token = await fetch(`/api-tokens/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ label: 'existing test token', scopes: ['profile'] }),
+      });
+      if (!token.ok) throw new Error(`Could not create test token: ${token.status}`);
+    },
+    { secret: process.env.AUTH_TEST_SECRET, id: appId },
+  );
+
+  let appListRequests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/oidc/clients' && request.method() === 'GET') appListRequests += 1;
+  });
+  await page.goto('/me#oidc');
+  const app = page.locator('details').filter({ hasText: appId });
+  await app.locator('summary').click();
+  await expect(app.getByText('existing test token')).toBeVisible();
+  expect(appListRequests).toBe(1);
 });
 
 test('Applications can create, show, list, revoke, and mark an API token', async ({ page }) => {
@@ -119,9 +154,14 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await expect(page.locator('[data-generated-token-value]')).toContainText('apphor_');
   await expect(app.getByText('e2e token')).toBeVisible();
 
-  await app.getByRole('button', { name: 'read:profile x' }).click();
-  await expect(app.getByText('read:profile', { exact: true })).toHaveCount(0);
-  await app.getByRole('button', { name: 'Revoke' }).click();
-  await expect(app.getByText(/^Revoked /)).toBeVisible();
-  await expect(app.getByText('Active')).toHaveCount(0);
+  await page.reload();
+  const reloadedApp = page.locator('details').filter({ hasText: appId });
+  await reloadedApp.locator('summary').click();
+  await expect(reloadedApp.getByText('e2e token')).toBeVisible();
+
+  await reloadedApp.getByRole('button', { name: 'read:profile x' }).click();
+  await expect(reloadedApp.getByText('read:profile', { exact: true })).toHaveCount(0);
+  await reloadedApp.getByRole('button', { name: 'Revoke' }).click();
+  await expect(reloadedApp.getByText(/^Revoked /)).toBeVisible();
+  await expect(reloadedApp.getByText('Active')).toHaveCount(0);
 });

@@ -157,7 +157,7 @@ export default function () {
 
   async function copyUserId() {
     await navigator.clipboard.writeText(user.value.id);
-    setMessage('User ID copied.');
+    setMessage('OIDC subject copied.');
     setTimeout(() => setMessage(''), 1800);
   }
 
@@ -208,9 +208,6 @@ export default function () {
     loadProfile().catch((reason) => setMessage(reason.message, true));
     getAuditEvents()
       .then((value) => (audit.value = value))
-      .catch(() => {});
-    getOidcClients()
-      .then((value) => (clients.value = value))
       .catch(() => {});
   }
   if (page === 'passkey') setTimeout(signIn, 0);

@@ -36,12 +36,14 @@
             <span class="text-xs font-extrabold tracking-[.18em] text-violet">ACCOUNT SECURITY</span>
             <h1 class="mt-1 text-3xl font-extrabold tracking-[-.03em]">Hello, {{ user.name }}</h1>
             <p class="text-slate-500">{{ user.email }}</p>
+            <p class="mt-2 text-xs font-semibold text-slate-500">OIDC subject (sub)</p>
             <button
               class="mt-2 inline-flex items-center gap-1 font-mono text-xs text-slate-400"
               on-click="copyUserId()"
+              title="Copy OIDC subject"
             >
               <span>{{ user.id }}</span><lucide-icon icon="copy" size="14"></lucide-icon
-              ><span class="sr-only">Copy user ID</span>
+              ><span class="sr-only">Copy OIDC subject</span>
             </button>
           </div>
         </section>

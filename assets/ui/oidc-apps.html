@@ -11,7 +11,7 @@
     <app-form bind-admin="admin" bind-form-open="formOpen" on-created="load()"></app-form>
     <div class="mt-3 grid gap-2">
       <template for="app of apps"
-        ><details class="rounded-xl border border-slate-200 p-3">
+        ><details class="rounded-xl border border-slate-200 p-3" on-toggle="loadTokens(app)">
           <summary class="cursor-pointer text-sm font-bold">{{ app.id }}</summary>
           <app-editor bind-app="app" bind-admin="admin"></app-editor>
         </details>
@@ -20,18 +20,24 @@
   </section>
   <script setup>
     import { ref } from '@li3/web';
-    import { getProfile, getTokenApps } from '/dashboard.mjs';
+    import { getApiTokens, getOidcClients, getProfile } from '/dashboard.mjs';
     export default function () {
       const apps = ref([]),
         admin = ref(false),
         formOpen = ref(false);
-      const load = async () => (apps.value = await getTokenApps());
+      const load = async () =>
+        (apps.value = (await getOidcClients()).map((app) => ({ ...app, tokens: [], tokensLoaded: false })));
+      const loadTokens = async (app) => {
+        if (app.tokensLoaded) return;
+        app.tokens = await getApiTokens(app.id);
+        app.tokensLoaded = true;
+      };
       const toggleForm = () => (formOpen.value = !formOpen.value);
       load();
       getProfile()
         .then((profile) => (admin.value = profile.role === 'admin'))
         .catch(() => {});
-      return { apps, admin, formOpen, load, toggleForm };
+      return { apps, admin, formOpen, load, loadTokens, toggleForm };
     }
   </script></template
 >
@@ -357,9 +363,9 @@
         </button>
       </div></template
     >
-    <p class="mt-2 text-sm text-slate-500" hidden="false" bind-hidden.bool="tokens.length > 0">No tokens yet.</p>
+    <p class="mt-2 text-sm text-slate-500" hidden="false" bind-hidden.bool="app.tokens.length > 0">No tokens yet.</p>
     <div class="mt-2 grid gap-2">
-      <template for="token of tokens"
+      <template for="token of app.tokens"
         ><article class="rounded-lg border border-slate-100 p-2 text-sm">
           <strong>{{ token.label }}</strong>
           <p class="text-slate-600">Created {{ token.createdAt }}</p>
@@ -374,18 +380,18 @@
     </div>
   </div>
   <script setup>
-    import { defineProp, hook, onInit, ref } from '@li3/web';
+    import { defineProp, hook, ref } from '@li3/web';
     import { createApiToken, getApiTokens, revokeApiToken } from '/dashboard.mjs';
     export default function () {
       const app = defineProp('app'),
-        tokens = ref([]),
         createdToken = ref(''),
         tokenScopes = ref([]),
         tokenError = ref(''),
         [tokenLabel, setTokenLabel] = hook('');
       const load = async () => {
         if (!app.value?.id) return;
-        tokens.value = await getApiTokens(app.value.id);
+        app.value.tokens = await getApiTokens(app.value.id);
+        app.value.tokensLoaded = true;
       };
       const toggleTokenScope = (scope) => {
         tokenScopes.value = tokenScopes.value.includes(scope)
@@ -415,10 +421,8 @@
         }
       };
       const copyToken = () => navigator.clipboard.writeText(createdToken.value);
-      onInit(load);
       return {
         app,
-        tokens,
         createdToken,
         tokenScopes,
         tokenError,

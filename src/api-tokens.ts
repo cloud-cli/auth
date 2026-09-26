@@ -39,7 +39,7 @@ export async function listApiTokens(userId: string, clientId?: string) {
   return tokens.map(({ tokenHash, label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
     tokenId: tokenHash,
     label,
-    scopes: scopes.filter((scope) => allowedScopes.has(scope)),
+    scopes: clientId ? scopes.filter((scope) => allowedScopes.has(scope)) : scopes,
     createdAt,
     expiresAt,
     lastUsedAt,

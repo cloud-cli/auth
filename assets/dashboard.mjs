@@ -213,14 +213,6 @@ export async function getSigningKeys() {
   return response.json();
 }
 
-export async function getTokenApps() {
-  const response = await fetch(new URL('/api-tokens/apps', authDomain), { credentials: 'include' });
-  if (response.ok) return response.json();
-  const fallback = await fetch(new URL('/oidc/clients', authDomain), { credentials: 'include' });
-  if (!fallback.ok) throw new Error('Could not load token apps');
-  return fallback.json();
-}
-
 export async function getApiTokens(clientId) {
   const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',
