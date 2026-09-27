@@ -640,7 +640,7 @@ app.get('/userinfo', tokenUser, async (req, res) => {
   res.json(userAsJSON(user));
 });
 app.get('/embed', serveUi('embed.html'));
-app.get('/me', protectedPage, serveUi('profile.html'));
+app.get('/me', protectedPage, serveUi('landing.html'));
 app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 
