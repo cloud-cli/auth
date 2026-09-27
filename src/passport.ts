@@ -47,7 +47,12 @@ const googleCallbackURL = String(new URL(googleCallback, authDomain));
 if (googleClientID && googleClientSecret) {
   passport.use(
     new GoogleStrategy(
-      { clientID: googleClientID, clientSecret: googleClientSecret, callbackURL: googleCallbackURL },
+      {
+        clientID: googleClientID,
+        clientSecret: googleClientSecret,
+        callbackURL: googleCallbackURL,
+        successRedirect: '/me',
+      },
       onUserSignIn,
     ),
   );
