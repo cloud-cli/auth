@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('landing page is available', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('Apphor Auth');
+  await expect(page).toHaveTitle('Auth');
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 });
 
@@ -151,7 +151,7 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await app.getByLabel('read:profile').check();
   await app.getByRole('button', { name: 'Generate token' }).click();
   await expect(page.locator('[data-generated-token]')).toBeVisible();
-  await expect(page.locator('[data-generated-token-value]')).toContainText('apphor_');
+  await expect(page.locator('[data-generated-token-value]')).toContainText('auth_');
   await expect(app.getByText('e2e token')).toBeVisible();
 
   await page.reload();

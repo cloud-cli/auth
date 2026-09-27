@@ -1,23 +1,23 @@
 <template component="dashboard-oidc"
-  ><section class="mt-3 rounded-2xl bg-white p-3 shadow-xl shadow-violet/5 sm:p-4">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <h2 class="text-xl font-extrabold tracking-[-.03em]">Applications</h2>
-      <template if="admin"
-        ><button class="rounded-xl bg-violet px-3 py-2 text-sm font-bold text-white sm:px-4" on-click="toggleForm()">
+  ><section class="mt-3 rounded-2xl bg-white p-3 shadow-xl shadow-violet/5 sm:p-4"
+    <template if="admin">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-xl font-extrabold tracking-[-.03em]">Applications</h2>
+        <button class="rounded-xl bg-violet px-3 py-2 text-sm font-bold text-white sm:px-4" on-click="toggleForm()">
           Add app
-        </button></template
-      >
-    </div>
-    <app-form bind-admin="admin" bind-form-open="formOpen" on-created="load()"></app-form>
-    <div class="mt-3 grid gap-2">
-      <template for="app of apps"
-        ><details class="rounded-xl border border-slate-200 p-3" on-toggle="loadTokens(app)">
-          <summary class="cursor-pointer text-sm font-bold">{{ app.id }}</summary>
-          <app-editor bind-app="app" bind-admin="admin"></app-editor>
-        </details>
-      </template>
-    </div>
-  </section>
+        </button>
+      </div>
+      <app-form bind-admin="admin" bind-form-open="formOpen" on-created="load()"></app-form>
+      <div class="mt-3 grid gap-2">
+        <template for="app of apps"
+          ><details class="rounded-xl border border-slate-200 p-3" on-toggle="loadTokens(app)">
+            <summary class="cursor-pointer text-sm font-bold">{{ app.id }}</summary>
+            <app-editor bind-app="app" bind-admin="admin"></app-editor>
+          </details>
+        </template>
+      </div>
+    </section>
+  </template>
   <script setup>
     import { ref } from '@li3/web';
     import { getApiTokens, getOidcClients, getProfile } from '/dashboard.mjs';

@@ -195,13 +195,8 @@ function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
 
 function serveUi(name: string) {
   return (_req, res) => {
-    const source =
-      name === 'profile.html'
-        ? uiAssets[name]
-            .replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
-            .replace('ACCOUNT SECURITY', '')
-        : uiAssets[name];
-    res.type('html').send(source.replaceAll('@apphor/', '@app/'));
+    const source = name === 'profile.html' ? uiAssets[name].replace('ACCOUNT SECURITY', '') : uiAssets[name];
+    res.type('html').send(source);
   };
 }
 
@@ -670,11 +665,10 @@ app.get('/ui/:asset', (req, res) => {
     ? 'text/css'
     : req.params.asset.endsWith('.svg')
       ? 'image/svg+xml'
-      : 'text/javascript';
-  const source =
-    req.params.asset === 'profile.html'
-      ? asset.replace('"@li3/":"https://cdn.li3.dev/@li3/"', '"@li3/":"https://cdn.li3.dev/@li3/","@apphor/":"/"')
-      : asset.replaceAll("from '/dashboard.mjs'", `from '${req.protocol}://${req.get('host')}/dashboard.mjs'`);
+      : req.params.asset.endsWith('.html')
+        ? 'text/html'
+        : 'text/javascript';
+  const source = asset.replaceAll("from '/dashboard.mjs'", `from '${req.protocol}://${req.get('host')}/dashboard.mjs'`);
   res
     .set('Cache-Control', 'no-store')
     .type(type)
@@ -689,7 +683,7 @@ app.get('/ui/:asset', (req, res) => {
                 .filter(Boolean),
             ),
           )
-        : source.replaceAll('@apphor/', '@app/'),
+        : source,
     );
 });
 

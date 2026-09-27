@@ -13,7 +13,7 @@ export async function createApiToken(userId: string, clientId: string, label: st
   if (!client) throw new Error('Unknown OIDC client');
   const allowed = new Set(client.scopes || []);
   if (!scopes.length || scopes.some((scope) => !allowed.has(scope))) throw new Error('Invalid token scope');
-  const token = 'apphor_' + randomBytes(32).toString('base64url');
+  const token = 'auth_' + randomBytes(32).toString('base64url');
   await run(
     'INSERT OR REPLACE INTO auth_api_token (token_hash, user_id, client_id, scopes, label, created_at, expires_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [

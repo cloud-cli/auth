@@ -1,7 +1,7 @@
 {
-  "name": "Apphor Auth QR",
+  "name": "Auth QR",
   "short_name": "Auth QR",
-  "description": "Approve Apphor sign-ins by scanning a QR code.",
+  "description": "Approve sign-ins by scanning a QR code.",
   "start_url": "/pwa/",
   "scope": "/pwa/",
   "display": "standalone",
