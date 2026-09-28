@@ -210,6 +210,7 @@ export default function () {
       .then((value) => (audit.value = value))
       .catch(() => {});
   }
+  if (page === 'account') loadProfile().catch((reason) => setMessage(reason.message, true));
   if (page === 'passkey') setTimeout(signIn, 0);
   // The profile document declares the navigation component directly.
   if (page === 'oidc')

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#7257f5" />
+    <link rel="manifest" href="/pwa/manifest.webmanifest" />
+    <title>Your profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = { theme: { extend: { colors: { ink: '#18213b', violet: '#7257f5' } } } };
+    </script>
+    <script type="importmap">
+      { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
+    </script>
+    <script type="module" src="/ui/app.mjs"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/pwa/sw.js', { scope: '/' }).catch(() => {});
+      }
+    </script>
+  </head>
+  <body data-page="account" class="min-h-dvh bg-violet/5 p-3 text-ink sm:p-4">
+    <template app
+      ><main class="mx-auto w-full max-w-2xl">
+        <header class="mb-4 flex min-h-11 items-center justify-between gap-3 border-b border-violet/10 pb-3">
+          <a class="flex items-center gap-2 text-sm font-black" href="/me"
+            ><lucide-icon icon="shield-check" size="16" icon-classes="text-violet"></lucide-icon>auth</a
+          ><a class="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold text-violet" href="/me"
+            >Back to dashboard</a
+          >
+        </header>
+        <section class="rounded-2xl bg-white p-4 shadow-md shadow-violet/5 sm:p-6">
+          <p class="text-xs font-bold uppercase tracking-[.14em] text-violet">Account</p>
+          <div class="mt-3 flex min-w-0 items-center gap-3">
+            <div
+              class="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-violet/10 text-xl font-bold text-violet"
+            >
+              {{ user.name.slice(0, 1).toUpperCase() }}<template if="user.photo"
+                ><img
+                  attr-src="user.photo"
+                  alt=""
+                  class="absolute inset-0 h-full w-full object-cover"
+                  on-error="$event.target.hidden = true"
+              /></template>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex min-w-0 items-start gap-2">
+                <h1 class="m-0 min-w-0 break-words text-xl font-extrabold leading-tight tracking-[-.03em] sm:text-2xl">
+                  {{ user.name }}
+                </h1>
+                <template if="user.role === 'admin'"
+                  ><span
+                    aria-label="Administrator"
+                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100"
+                    ><svg
+                      aria-hidden="true"
+                      class="h-4 w-4 text-amber-600"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="m2 7 5 5 5-7 5 7 5-5-2 12H4L2 7Z" />
+                      <path d="M4 19h16" /></svg></span
+                ></template>
+              </div>
+              <p class="mt-1 break-all text-sm text-slate-500 sm:break-normal sm:text-base">{{ user.email }}</p>
+            </div>
+          </div>
+          <div class="mt-5 border-t border-slate-100 pt-4">
+            <button
+              class="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-violet px-4 py-2 text-sm font-bold text-white sm:w-auto"
+              on-click="signOut()"
+            >
+              Sign out
+            </button>
+          </div>
+        </section>
+        <script setup src="/ui/app.mjs"></script></main
+    ></template>
+  </body>
+</html>

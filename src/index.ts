@@ -72,6 +72,7 @@ const uiAssets = Object.fromEntries(
     'passkey.html',
     'recovery.html',
     'profile.html',
+    'account.html',
     'qr-login.html',
     'pwa.html',
     'app.mjs',
@@ -87,6 +88,14 @@ const uiAssets = Object.fromEntries(
 function protectedRoute(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
     return res.status(401).send('');
+  }
+
+  next();
+}
+
+function protectedPage(req, res, next) {
+  if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
+    return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
   }
 
   next();
@@ -641,6 +650,7 @@ app.get('/userinfo', tokenUser, async (req, res) => {
 });
 app.get('/embed', serveUi('embed.html'));
 app.get('/me', serveAppEntry);
+app.get('/account', protectedPage, serveUi('account.html'));
 app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 

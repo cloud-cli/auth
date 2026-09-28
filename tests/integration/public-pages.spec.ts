@@ -46,6 +46,12 @@ test('profile API remains protected', async ({ request }) => {
   expect(response.status()).toBe(401);
 });
 
+test('account profile page redirects unauthenticated visitors to sign in', async ({ request }) => {
+  const response = await request.get('/account', { maxRedirects: 0 });
+  expect(response.status()).toBe(302);
+  expect(response.headers().location).toBe('/login?url=%2Faccount');
+});
+
 test('non-admin users cannot access application or token management', async ({ page }) => {
   test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
   await page.goto('/');
@@ -105,8 +111,8 @@ test('profile identity and passkeys stay compact at mobile widths', async ({ pag
 
   await page.goto('/me#security');
   await expect(page.getByText('Passkeys')).toBeVisible();
-  await expect(page.getByLabel('Administrator')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open account profile' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
 
   await page.setViewportSize({ width: 360, height: 800 });
   const narrowPageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
@@ -114,27 +120,47 @@ test('profile identity and passkeys stay compact at mobile widths', async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
 
   const layout = await page.evaluate(() => {
-    const heading = document.querySelector('h1').getBoundingClientRect();
-    const crown = document.querySelector('[aria-label="Administrator"]').getBoundingClientRect();
+    const profileCard = document.querySelector('a[aria-label="Open account profile"]').getBoundingClientRect();
     const passkeys = [...document.querySelectorAll('h2')].find((item) => item.textContent.trim() === 'Passkeys');
     const section = passkeys.closest('section');
-    const padding = getComputedStyle(section).paddingTop;
-    const noOverlap =
-      heading.right <= crown.left ||
-      crown.right <= heading.left ||
-      heading.bottom <= crown.top ||
-      crown.bottom <= heading.top;
     return {
       viewportWidth: window.innerWidth,
       documentWidth: document.documentElement.scrollWidth,
-      noOverlap,
-      passkeyPadding: Number.parseFloat(padding),
+      profileCardRight: profileCard.right,
+      passkeyPadding: Number.parseFloat(getComputedStyle(section).paddingTop),
     };
   });
 
   expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
-  expect(layout.noOverlap).toBeTruthy();
+  expect(layout.profileCardRight).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.passkeyPadding).toBeLessThanOrEqual(20);
+});
+
+test('header profile card opens a dedicated profile page with sign out', async ({ page }) => {
+  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.goto('/');
+  await page.evaluate(
+    async (secret) =>
+      fetch('/__test__/login', {
+        method: 'POST',
+        headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
+        body: JSON.stringify({ role: 'admin' }),
+      }),
+    process.env.AUTH_TEST_SECRET,
+  );
+
+  await page.goto('/me');
+  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Open account profile' }).click();
+  await expect(page).toHaveURL(/\/account$/);
+  await expect(page.getByRole('heading', { name: 'Integration Test User' })).toBeVisible();
+  await expect(page.getByText('integration@example.test')).toBeVisible();
+  await expect(page.getByLabel('Administrator')).toBeVisible();
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(pageErrors).toEqual([]);
 });
 
 test('authenticated Applications section exposes app and token management', async ({ page }) => {

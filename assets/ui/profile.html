@@ -34,67 +34,27 @@
           <a class="flex items-center gap-2 text-sm font-black" href="/me"
             ><lucide-icon icon="shield-check" size="16" icon-classes="text-violet"></lucide-icon>auth</a
           >
-          <div class="flex shrink-0 items-center gap-2">
-            <button
-              class="inline-flex min-h-10 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-violet/10 px-3 py-2 text-sm font-semibold text-violet"
-              on-click="signOut()"
+          <a
+            href="/account"
+            aria-label="Open account profile"
+            title="Open account profile"
+            class="ml-auto flex max-w-[70%] min-w-0 items-center gap-2 rounded-xl border border-violet/10 bg-white p-1.5 shadow-sm transition hover:border-violet/30"
+          >
+            <span
+              class="relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-violet/10 text-sm font-bold text-violet"
             >
-              <lucide-icon icon="log-out" size="14"></lucide-icon>Sign out
-            </button>
-          </div>
+              {{ user.name.slice(0, 1).toUpperCase() }}<template if="user.photo"
+                ><img
+                  attr-src="user.photo"
+                  alt=""
+                  class="absolute inset-0 h-full w-full object-cover"
+                  on-error="$event.target.hidden = true"
+              /></template>
+            </span>
+            <span class="min-w-0 truncate text-xs font-semibold sm:text-sm">{{ user.name }}</span>
+            <span class="hidden min-w-0 truncate text-xs text-slate-500 md:block">{{ user.email }}</span>
+          </a>
         </header>
-        <section class="mb-3 flex min-w-0 items-center gap-3 rounded-2xl bg-white p-3 shadow-sm shadow-violet/5 sm:p-4">
-          <div class="relative mt-1 h-11 w-11 shrink-0 overflow-hidden rounded-full bg-violet/10 sm:h-12 sm:w-12">
-            <span aria-hidden="true" class="absolute inset-0 grid place-items-center text-lg font-bold text-violet"
-              >{{ user.name.slice(0, 1).toUpperCase() }}</span
-            ><template if="user.photo"
-              ><img
-                attr-src="user.photo"
-                alt=""
-                class="relative z-10 h-full w-full object-cover"
-                on-error="$event.target.hidden = true"
-            /></template>
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="flex min-w-0 items-start gap-2">
-              <h1
-                class="m-0 min-w-0 flex-1 break-words text-lg font-extrabold leading-tight tracking-[-.03em] sm:text-xl"
-              >
-                Hello, {{ user.name }}
-              </h1>
-              <template if="user.role === 'admin'"
-                ><span
-                  aria-label="Administrator"
-                  class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-base leading-none"
-                  ><svg
-                    aria-hidden="true"
-                    class="h-4 w-4 text-amber-600"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="m2 7 5 5 5-7 5 7 5-5-2 12H4L2 7Z" />
-                    <path d="M4 19h16" /></svg></span
-              ></template>
-            </div>
-            <div class="mt-1 flex min-w-0 items-center gap-1">
-              <p class="min-w-0 flex-1 break-all text-sm text-slate-500 sm:break-normal sm:text-base">
-                {{ user.email }}
-              </p>
-              <button
-                class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-violet/5 hover:text-violet"
-                on-click="copyUserId()"
-                title="Copy OIDC subject"
-                aria-label="Copy OIDC subject"
-              >
-                <lucide-icon icon="copy" size="15"></lucide-icon>
-              </button>
-            </div>
-          </div>
-        </section>
         <auth-nav></auth-nav><template if="section === 'security'"><dashboard-security></dashboard-security></template
         ><template if="section === 'properties'"><dashboard-properties></dashboard-properties></template
         ><template if="section === 'activity'"><dashboard-activity></dashboard-activity></template
