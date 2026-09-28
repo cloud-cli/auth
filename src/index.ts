@@ -92,14 +92,6 @@ function protectedRoute(req, res, next) {
   next();
 }
 
-function protectedPage(req, res, next) {
-  if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
-    return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
-  }
-
-  next();
-}
-
 function protectedRouteWithRedirect(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
     const returnUrl = req.get('referrer') || req.get('referer');
@@ -200,6 +192,11 @@ function serveUi(name: string) {
   };
 }
 
+function serveAppEntry(req, res) {
+  const authenticated = Boolean(req.isAuthenticated?.() && req.user?.id);
+  return serveUi(authenticated ? 'profile.html' : 'landing.html')(req, res);
+}
+
 const googleScopes = {
   scope: ['profile', 'email'],
   failureRedirect: '/login',
@@ -221,7 +218,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/', serveUi('landing.html'));
+app.get('/', serveAppEntry);
 app.get('/profile', browserCors, protectedRouteWithRedirect, async (req, res) => {
   const user = await findByUserId(req.user?.id);
   if (user) {
@@ -236,6 +233,7 @@ if (__TEST__) {
     if (!process.env.AUTH_TEST_SECRET || req.get('x-test-secret') !== process.env.AUTH_TEST_SECRET)
       return res.sendStatus(404);
     const userId = process.env.AUTH_TEST_USER_ID || 'integration-test-user';
+    const role = req.body?.role === 'admin' ? 'admin' : 'user';
     let user = await findByUserId(userId);
     if (!user) {
       user = {
@@ -247,8 +245,12 @@ if (__TEST__) {
         email: 'integration@example.test',
         photo: '',
         lastSeen: new Date().toISOString(),
-        role: 'user',
+        role,
       };
+      const { saveUser } = await import('./database.js');
+      await saveUser(user);
+    } else if (user.role !== role) {
+      user.role = role;
       const { saveUser } = await import('./database.js');
       await saveUser(user);
     }
@@ -351,9 +353,7 @@ app.post('/qr-login/deny', express.json(), protectedRoute, async (req, res) => {
   }
 });
 app.get('/pwa/', serveUi('pwa.html'));
-app.get('/pwa/sw.js', (_req, res) =>
-  res.type('javascript').set('Service-Worker-Allowed', '/pwa/').send(pwaServiceWorker),
-);
+app.get('/pwa/sw.js', (_req, res) => res.type('javascript').set('Service-Worker-Allowed', '/').send(pwaServiceWorker));
 app.get('/pwa/manifest.webmanifest', (_req, res) =>
   res.type('application/manifest+json').send(uiAssets['manifest.webmanifest']),
 );
@@ -640,12 +640,7 @@ app.get('/userinfo', tokenUser, async (req, res) => {
   res.json(userAsJSON(user));
 });
 app.get('/embed', serveUi('embed.html'));
-app.get('/me', (req, res) => {
-  if (req.isAuthenticated?.()) {
-    return res.type('html').send(uiAssets['profile.html']);
-  }
-  return res.type('html').send(uiAssets['landing.html']);
-});
+app.get('/me', serveAppEntry);
 app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 

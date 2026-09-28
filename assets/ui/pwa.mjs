@@ -57,6 +57,6 @@ export default function () {
     requestAnimationFrame(() => frame().catch((error) => (message.value = error.message)));
   };
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/pwa/sw.js');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/pwa/sw.js', { scope: '/' });
   return { video, message, approved, installAvailable, install, scan };
 }

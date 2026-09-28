@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta name="theme-color" content="#7257f5">
-<link rel="manifest" href="/pwa/manifest.webmanifest">
+    <meta name="theme-color" content="#7257f5" />
+    <link rel="manifest" href="/pwa/manifest.webmanifest" />
     <title>Your account</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -21,12 +21,12 @@
     <link rel="component" href="/ui/keys.html" />
     <link rel="component" href="/ui/tokens.html" />
     <script type="module" src="/ui/app.mjs"></script>
-  <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/pwa/sw.js').catch(()=>{});
-}
-</script>
-</head>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/pwa/sw.js', { scope: '/' }).catch(() => {});
+      }
+    </script>
+  </head>
   <body data-page="profile" class="min-h-dvh bg-violet/5 p-5 text-ink">
     <template app
       ><main class="mx-auto max-w-4xl">
@@ -45,14 +45,14 @@ if ('serviceWorker' in navigator) {
             attr-src="user.photo"
             alt=""
             class="h-12 w-12 rounded-full bg-violet/10 object-cover relative"
-            style="transform: rotate(-15deg); transform-origin: center center;"
+            style="transform: rotate(-15deg); transform-origin: center center"
           />
           <div class="relative">
             <span class="text-xs font-extrabold tracking-[.18em] text-violet">ACCOUNT SECURITY</span>
             <h1 class="mt-0 text-xl font-extrabold tracking-[-.03em]">Hello, {{ user.name }}</h1>
             <p class="text-slate-500">{{ user.email }}</p>
             <template if="user.role === 'admin'">
-              <span class="absolute top-1 right-1 text-xl" style="transform: rotate(15deg);">👑</span>
+              <span class="absolute top-1 right-1 text-xl" style="transform: rotate(15deg)">👑</span>
             </template>
             <button
               class="mt-1 inline-flex items-center gap-1 font-mono text-xs text-slate-400"

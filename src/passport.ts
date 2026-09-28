@@ -51,7 +51,6 @@ if (googleClientID && googleClientSecret) {
         clientID: googleClientID,
         clientSecret: googleClientSecret,
         callbackURL: googleCallbackURL,
-        successRedirect: '/me',
       },
       onUserSignIn,
     ),

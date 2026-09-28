@@ -1,5 +1,5 @@
 <template component="dashboard-oidc"
-  ><section class="mt-3 rounded-2xl bg-white p-3 shadow-xl shadow-violet/5 sm:p-4"
+  ><section class="mt-3 rounded-2xl bg-white p-3 shadow-xl shadow-violet/5 sm:p-4">
     <template if="admin">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h2 class="text-xl font-extrabold tracking-[-.03em]">Applications</h2>
@@ -16,8 +16,8 @@
           </details>
         </template>
       </div>
-    </section>
-  </template>
+    </template>
+  </section>
   <script setup>
     import { ref } from '@li3/web';
     import { getApiTokens, getOidcClients, getProfile } from '/dashboard.mjs';

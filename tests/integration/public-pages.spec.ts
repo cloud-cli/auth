@@ -4,6 +4,9 @@ test('landing page is available', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Auth');
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  await page.goto('/me');
+  await expect(page).toHaveTitle('Auth');
+  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 });
 
 test('login page exposes supported sign-in methods', async ({ page }) => {
@@ -17,6 +20,11 @@ test('PWA has install metadata and scanner UI', async ({ page }) => {
   await page.goto('/pwa/');
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/pwa/manifest.webmanifest');
   await expect(page.getByRole('button', { name: 'Scan QR code' })).toBeVisible();
+  const manifest = await page.request.get('/pwa/manifest.webmanifest').then((response) => response.json());
+  expect(manifest.start_url).toBe('/me');
+  expect(manifest.scope).toBe('/');
+  const serviceWorker = await page.request.get('/pwa/sw.js');
+  expect(serviceWorker.headers()['service-worker-allowed']).toBe('/');
 });
 
 test('public modules and OpenAPI are served', async ({ request }) => {
@@ -52,7 +60,7 @@ test('non-admin users cannot access application or token management', async ({ p
       fetch('/api-tokens/example').then((response) => response.status),
     ]),
   );
-  expect(responses).toEqual([403, 404, 403]);
+  expect(responses).toEqual([403, 403, 403]);
 });
 
 test('test-only session can access the dashboard sections', async ({ page }) => {
@@ -60,19 +68,23 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   await page.goto('/');
   const response = await page.evaluate(
     async (secret) =>
-      fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }).then(
-        (result) => result.status,
-      ),
+      fetch('/__test__/login', {
+        method: 'POST',
+        headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
+        body: JSON.stringify({ role: 'admin' }),
+      }).then((result) => result.status),
     process.env.AUTH_TEST_SECRET,
   );
   expect(response).toBe(204);
+  await page.goto('/');
+  await expect(page.getByText('Passkeys')).toBeVisible();
   await page.goto('/me#security');
   await expect(page.getByText('Passkeys')).toBeVisible();
   await page.goto('/me#properties');
   await expect(page.getByRole('heading', { name: 'Properties' })).toBeVisible();
   await page.goto('/me#activity');
   await expect(page.getByText('Authentication history')).toBeVisible();
-  await expect(page.getByText('OIDC subject (sub)')).toBeVisible();
+  await expect(page.getByTitle('Copy OIDC subject')).toBeVisible();
   await page.goto('/me#oidc');
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
 });
@@ -81,7 +93,12 @@ test('authenticated Applications section exposes app and token management', asyn
   test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
   await page.goto('/');
   await page.evaluate(
-    async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }),
+    async (secret) =>
+      fetch('/__test__/login', {
+        method: 'POST',
+        headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
+        body: JSON.stringify({ role: 'admin' }),
+      }),
     process.env.AUTH_TEST_SECRET,
   );
   await page.goto('/me#oidc');
@@ -100,7 +117,11 @@ test('existing tokens load when an application is opened and only one app list i
   await page.goto('/');
   await page.evaluate(
     async ({ secret, id }) => {
-      await fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } });
+      await fetch('/__test__/login', {
+        method: 'POST',
+        headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
+        body: JSON.stringify({ role: 'admin' }),
+      });
       const app = await fetch('/oidc/clients', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -133,7 +154,12 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   const appId = `e2e-token-${Date.now()}`;
   await page.goto('/');
   await page.evaluate(
-    async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }),
+    async (secret) =>
+      fetch('/__test__/login', {
+        method: 'POST',
+        headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
+        body: JSON.stringify({ role: 'admin' }),
+      }),
     process.env.AUTH_TEST_SECRET,
   );
   await page.goto('/me#oidc');
