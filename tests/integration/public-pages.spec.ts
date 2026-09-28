@@ -89,6 +89,54 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
 });
 
+test('profile identity and passkeys stay compact at mobile widths', async ({ page }) => {
+  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.evaluate(
+    async (secret) =>
+      fetch('/__test__/login', {
+        method: 'POST',
+        headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
+        body: JSON.stringify({ role: 'admin' }),
+      }),
+    process.env.AUTH_TEST_SECRET,
+  );
+
+  await page.goto('/me#security');
+  await expect(page.getByText('Passkeys')).toBeVisible();
+  await expect(page.getByLabel('Administrator')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  const narrowPageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(narrowPageWidth).toBeLessThanOrEqual(360);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  const layout = await page.evaluate(() => {
+    const heading = document.querySelector('h1').getBoundingClientRect();
+    const crown = document.querySelector('[aria-label="Administrator"]').getBoundingClientRect();
+    const passkeys = [...document.querySelectorAll('h2')].find((item) => item.textContent.trim() === 'Passkeys');
+    const section = passkeys.closest('section');
+    const padding = getComputedStyle(section).paddingTop;
+    const noOverlap =
+      heading.right <= crown.left ||
+      crown.right <= heading.left ||
+      heading.bottom <= crown.top ||
+      crown.bottom <= heading.top;
+    return {
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      noOverlap,
+      passkeyPadding: Number.parseFloat(padding),
+    };
+  });
+
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.noOverlap).toBeTruthy();
+  expect(layout.passkeyPadding).toBeLessThanOrEqual(20);
+});
+
 test('authenticated Applications section exposes app and token management', async ({ page }) => {
   test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
   await page.goto('/');
