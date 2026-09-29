@@ -85,6 +85,10 @@ export default function () {
     }
   }
 
+  function setTestKey(value) {
+    testKey.value = value;
+  }
+
   async function loadProfile() {
     const profile = await getProfile();
     user.value = profile;
@@ -267,6 +271,7 @@ export default function () {
     recoveryUrl,
     testLoginEnabled,
     testKey,
+    setTestKey,
     status,
     approved,
     signIn,
