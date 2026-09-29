@@ -1,4 +1,5 @@
 import express from 'express';
+import { createHash, timingSafeEqual } from 'crypto';
 import { readFileSync } from 'fs';
 import migrate from '../db/migrations/003_add_user_roles.js';
 import { findByEmail, findByUserId, userAsJSON } from './user.js';
@@ -196,9 +197,35 @@ function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
 
 function serveUi(name: string) {
   return (_req, res) => {
-    const source = name === 'profile.html' ? uiAssets[name].replace('ACCOUNT SECURITY', '') : uiAssets[name];
+    let source = name === 'profile.html' ? uiAssets[name].replace('ACCOUNT SECURITY', '') : uiAssets[name];
+    if (name === 'login.html') {
+      source = source.replace('__TEST_LOGIN_ENABLED__', testLoginEnabled ? 'true' : 'false');
+    }
     res.type('html').send(source);
   };
+}
+
+const testLoginEnabled = Boolean(process.env.AUTH_TEST_KEYS || process.env.AUTH_TEST_SECRET);
+
+function configuredTestKeys() {
+  return (process.env.AUTH_TEST_KEYS || process.env.AUTH_TEST_SECRET || '')
+    .split(',')
+    .map((key) => key.trim())
+    .filter(Boolean);
+}
+
+function testKeyHash(key: string) {
+  return createHash('sha256').update(key).digest();
+}
+
+function isConfiguredTestKey(key: string) {
+  if (!key) return false;
+  const candidate = testKeyHash(key);
+  return configuredTestKeys().some((configured) => timingSafeEqual(candidate, testKeyHash(configured)));
+}
+
+function testUserId(key: string) {
+  return `test-${testKeyHash(key).toString('hex')}`;
 }
 
 function serveAppEntry(req, res) {
@@ -237,40 +264,46 @@ app.get('/profile', browserCors, protectedRouteWithRedirect, async (req, res) =>
 
   res.status(404).send('{}');
 });
-if (__TEST__) {
-  app.post('/__test__/login', express.json(), async (req, res) => {
-    if (!process.env.AUTH_TEST_SECRET || req.get('x-test-secret') !== process.env.AUTH_TEST_SECRET)
-      return res.sendStatus(404);
-    const userId = process.env.AUTH_TEST_USER_ID || 'integration-test-user';
-    const role = req.body?.role === 'admin' ? 'admin' : 'user';
-    let user = await findByUserId(userId);
-    if (!user) {
-      user = {
-        userId,
-        profileId: 'integration-test-profile',
-        accessToken: '',
-        refreshToken: '',
-        name: 'Integration Test User',
-        email: 'integration@example.test',
-        photo: '',
-        lastSeen: new Date().toISOString(),
-        role,
-      };
-      const { saveUser } = await import('./database.js');
-      await saveUser(user);
-    } else if (user.role !== role) {
-      user.role = role;
-      const { saveUser } = await import('./database.js');
-      await saveUser(user);
-    }
-    req.login(userAsJSON(user), (error) => {
-      if (error) return res.status(500).send('Could not create test session');
-      req.session.save((saveError) =>
-        saveError ? res.status(500).send('Could not persist test session') : res.status(204).send(''),
-      );
-    });
+app.post('/__test__/login', express.json(), async (req, res) => {
+  if (!testLoginEnabled) return res.sendStatus(404);
+
+  const authorization = req.get('authorization') || '';
+  const bearerKey = authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length).trim() : '';
+  const key = bearerKey || req.get('x-test-secret') || String(req.body?.key || '');
+  if (!isConfiguredTestKey(key)) return res.status(401).json({ error: 'Invalid test key' });
+
+  const userId = testUserId(key);
+  const role = req.body?.role === 'admin' ? 'admin' : 'user';
+  let user = await findByUserId(userId);
+  if (!user) {
+    user = {
+      userId,
+      profileId: `test-profile-${testKeyHash(key).toString('hex')}`,
+      accessToken: '',
+      refreshToken: '',
+      name: 'John Doe',
+      email: `john.doe+${testKeyHash(key).toString('hex').slice(0, 12)}@example.test`,
+      photo: '',
+      lastSeen: new Date().toISOString(),
+      role,
+    };
+    const { saveUser } = await import('./database.js');
+    await saveUser(user);
+  } else if (user.role !== role) {
+    user.role = role;
+    user.lastSeen = new Date().toISOString();
+    const { saveUser } = await import('./database.js');
+    await saveUser(user);
+  }
+
+  await recordAudit({ userId, event: 'test-authentication', app: 'Test login', result: 'success' });
+  req.login(userAsJSON(user), (error) => {
+    if (error) return res.status(500).send('Could not create test session');
+    req.session.save((saveError) =>
+      saveError ? res.status(500).send('Could not persist test session') : res.status(204).send(''),
+    );
   });
-}
+});
 app.head('/profile', browserCors, protectedRoute, (_req, res) => {
   res.status(204).send('');
 });

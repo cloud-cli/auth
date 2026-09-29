@@ -20,8 +20,14 @@ Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved p
 | AUTH_ALLOWED_ORIGINS | Comma-separated browser origins allowed to request JWTs      | for browser JWTs |
 | AUTH_NAME            | Relying-party name shown during passkey registration         | false            |
 | QR_LOGIN_TTL_SECONDS | QR approval lifetime from 60 to 600 seconds, defaults to 300 | false            |
+| AUTH_TEST_KEYS       | Comma-separated API keys enabling the test login environment | false            |
 
 `AUTH_DOMAIN` must use HTTPS in production. WebAuthn, camera access, and the installable PWA require a secure context.
+
+For an isolated integration-test deployment, set `AUTH_TEST_KEYS` to one or more test API keys. This replaces the
+normal login methods with a test-key form. Each key creates its own stable `John Doe` profile, so parallel test suites
+can use different keys without sharing data. `AUTH_TEST_SECRET` is also accepted as a backwards-compatible single-key
+alias. This mode is intentionally an authentication bypass and must never be enabled on a production deployment.
 
 Get the client ID and secret from [Google API console](https://console.cloud.google.com/apis/credentials)
 

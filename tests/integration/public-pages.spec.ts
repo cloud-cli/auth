@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
+
 test('landing page is available', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Auth');
@@ -9,11 +11,17 @@ test('landing page is available', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 });
 
-test('login page exposes supported sign-in methods', async ({ page }) => {
+test('login page exposes the configured sign-in method', async ({ page }) => {
   await page.goto('/login');
-  await expect(page.getByText('Continue with Google')).toBeVisible();
-  await expect(page.getByText('Use a passkey')).toBeVisible();
-  await expect(page.getByText('Approve on phone')).toBeVisible();
+  if (testKey) {
+    await expect(page.getByLabel('Test API key')).toBeVisible();
+    await expect(page.getByText('Continue with Google')).toHaveCount(0);
+    await expect(page.getByText('Use a passkey')).toHaveCount(0);
+  } else {
+    await expect(page.getByText('Continue with Google')).toBeVisible();
+    await expect(page.getByText('Use a passkey')).toBeVisible();
+    await expect(page.getByText('Approve on phone')).toBeVisible();
+  }
 });
 
 test('PWA has install metadata and scanner UI', async ({ page }) => {
@@ -53,11 +61,11 @@ test('account profile page redirects unauthenticated visitors to sign in', async
 });
 
 test('non-admin users cannot access application or token management', async ({ page }) => {
-  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  test.skip(!testKey, 'Requires a test-enabled deployment');
   await page.goto('/');
   await page.evaluate(
     async (secret) => fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } }),
-    process.env.AUTH_TEST_SECRET,
+    testKey,
   );
   const responses = await page.evaluate(async () =>
     Promise.all([
@@ -70,7 +78,7 @@ test('non-admin users cannot access application or token management', async ({ p
 });
 
 test('test-only session can access the dashboard sections', async ({ page }) => {
-  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  test.skip(!testKey, 'Requires a test-enabled deployment');
   await page.goto('/');
   const response = await page.evaluate(
     async (secret) =>
@@ -79,7 +87,7 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
         headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
         body: JSON.stringify({ role: 'admin' }),
       }).then((result) => result.status),
-    process.env.AUTH_TEST_SECRET,
+    testKey,
   );
   expect(response).toBe(204);
   await page.goto('/');
@@ -96,7 +104,7 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
 });
 
 test('profile identity and passkeys stay compact at mobile widths', async ({ page }) => {
-  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  test.skip(!testKey, 'Requires a test-enabled deployment');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.evaluate(
@@ -106,7 +114,7 @@ test('profile identity and passkeys stay compact at mobile widths', async ({ pag
         headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
         body: JSON.stringify({ role: 'admin' }),
       }),
-    process.env.AUTH_TEST_SECRET,
+    testKey,
   );
 
   await page.goto('/me#security');
@@ -137,7 +145,7 @@ test('profile identity and passkeys stay compact at mobile widths', async ({ pag
 });
 
 test('header profile card opens a dedicated profile page with sign out', async ({ page }) => {
-  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  test.skip(!testKey, 'Requires a test-enabled deployment');
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/');
@@ -148,15 +156,15 @@ test('header profile card opens a dedicated profile page with sign out', async (
         headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
         body: JSON.stringify({ role: 'admin' }),
       }),
-    process.env.AUTH_TEST_SECRET,
+    testKey,
   );
 
   await page.goto('/me');
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Open account profile' }).click();
   await expect(page).toHaveURL(/\/account$/);
-  await expect(page.getByRole('heading', { name: 'Integration Test User' })).toBeVisible();
-  await expect(page.getByText('integration@example.test')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
+  await expect(page.getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
   await expect(page.getByLabel('Administrator')).toBeVisible();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -164,7 +172,7 @@ test('header profile card opens a dedicated profile page with sign out', async (
 });
 
 test('authenticated Applications section exposes app and token management', async ({ page }) => {
-  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  test.skip(!testKey, 'Requires a test-enabled deployment');
   await page.goto('/');
   await page.evaluate(
     async (secret) =>
@@ -173,7 +181,7 @@ test('authenticated Applications section exposes app and token management', asyn
         headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
         body: JSON.stringify({ role: 'admin' }),
       }),
-    process.env.AUTH_TEST_SECRET,
+    testKey,
   );
   await page.goto('/me#oidc');
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
@@ -186,7 +194,7 @@ test('authenticated Applications section exposes app and token management', asyn
 });
 
 test('existing tokens load when an application is opened and only one app list is fetched', async ({ page }) => {
-  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  test.skip(!testKey, 'Requires a test-enabled deployment');
   const appId = `e2e-existing-token-${Date.now()}`;
   await page.goto('/');
   await page.evaluate(
@@ -209,7 +217,7 @@ test('existing tokens load when an application is opened and only one app list i
       });
       if (!token.ok) throw new Error(`Could not create test token: ${token.status}`);
     },
-    { secret: process.env.AUTH_TEST_SECRET, id: appId },
+    { secret: testKey, id: appId },
   );
 
   let appListRequests = 0;
@@ -224,7 +232,7 @@ test('existing tokens load when an application is opened and only one app list i
 });
 
 test('Applications can create, show, list, revoke, and mark an API token', async ({ page }) => {
-  test.skip(!process.env.AUTH_TEST_SECRET, 'Requires a test-enabled deployment');
+  test.skip(!testKey, 'Requires a test-enabled deployment');
   const appId = `e2e-token-${Date.now()}`;
   await page.goto('/');
   await page.evaluate(
@@ -234,7 +242,7 @@ test('Applications can create, show, list, revoke, and mark an API token', async
         headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
         body: JSON.stringify({ role: 'admin' }),
       }),
-    process.env.AUTH_TEST_SECRET,
+    testKey,
   );
   await page.goto('/me#oidc');
   await page.getByRole('button', { name: 'Add app' }).click();

@@ -18,6 +18,7 @@ import {
 } from '/dashboard.mjs';
 
 const page = document.body.dataset.page;
+const testLoginEnabled = document.body.dataset.testLogin === 'true';
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
 document.querySelectorAll('lucide-icon[icon="trash-2"]').forEach((icon) => icon.setAttribute('icon', 'trash'));
 
@@ -34,6 +35,7 @@ export default function () {
   const qrUrl = ref('/qr-login?url=' + encodeURIComponent(value('url') || '/me'));
   const passkeyUrl = ref('/webauthn/login?url=' + encodeURIComponent(value('url') || '/me'));
   const recoveryUrl = ref('/recovery?url=' + encodeURIComponent(value('url') || '/me'));
+  const testKey = ref('');
   const status = ref('Preparing a secure connection...');
   const approved = ref(false);
   const clientId = templateRef('clientId');
@@ -59,6 +61,25 @@ export default function () {
       setTimeout(() => (location.href = value('url') || '/me'), 450);
     } catch (reason) {
       setMessage(reason.message || 'Passkey sign-in was cancelled.', true);
+    } finally {
+      busy.value = false;
+    }
+  }
+
+  async function testLogin() {
+    busy.value = true;
+    setMessage('Signing in...');
+    try {
+      const response = await fetch('/__test__/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ key: testKey.value }),
+      });
+      if (!response.ok) throw new Error(response.status === 401 ? 'Invalid test API key.' : 'Could not sign in.');
+      location.href = value('url') || '/me';
+    } catch (reason) {
+      setMessage(reason.message || 'Could not sign in.', true);
     } finally {
       busy.value = false;
     }
@@ -244,9 +265,12 @@ export default function () {
     qrUrl,
     passkeyUrl,
     recoveryUrl,
+    testLoginEnabled,
+    testKey,
     status,
     approved,
     signIn,
+    testLogin,
     addPasskey,
     revoke,
     recoveryCodes,
