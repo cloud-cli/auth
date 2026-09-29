@@ -273,7 +273,7 @@ app.post('/__test__/login', express.json(), async (req, res) => {
   if (!isConfiguredTestKey(key)) return res.status(401).json({ error: 'Invalid test key' });
 
   const userId = testUserId(key);
-  const role = req.body?.role === 'admin' ? 'admin' : 'user';
+  const role = 'admin';
   let user = await findByUserId(userId);
   if (!user) {
     user = {

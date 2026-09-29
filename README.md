@@ -25,9 +25,10 @@ Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved p
 `AUTH_DOMAIN` must use HTTPS in production. WebAuthn, camera access, and the installable PWA require a secure context.
 
 For an isolated integration-test deployment, set `AUTH_TEST_KEYS` to one or more test API keys. This replaces the
-normal login methods with a test-key form. Each key creates its own stable `John Doe` profile, so parallel test suites
-can use different keys without sharing data. `AUTH_TEST_SECRET` is also accepted as a backwards-compatible single-key
-alias. This mode is intentionally an authentication bypass and must never be enabled on a production deployment.
+normal login methods with a test-key form. Each key creates its own stable administrator `John Doe` profile, so parallel
+test suites can use different keys without sharing data. `AUTH_TEST_SECRET` is also accepted as a backwards-compatible
+single-key alias. This mode is intentionally an authentication bypass and must never be enabled on a production
+deployment.
 
 Get the client ID and secret from [Google API console](https://console.cloud.google.com/apis/credentials)
 

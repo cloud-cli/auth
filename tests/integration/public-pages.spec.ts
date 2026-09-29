@@ -60,7 +60,7 @@ test('account profile page redirects unauthenticated visitors to sign in', async
   expect(response.headers().location).toBe('/login?url=%2Faccount');
 });
 
-test('non-admin users cannot access application or token management', async ({ page }) => {
+test('test users can access application and token management', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   await page.goto('/');
   await page.evaluate(
@@ -74,7 +74,7 @@ test('non-admin users cannot access application or token management', async ({ p
       fetch('/api-tokens/example').then((response) => response.status),
     ]),
   );
-  expect(responses).toEqual([403, 403, 403]);
+  expect(responses).toEqual([200, 200, 200]);
 });
 
 test('test-only session can access the dashboard sections', async ({ page }) => {
