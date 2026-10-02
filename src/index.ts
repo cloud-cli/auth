@@ -28,6 +28,7 @@ import {
   isOidcClient,
   listManagedClients,
   removeManagedClient,
+  regenerateManagedClientSecret,
   tokenResponse,
   updateManagedClientRedirectUris,
   updateManagedClientScopes,
@@ -523,6 +524,17 @@ app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (re
 app.delete('/oidc/clients/:id', adminRoute, async (req, res) =>
   res.sendStatus((await removeManagedClient(req.params.id)) ? 204 : 404),
 );
+
+app.put('/oidc/clients/:id/secret', adminRoute, express.json(), async (req, res) => {
+  try {
+    const result = await regenerateManagedClientSecret(req.params.id);
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === 'Client not found') return res.status(404).json({ error: message });
+    res.status(400).json({ error: message });
+  }
+});
 app.post('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
   try {
     res.json({

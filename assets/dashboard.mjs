@@ -156,6 +156,16 @@ export async function removeOidcClient(id) {
   if (!response.ok) throw new Error('Could not remove OIDC client');
 }
 
+export async function regenerateOidcClientSecret(id) {
+  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/secret', authDomain), {
+    credentials: 'include',
+    method: 'PUT',
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not regenerate OIDC client secret');
+  return result;
+}
+
 export async function addOidcScopes(id, scopes) {
   const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), {
     credentials: 'include',

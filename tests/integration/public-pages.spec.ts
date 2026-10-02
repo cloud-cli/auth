@@ -273,3 +273,93 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await expect(reloadedApp.getByText(/^Revoked /)).toBeVisible();
   await expect(reloadedApp.getByText('Active')).toHaveCount(0);
 });
+
+test('OIDC client deletion without admin access returns 403', async ({ request }) => {
+  const response = await request.delete('/oidc/clients/some-client-id');
+  expect(response.status()).toBe(403);
+});
+
+test('OIDC client secret regeneration without admin access returns 403', async ({ request }) => {
+  const response = await request.put('/oidc/clients/some-client-id/secret', {
+    json: {},
+  });
+  expect(response.status()).toBe(403);
+});
+
+test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  const secret = testKey!;
+  const appId = `e2e-regenerate-${Date.now()}`;
+
+  await page.goto('/');
+  const loginStatus = await page.evaluate(async (s) => {
+    const response = await fetch('/__test__/login', {
+      method: 'POST',
+      headers: { 'x-test-secret': s, 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'admin' }),
+    });
+    return response.status;
+  }, secret);
+  expect(loginStatus).toBe(204);
+
+  const created = await page.evaluate(
+    async ({ id }) => {
+      const response = await fetch('/oidc/clients', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, redirectUris: ['https://' + id + '.example/callback'], scopes: ['profile'] }),
+      });
+      if (!response.ok) throw new Error(`Create app failed: ${response.status}`);
+      return response.json();
+    },
+    { id: appId },
+  );
+  try {
+    const createdToken = await page.evaluate(async (id) => {
+      const response = await fetch(`/api-tokens/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ label: 'delete cleanup test', scopes: ['profile'] }),
+      });
+      if (!response.ok) throw new Error(`Create token failed: ${response.status}`);
+      return response.json();
+    }, appId);
+    expect(createdToken.token).toBeTruthy();
+
+    await page.goto('/me#oidc');
+    await expect(page.locator('summary').filter({ hasText: appId })).toBeVisible();
+    const card = page.locator('article').filter({ hasText: appId });
+
+    const secretResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === `/oidc/clients/${appId}/secret` && response.request().method() === 'PUT';
+    });
+    page.once('dialog', (dialog) => dialog.accept());
+    await card.getByRole('button', { name: 'Regenerate secret' }).click();
+    const secretResponse = await secretResponsePromise;
+    expect(secretResponse.status()).toBe(200);
+    const regenerated = await secretResponse.json();
+    expect(regenerated.secret).toBeTruthy();
+    expect(regenerated.secret).not.toBe(created.secret);
+    const secretBox = card.locator('.bg-emerald-50');
+    await expect(secretBox).toBeVisible();
+    await expect(secretBox).toContainText(regenerated.secret);
+
+    const deleteResponsePromise = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname === `/oidc/clients/${appId}` && response.request().method() === 'DELETE';
+    });
+    page.once('dialog', (dialog) => dialog.accept());
+    await card.getByRole('button', { name: 'Delete app' }).click();
+    const deleteResponse = await deleteResponsePromise;
+    expect(deleteResponse.status()).toBe(204);
+    await expect(card).toHaveCount(0);
+    const remainingTokens = await page.evaluate(async (id) => {
+      const response = await fetch(`/api-tokens/${encodeURIComponent(id)}`);
+      return response.json();
+    }, appId);
+    expect(remainingTokens).toEqual([]);
+  } finally {
+    await page.evaluate(async (id) => fetch(`/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }), appId);
+  }
+});

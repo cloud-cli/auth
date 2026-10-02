@@ -400,6 +400,7 @@
       "get": {
         "tags": ["Authentication"],
         "summary": "List managed OIDC clients",
+        "security": [{ "apiKeyAuth": [] }],
         "responses": {
           "200": { "description": "Managed clients without secrets" },
           "403": { "description": "Administrator access required" }
@@ -408,6 +409,7 @@
       "post": {
         "tags": ["Authentication"],
         "summary": "Create a managed OIDC client",
+        "security": [{ "apiKeyAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -444,9 +446,45 @@
       "delete": {
         "tags": ["Authentication"],
         "summary": "Remove a managed OIDC client",
+        "security": [{ "apiKeyAuth": [] }],
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
           "204": { "description": "Removed" },
+          "403": { "description": "Administrator access required" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/oidc/clients/{id}/secret": {
+      "put": {
+        "tags": ["Authentication"],
+        "summary": "Regenerate a managed OIDC client secret",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Regenerated secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["id", "secret"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "secret": { "type": "string" },
+                    "redirectUris": {
+                      "type": "array",
+                      "items": { "type": "string", "format": "uri" }
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "403": { "description": "Administrator access required" },
           "404": { "description": "Not found" }
         }
@@ -958,6 +996,11 @@
       "basicAuth": {
         "type": "http",
         "scheme": "basic"
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "connect.sid"
       }
     },
     "responses": {

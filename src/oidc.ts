@@ -130,8 +130,18 @@ export async function updateManagedClientRedirectUris(id: string, redirectUris: 
 export async function removeManagedClient(id: string) {
   const client = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [id]))[0];
   if (!client) return false;
+  // Remove credentials too, so recreating this client ID cannot revive old API tokens.
+  await run('DELETE FROM auth_api_token WHERE client_id = ?', [id]);
   await run('DELETE FROM auth_oidc_client WHERE id = ?', [id]);
   return true;
+}
+
+export async function regenerateManagedClientSecret(id: string) {
+  const client = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [id]))[0];
+  if (!client) throw new Error('Client not found');
+  const secret = randomBytes(32).toString('base64url');
+  await run('UPDATE auth_oidc_client SET secret_hash = ? WHERE id = ?', [hashSecret(secret), id]);
+  return { id, secret, redirectUris: client.redirectUris, scopes: client.scopes || [] };
 }
 
 export async function addManagedClientScopes(id: string, scopes: string[]) {
