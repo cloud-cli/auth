@@ -47,6 +47,11 @@ test('public modules and OpenAPI are served', async ({ request }) => {
   expect(spec.openapi).toBe('3.1.0');
   expect(spec.paths['/authorize']).toBeDefined();
   expect(spec.paths['/oauth/introspect']).toBeDefined();
+
+  const discoveryResponse = await request.get('/.well-known/openid-configuration');
+  expect(discoveryResponse.ok()).toBeTruthy();
+  const discovery = await discoveryResponse.json();
+  expect(new URL(discovery.jwks_uri).pathname).toBe('/.well-known/jwks.json');
 });
 
 test('profile API remains protected', async ({ request }) => {

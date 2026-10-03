@@ -679,7 +679,7 @@ app.get('/.well-known/openid-configuration', async (_req, res) => {
     authorization_endpoint: `${iss}/authorize`,
     token_endpoint: `${iss}/token`,
     userinfo_endpoint: `${iss}/userinfo`,
-    jwks_uri: `${iss}/jwks.json`,
+    jwks_uri: `${iss}/.well-known/jwks.json`,
     response_types_supported: ['code'],
     subject_types_supported: ['public'],
     id_token_signing_alg_values_supported: ['RS256'],
