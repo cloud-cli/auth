@@ -631,7 +631,7 @@
     "/auth-api-tokens": {
       "get": {
         "tags": ["Authentication"],
-        "summary": "Open the Auth API token management dashboard (administrator only)",
+        "summary": "Open the combined signing keys and Auth API tokens dashboard (administrator only)",
         "security": [{ "apiKeyAuth": [] }],
         "responses": {
           "302": { "description": "Redirect to the Auth API tokens dashboard section" },

@@ -309,13 +309,14 @@ test('Auth API token selector loads clients and supports create and revoke', asy
       if (message.type() === 'error') console.error(message.text());
     });
     await page.goto('/me#auth-api-tokens');
+    await expect(page.getByRole('heading', { name: 'Signing keys' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Auth API tokens' })).toBeVisible();
     const selector = page.getByRole('combobox');
     await expect(selector.locator(`option[value="${appId}"]`)).toBeAttached();
     await selector.selectOption(appId);
     await expect(page.getByPlaceholder('Token label')).toBeVisible();
     await page.getByPlaceholder('Token label').fill('browser test token');
-    await page.getByPlaceholder('Scopes, space separated').fill('storage:limits');
+    await page.getByLabel('storage:limits').check();
     await page.getByRole('button', { name: 'Generate Auth API token' }).click();
     expect(errors).toEqual([]);
     await expect(page.getByText('Copy now. This token is shown only once.')).toBeVisible();
