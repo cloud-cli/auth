@@ -279,6 +279,56 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await expect(reloadedApp.getByText('Active')).toHaveCount(0);
 });
 
+test('Auth API token selector loads clients and supports create and revoke', async ({ page }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  const appId = `e2e-auth-api-${Date.now()}`;
+  await page.goto('/');
+  const loginStatus = await page.evaluate(async (secret) => {
+    const response = await fetch('/__test__/login', {
+      method: 'POST',
+      headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'admin' }),
+    });
+    return response.status;
+  }, testKey);
+  expect(loginStatus).toBe(204);
+
+  await page.evaluate(async (id) => {
+    const response = await fetch('/oidc/clients', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, redirectUris: [`https://${id}.example/callback`], scopes: ['storage:limits'] }),
+    });
+    if (!response.ok) throw new Error(`Could not create test app: ${response.status}`);
+  }, appId);
+
+  try {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') console.error(message.text());
+    });
+    await page.goto('/me#auth-api-tokens');
+    await expect(page.getByRole('heading', { name: 'Auth API tokens' })).toBeVisible();
+    const selector = page.getByRole('combobox');
+    await expect(selector.locator(`option[value="${appId}"]`)).toBeAttached();
+    await selector.selectOption(appId);
+    await expect(page.getByPlaceholder('Token label')).toBeVisible();
+    await page.getByPlaceholder('Token label').fill('browser test token');
+    await page.getByPlaceholder('Scopes, space separated').fill('storage:limits');
+    await page.getByRole('button', { name: 'Generate Auth API token' }).click();
+    expect(errors).toEqual([]);
+    await expect(page.getByText('Copy now. This token is shown only once.')).toBeVisible();
+    await expect(page.getByText('browser test token')).toBeVisible();
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: 'Revoke' }).click();
+    await expect(page.getByText('revoked', { exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally {
+    await page.evaluate(async (id) => fetch(`/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }), appId);
+  }
+});
+
 test('OIDC client deletion without admin access returns 403', async ({ request }) => {
   const response = await request.delete('/oidc/clients/some-client-id');
   expect(response.status()).toBe(403);

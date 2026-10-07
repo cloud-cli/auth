@@ -4,8 +4,8 @@
     <p class="mt-1 text-slate-500">Create scoped tokens for your connected applications.</p>
     <select
       class="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2"
-      ref="clientSelect"
-      on-change="selectClient($event.target.value)"
+      bind-value="selected"
+      on-change="loadTokens()"
     >
       <option value="">Choose an app</option>
       <template for="app of apps"><option attr-value="app.id">{{ app.id }}</option></template></select
@@ -83,21 +83,30 @@
     </p>
     <select
       class="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2"
-      bind-value="selected"
-      on-change="loadTokens()"
+      ref="clientSelect"
+      on-change="selectClient($event.target.value)"
     >
       <option value="">Choose an OIDC client</option>
       <template for="app of apps"><option attr-value="app.id">{{ app.id }}</option></template></select
     ><template if="selected"
-      ><form class="mt-4 grid gap-3 rounded-2xl bg-violet/5 p-4" on-submit.prevent="create()">
-        <input ref="label" class="rounded-xl border border-slate-200 px-3 py-2" placeholder="Token label" required />
+      ><form class="mt-4 grid gap-3 rounded-2xl bg-violet/5 p-4" on-submit.prevent="createToken()">
         <input
-          ref="scopes"
           class="rounded-xl border border-slate-200 px-3 py-2"
+          bind-value="tokenLabel"
+          on-input="setTokenLabel($event.target.value)"
+          placeholder="Token label"
+          required
+        />
+        <input
+          class="rounded-xl border border-slate-200 px-3 py-2"
+          bind-value="tokenScopes"
+          on-input="setTokenScopes($event.target.value)"
           placeholder="Scopes, space separated"
           required
         />
-        <button class="rounded-xl bg-violet px-4 py-3 font-bold text-white">Generate Auth API token</button>
+        <button class="rounded-xl bg-violet px-4 py-3 font-bold text-white" type="button" on-click="createToken()">
+          Generate Auth API token
+        </button>
       </form></template
     ><template if="created"
       ><div
@@ -106,6 +115,7 @@
         {{ created }}<span class="mt-2 block font-sans font-normal">Copy now. This token is shown only once.</span>
       </div></template
     >
+    <p class="mt-3 text-sm text-rose-600">{{ error }}</p>
     <div class="mt-5 divide-y divide-slate-100">
       <template for="token of tokens"
         ><article class="flex items-start justify-between gap-4 py-4">
@@ -133,10 +143,13 @@
       const apps = ref([]),
         selected = ref(''),
         tokens = ref([]),
-        created = ref('');
-      const label = templateRef('label'),
-        scopes = templateRef('scopes'),
-        clientSelect = templateRef('clientSelect');
+        created = ref(''),
+        error = ref('');
+      const clientSelect = templateRef('clientSelect'),
+        tokenLabel = ref(''),
+        tokenScopes = ref('');
+      const setTokenLabel = (value) => (tokenLabel.value = value);
+      const setTokenScopes = (value) => (tokenScopes.value = value);
       const loadTokens = async () => {
         if (selected.value) tokens.value = await getAuthApiTokens(selected.value);
       };
@@ -146,16 +159,21 @@
         tokens.value = [];
         await loadTokens();
       };
-      const create = async () => {
-        const result = await createAuthApiToken(
-          selected.value,
-          label.value.value.trim(),
-          scopes.value.value.split(/\s+/).filter(Boolean),
-        );
-        created.value = result.token;
-        label.value.value = '';
-        scopes.value.value = '';
-        await loadTokens();
+      const createToken = async () => {
+        error.value = '';
+        try {
+          const result = await createAuthApiToken(
+            selected.value,
+            tokenLabel.value.trim(),
+            tokenScopes.value.split(/\s+/).filter(Boolean),
+          );
+          created.value = result.token;
+          setTokenLabel('');
+          setTokenScopes('');
+          await loadTokens();
+        } catch (reason) {
+          error.value = reason.message || 'Could not create Auth API token.';
+        }
       };
       const revoke = async (token) => {
         if (!confirm(`Revoke token “${token.label}”?`)) return;
@@ -163,7 +181,22 @@
         await loadTokens();
       };
       getOidcClients().then((value) => (apps.value = value));
-      return { apps, selected, tokens, created, label, scopes, clientSelect, loadTokens, selectClient, create, revoke };
+      return {
+        apps,
+        selected,
+        tokens,
+        created,
+        error,
+        tokenLabel,
+        setTokenLabel,
+        tokenScopes,
+        setTokenScopes,
+        clientSelect,
+        loadTokens,
+        selectClient,
+        createToken,
+        revoke,
+      };
     }
   </script></template
 >
