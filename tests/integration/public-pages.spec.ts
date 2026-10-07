@@ -336,6 +336,18 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     );
     expect(issued.status).toBe(201);
     expect(issued.body.token).toMatch(/^auth_/);
+    const forbiddenScope = await page.evaluate(
+      async ({ id, token }) => {
+        const response = await fetch(`/api-tokens/${encodeURIComponent(id)}/issue`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ label: 'out-of-scope token', scopes: ['admin:all'] }),
+        });
+        return response.status;
+      },
+      { id: appId, token: managementToken! },
+    );
+    expect(forbiddenScope).toBe(400);
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Revoke' }).click();
     await expect(page.getByText('revoked', { exact: true })).toBeVisible();
