@@ -36,16 +36,10 @@
               <app-editor bind-app="app" bind-admin="admin"></app-editor>
             </details>
             <template if="app.secret">
-              <div class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
-                <div class="break-all font-mono text-sm font-semibold">Secret for {{ app.id }}: {{ app.secret }}</div>
-                <button
-                  class="mt-2 text-sm font-semibold text-emerald-800 underline"
-                  type="button"
-                  on-click="copySecret(app.secret)"
-                >
-                  Copy secret
-                </button>
-              </div>
+              <copy-value-box
+                bind-token="app.secret"
+                message="Copy this OIDC client secret now. It is only shown once."
+              ></copy-value-box>
             </template>
           </article>
         </template>
@@ -102,13 +96,6 @@
           alert('Could not regenerate secret: ' + error.message);
         }
       };
-      const copySecret = async (secret) => {
-        try {
-          await navigator.clipboard.writeText(secret);
-        } catch (error) {
-          alert('Could not copy secret: ' + error.message);
-        }
-      };
       return {
         apps,
         admin,
@@ -118,7 +105,6 @@
         toggleForm,
         deleteApp,
         regenAppSecret,
-        copySecret,
       };
     }
   </script></template
@@ -189,17 +175,11 @@
       <button class="rounded-lg bg-violet px-4 py-2 font-bold text-white sm:col-span-2">Create app</button>
     </form></template
   ><template if="createdSecret"
-    ><div class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
-      <div class="break-all font-mono text-sm font-semibold">{{ createdSecret }}</div>
-      <button
-        class="mt-2 text-sm font-semibold text-emerald-800 underline"
-        type="button"
-        on-click="copyCreatedSecret()"
-      >
-        Copy secret
-      </button>
-    </div></template
-  >
+    ><copy-value-box
+      bind-token="createdSecret"
+      message="Copy this new client secret now. It is only shown once."
+    ></copy-value-box
+  ></template>
   <script setup>
     import { defineEvent, defineProp, hook, ref } from '@li3/web';
     import { createOidcClient } from '/dashboard.mjs';
@@ -220,7 +200,7 @@
         if (formError.value) return;
         try {
           const result = await createOidcClient(newId.value.trim(), newCallbacks.value, newScopes.value);
-          createdSecret.value = `Secret for ${result.id}: ${result.secret}`;
+          createdSecret.value = result.secret;
           formOpen.value = false;
           newCallbacks.value = [];
           newScopes.value = [];
@@ -245,7 +225,6 @@
         setNewScopeInput('');
       };
       const removeNewScope = (scope) => (newScopes.value = newScopes.value.filter((value) => value !== scope));
-      const copyCreatedSecret = () => navigator.clipboard.writeText(createdSecret.value.replace(/^.*?: /, ''));
       return {
         admin,
         formOpen,
@@ -264,7 +243,6 @@
         removeNewCallback,
         addNewScope,
         removeNewScope,
-        copyCreatedSecret,
       };
     }
   </script></template
@@ -437,14 +415,11 @@
       </button>
     </div>
     <template if="createdToken"
-      ><div class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900">
-        <div class="break-all font-mono text-sm font-semibold">{{ createdToken }}</div>
-        <p class="mt-1 text-sm">Copy this token now. It will not be shown again.</p>
-        <button class="mt-2 text-sm font-semibold text-emerald-800 underline" type="button" on-click="copyToken()">
-          Copy token
-        </button>
-      </div></template
-    >
+      ><copy-value-box
+        bind-token="createdToken"
+        message="Copy this downstream API token now. It is only shown once."
+      ></copy-value-box
+    ></template>
     <p class="mt-2 text-sm text-slate-500" hidden="false" bind-hidden.bool="app.tokens.length > 0">No tokens yet.</p>
     <div class="mt-2 grid gap-2">
       <template for="token of app.tokens"
@@ -502,7 +477,6 @@
           await load();
         }
       };
-      const copyToken = () => navigator.clipboard.writeText(createdToken.value);
       return {
         app,
         createdToken,
@@ -513,7 +487,6 @@
         toggleTokenScope,
         createToken,
         revokeToken,
-        copyToken,
       };
     }
   </script></template

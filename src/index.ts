@@ -79,6 +79,7 @@ const uiAssets = Object.fromEntries(
     'oidc-apps.html',
     'keys.html',
     'tokens.html',
+    'copy-value.html',
     'passkey.html',
     'recovery.html',
     'profile.html',

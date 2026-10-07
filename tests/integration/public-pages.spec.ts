@@ -318,11 +318,23 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     await page.getByPlaceholder('Token label').fill('browser test token');
     await page.getByRole('button', { name: 'Generate Auth API token' }).click();
     expect(errors).toEqual([]);
-    await expect(page.getByText('Copy now. This token is shown only once.')).toBeVisible();
+    await expect(page.getByText('Copy this Auth API token now. It is only shown once.')).toBeVisible();
     await expect(page.getByText('browser test token')).toBeVisible();
-    const managementTokenText = await page.locator('.bg-emerald-50').innerText();
-    const managementToken = managementTokenText.match(/auth_[A-Za-z0-9_-]+/)?.[0];
-    expect(managementToken).toBeTruthy();
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:3100' });
+    const copyBox = page.locator('copy-value-box').last();
+    const tokenInput = copyBox.getByRole('textbox', { name: 'Value to copy' });
+    const managementToken = await tokenInput.inputValue();
+    expect(managementToken).toMatch(/^auth_/);
+    await tokenInput.click();
+    expect(
+      await tokenInput.evaluate(
+        (input: HTMLInputElement) => input.selectionStart === 0 && input.selectionEnd === input.value.length,
+      ),
+    ).toBeTruthy();
+    await copyBox.getByRole('button', { name: 'Copy' }).click();
+    await expect(copyBox.getByText('Copied to clipboard.')).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(managementToken);
+    await expect(copyBox.getByText('Copied to clipboard.')).toBeHidden({ timeout: 7000 });
     const issued = await page.evaluate(
       async ({ id, token }) => {
         const response = await fetch(`/api-tokens/${encodeURIComponent(id)}/issue`, {

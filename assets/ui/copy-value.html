@@ -1,0 +1,49 @@
+<template component="copy-value-box"
+  ><section class="mt-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-950">
+    <p class="mb-2 text-sm font-semibold">{{ message }}</p>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <input
+        class="min-w-0 flex-1 select-all rounded-lg border border-emerald-200 bg-white px-3 py-2 font-mono text-sm"
+        type="text"
+        readonly
+        bind-value="token"
+        aria-label="Value to copy"
+        on-click="selectText($event.target)"
+        on-focus="selectText($event.target)"
+      />
+      <button
+        class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-900"
+        type="button"
+        on-click="copy()"
+      >
+        <lucide-icon icon="copy" size="16"></lucide-icon>Copy
+      </button>
+    </div>
+    <p class="mt-2 min-h-5 text-sm font-semibold" aria-live="polite">{{ feedback }}</p>
+  </section>
+  <link rel="component" href="https://sodium.static.apphor.de/lucide-icon.html" />
+  <script setup>
+    import { defineProp, ref } from '@li3/web';
+    export default function () {
+      const token = defineProp('token', { default: '' });
+      const message = defineProp('message', { default: 'Copy this value now. It will not be shown again.' });
+      const feedback = ref('');
+      let feedbackTimer;
+      const selectText = (input) => input.select();
+      const showFeedback = (text) => {
+        feedback.value = text;
+        clearTimeout(feedbackTimer);
+        feedbackTimer = setTimeout(() => (feedback.value = ''), 5000);
+      };
+      const copy = async () => {
+        try {
+          await navigator.clipboard.writeText(token.value);
+          showFeedback('Copied to clipboard.');
+        } catch {
+          showFeedback('Copy failed. Tap the field to select and copy manually.');
+        }
+      };
+      return { token, message, feedback, selectText, copy };
+    }
+  </script></template
+>
