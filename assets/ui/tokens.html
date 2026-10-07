@@ -4,8 +4,8 @@
     <p class="mt-1 text-slate-500">Create scoped tokens for your connected applications.</p>
     <select
       class="mt-5 w-full rounded-xl border border-slate-200 px-3 py-2"
-      bind-value="selected"
-      on-change="loadTokens()"
+      ref="clientSelect"
+      on-change="selectClient($event.target.value)"
     >
       <option value="">Choose an app</option>
       <template for="app of apps"><option attr-value="app.id">{{ app.id }}</option></template></select
@@ -135,9 +135,16 @@
         tokens = ref([]),
         created = ref('');
       const label = templateRef('label'),
-        scopes = templateRef('scopes');
+        scopes = templateRef('scopes'),
+        clientSelect = templateRef('clientSelect');
       const loadTokens = async () => {
         if (selected.value) tokens.value = await getAuthApiTokens(selected.value);
+      };
+      const selectClient = async (clientId) => {
+        selected.value = clientId;
+        created.value = '';
+        tokens.value = [];
+        await loadTokens();
       };
       const create = async () => {
         const result = await createAuthApiToken(
@@ -156,7 +163,7 @@
         await loadTokens();
       };
       getOidcClients().then((value) => (apps.value = value));
-      return { apps, selected, tokens, created, label, scopes, loadTokens, create, revoke };
+      return { apps, selected, tokens, created, label, scopes, clientSelect, loadTokens, selectClient, create, revoke };
     }
   </script></template
 >
