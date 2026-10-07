@@ -251,6 +251,34 @@ export async function revokeApiToken(clientId, tokenId) {
   if (!response.ok) throw new Error('Could not revoke API token');
 }
 
+export async function getAuthApiTokens(clientId) {
+  const response = await fetch(new URL('/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Could not load Auth API tokens');
+  return response.json();
+}
+
+export async function createAuthApiToken(clientId, label, scopes) {
+  const response = await fetch(new URL('/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ label, scopes }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not create Auth API token');
+  return result;
+}
+
+export async function revokeAuthApiToken(clientId, tokenId) {
+  const response = await fetch(
+    new URL('/auth-api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(tokenId), authDomain),
+    { credentials: 'include', method: 'DELETE' },
+  );
+  if (!response.ok) throw new Error('Could not revoke Auth API token');
+}
+
 export async function rotateSigningKey() {
   const response = await fetch(new URL('/keys/rotate', authDomain), {
     credentials: 'include',

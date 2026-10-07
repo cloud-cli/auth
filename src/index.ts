@@ -135,6 +135,7 @@ async function tokenUser(req, res, next) {
     if (!payload.sub) return res.status(401).send('');
 
     req.tokenUserId = payload.sub;
+    req.tokenAudience = audience;
     next();
   } catch {
     res.status(401).send('');
@@ -319,6 +320,7 @@ app.get('/login', (req, res) => {
 app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
 app.get('/oidc', adminRoute, (_req, res) => res.redirect('/me#oidc'));
+app.get('/auth-api-tokens', adminRoute, (_req, res) => res.redirect('/me#auth-api-tokens'));
 app.get('/keys', adminRoute, async (_req, res) => res.json(await listSigningKeys()));
 app.post('/keys/rotate', express.json(), adminRoute, async (_req, res) => {
   try {
@@ -491,6 +493,25 @@ app.get('/api-tokens/me', protectedRoute, async (req, res) => {
 app.get('/api-tokens/:clientId', adminRoute, async (req, res) =>
   res.json(await listApiTokens(req.user!.id, req.params.clientId)),
 );
+app.get('/auth-api-tokens/:clientId', adminRoute, async (req, res) =>
+  res.json(await listApiTokens(req.params.clientId, req.params.clientId)),
+);
+app.post('/auth-api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
+  try {
+    const result = await createApiToken(
+      req.params.clientId,
+      req.params.clientId,
+      String(req.body?.label || ''),
+      Array.isArray(req.body?.scopes) ? req.body.scopes : [],
+    );
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
+});
+app.delete('/auth-api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
+  res.sendStatus((await revokeApiToken(req.params.clientId, req.params.clientId, req.params.tokenId)) ? 204 : 404),
+);
 app.post('/api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
   try {
     res
@@ -505,6 +526,30 @@ app.post('/api-tokens/:clientId', express.json(), adminRoute, async (req, res) =
       );
   } catch (error) {
     res.status(400).json({ error: String(error) });
+  }
+});
+app.post('/api-tokens/:clientId/issue', express.json(), async (req, res) => {
+  const client = await getClient(req.params.clientId);
+  const authorization = req.get('authorization') || '';
+  const [authenticatedClientId, clientSecret] = authorization.startsWith('Basic ')
+    ? Buffer.from(authorization.slice(6), 'base64').toString().split(':')
+    : ['', ''];
+  if (authenticatedClientId !== req.params.clientId || !client || !(await verifyClientSecret(client, clientSecret))) {
+    return res.status(401).json({ error: 'invalid_client' });
+  }
+  try {
+    const scopes = Array.isArray(req.body?.scopes) ? req.body.scopes : [];
+    if (scopes.some((scope) => typeof scope !== 'string')) {
+      return res.status(400).json({ error: 'invalid_scope' });
+    }
+    const result = await createApiToken(client.id, client.id, String(req.body?.label || ''), scopes);
+    res.status(201).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === 'Unknown OIDC client' || message === 'Invalid token scope') {
+      return res.status(400).json({ error: message === 'Invalid token scope' ? 'invalid_scope' : 'invalid_client' });
+    }
+    throw error;
   }
 });
 app.delete('/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>

@@ -82,6 +82,10 @@ New OIDC clients can be managed at `/oidc` by users with the persisted `admin` r
 
 OIDC clients define allowed API scopes when registered. Authenticated users can create opaque, scoped API tokens for an app from the dashboard. Tokens are shown only once, stored hashed, expire after one year, and can be revoked.
 
+Backend integrations can mint these tokens without a browser session or OIDC sign-in. Call `POST /api-tokens/{clientId}/issue` using HTTP Basic authentication with that registered client's ID and secret, and JSON `{ "label": "storage limits", "scopes": ["scope:name"] }`. The endpoint only mints tokens for the authenticating client and only for scopes configured for it. Tokens have the client ID as their subject, are shown once, and can be introspected using the existing client credentials. Client secrets should be kept server-side and rotated if compromised.
+
+Administrators can manage these client-subject tokens in **Auth API tokens** on the dashboard (`/auth-api-tokens`), or through the admin-only `GET`, `POST`, and `DELETE /auth-api-tokens/{clientId}[/{tokenId}]` endpoints. This is separate from **API tokens**, which remain user-subject tokens created for an OIDC application's downstream API. The machine endpoint requires the OIDC client secret; it does not permit managing users, passkeys, OIDC applications, or other account features.
+
 Resource APIs validate these tokens through `POST /oauth/introspect` using the app's OIDC client credentials. The response follows OAuth 2.0 Token Introspection and includes `active`, `client_id`, `sub`, `scope`, `iat`, and `exp`. Responses advertise a 30-second private cache; resource APIs must not trust client-supplied validity headers.
 
 Authenticated activity is available at `/audit` and records authentication results plus OIDC authorization/token exchanges. It stores no tokens, cookies, authorization codes, or client secrets.

@@ -561,6 +561,100 @@
         "responses": { "204": { "description": "Revoked" }, "404": { "description": "Token not found" } }
       }
     },
+    "/api-tokens/{clientId}/issue": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Issue a scoped opaque API token for the authenticated user",
+        "description": "Requires the registered OIDC client's Basic credentials. This machine credential can mint tokens only for itself; requested scopes must be configured for that client. The token value is returned once.",
+        "security": [{ "basicAuth": [] }],
+        "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["label", "scopes"],
+                "properties": {
+                  "label": { "type": "string" },
+                  "scopes": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Opaque token and expiry" },
+          "400": { "description": "Unknown client or invalid scope" },
+          "401": { "description": "Missing or invalid bearer token" },
+          "401": { "description": "Invalid client credentials" }
+        }
+      }
+    },
+    "/auth-api-tokens/{clientId}": {
+      "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "List Auth API tokens for a client (administrator only)",
+        "security": [{ "apiKeyAuth": [] }],
+        "responses": {
+          "200": { "description": "Token metadata, never token values" },
+          "403": { "description": "Administrator access required" }
+        }
+      },
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Create an Auth API token for a client (administrator only)",
+        "security": [{ "apiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["label", "scopes"],
+                "properties": {
+                  "label": { "type": "string" },
+                  "scopes": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Token value, shown once" },
+          "400": { "description": "Unknown client or invalid scope" },
+          "403": { "description": "Administrator access required" }
+        }
+      }
+    },
+    "/auth-api-tokens": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Open the Auth API token management dashboard (administrator only)",
+        "security": [{ "apiKeyAuth": [] }],
+        "responses": {
+          "302": { "description": "Redirect to the Auth API tokens dashboard section" },
+          "403": { "description": "Administrator access required" }
+        }
+      }
+    },
+    "/auth-api-tokens/{clientId}/{tokenId}": {
+      "delete": {
+        "tags": ["Authentication"],
+        "summary": "Revoke an Auth API token (administrator only)",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [
+          { "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "tokenId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "204": { "description": "Revoked" },
+          "403": { "description": "Administrator access required" },
+          "404": { "description": "Token not found" }
+        }
+      }
+    },
     "/oauth/introspect": {
       "post": {
         "tags": ["Authentication"],
