@@ -316,11 +316,26 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     await selector.selectOption(appId);
     await expect(page.getByPlaceholder('Token label')).toBeVisible();
     await page.getByPlaceholder('Token label').fill('browser test token');
-    await page.getByLabel('storage:limits').check();
     await page.getByRole('button', { name: 'Generate Auth API token' }).click();
     expect(errors).toEqual([]);
     await expect(page.getByText('Copy now. This token is shown only once.')).toBeVisible();
     await expect(page.getByText('browser test token')).toBeVisible();
+    const managementTokenText = await page.locator('.bg-emerald-50').innerText();
+    const managementToken = managementTokenText.match(/auth_[A-Za-z0-9_-]+/)?.[0];
+    expect(managementToken).toBeTruthy();
+    const issued = await page.evaluate(
+      async ({ id, token }) => {
+        const response = await fetch(`/api-tokens/${encodeURIComponent(id)}/issue`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ label: 'downstream token', scopes: ['storage:limits'] }),
+        });
+        return { status: response.status, body: await response.json() };
+      },
+      { id: appId, token: managementToken! },
+    );
+    expect(issued.status).toBe(201);
+    expect(issued.body.token).toMatch(/^auth_/);
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Revoke' }).click();
     await expect(page.getByText('revoked', { exact: true })).toBeVisible();

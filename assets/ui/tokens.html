@@ -97,22 +97,10 @@
           placeholder="Token label"
           required
         />
-        <fieldset class="grid gap-2">
-          <legend class="text-sm font-semibold text-slate-700">Allowed scopes</legend>
-          <template for="scope of selectedApp.scopes"
-            ><label class="flex items-center gap-2 rounded-lg border border-violet/20 bg-white px-3 py-2 text-sm">
-              <input
-                class="accent-violet"
-                type="checkbox"
-                attr-checked.bool="selectedScopes.includes(scope)"
-                on-change="toggleScope(scope)"
-              />{{ scope }}</label
-            ></template
-          >
-          <template if="selectedApp.scopes.length === 0"
-            ><p class="text-sm text-slate-500">This client has no configured scopes.</p></template
-          >
-        </fieldset>
+        <p class="rounded-xl bg-violet/5 p-3 text-sm text-slate-600">
+          This token has one fixed permission: mint scoped API tokens for this client. Choose downstream scopes when
+          calling the token-issuance API.
+        </p>
         <button class="rounded-xl bg-violet px-4 py-3 font-bold text-white" type="button" on-click="createToken()">
           Generate Auth API token
         </button>
@@ -155,15 +143,8 @@
         created = ref(''),
         error = ref('');
       const clientSelect = templateRef('clientSelect'),
-        tokenLabel = ref(''),
-        selectedScopes = ref([]),
-        selectedApp = ref({ scopes: [] });
+        tokenLabel = ref('');
       const setTokenLabel = (value) => (tokenLabel.value = value);
-      const toggleScope = (scope) => {
-        selectedScopes.value = selectedScopes.value.includes(scope)
-          ? selectedScopes.value.filter((value) => value !== scope)
-          : [...selectedScopes.value, scope];
-      };
       const loadTokens = async () => {
         if (selected.value) tokens.value = await getAuthApiTokens(selected.value);
       };
@@ -171,17 +152,14 @@
         selected.value = clientId;
         created.value = '';
         tokens.value = [];
-        selectedScopes.value = [];
-        selectedApp.value = apps.value.find((app) => app.id === clientId) || { scopes: [] };
         await loadTokens();
       };
       const createToken = async () => {
         error.value = '';
         try {
-          const result = await createAuthApiToken(selected.value, tokenLabel.value.trim(), selectedScopes.value);
+          const result = await createAuthApiToken(selected.value, tokenLabel.value.trim());
           created.value = result.token;
           setTokenLabel('');
-          selectedScopes.value = [];
           await loadTokens();
         } catch (reason) {
           error.value = reason.message || 'Could not create Auth API token.';
@@ -201,9 +179,6 @@
         error,
         tokenLabel,
         setTokenLabel,
-        selectedApp,
-        selectedScopes,
-        toggleScope,
         clientSelect,
         loadTokens,
         selectClient,

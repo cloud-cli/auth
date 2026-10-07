@@ -564,9 +564,9 @@
     "/api-tokens/{clientId}/issue": {
       "post": {
         "tags": ["Authentication"],
-        "summary": "Issue a scoped opaque API token for the authenticated user",
-        "description": "Requires the registered OIDC client's Basic credentials. This machine credential can mint tokens only for itself; requested scopes must be configured for that client. The token value is returned once.",
-        "security": [{ "basicAuth": [] }],
+        "summary": "Mint a downstream API token using an Auth API token",
+        "description": "Requires an Auth API Bearer token issued to clientId. This credential has the fixed permission to mint tokens only for its own client. The request's downstream scopes must be configured for that OIDC client. The returned opaque token is shown once.",
+        "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
         "requestBody": {
           "required": true,
@@ -586,8 +586,7 @@
         "responses": {
           "201": { "description": "Opaque token and expiry" },
           "400": { "description": "Unknown client or invalid scope" },
-          "401": { "description": "Missing or invalid bearer token" },
-          "401": { "description": "Invalid client credentials" }
+          "401": { "description": "Missing, invalid, expired, or revoked Auth API token" }
         }
       }
     },
@@ -612,10 +611,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["label", "scopes"],
+                "required": ["label"],
                 "properties": {
-                  "label": { "type": "string" },
-                  "scopes": { "type": "array", "items": { "type": "string" } }
+                  "label": { "type": "string", "description": "A label for this fixed-permission token" }
                 }
               }
             }
@@ -623,7 +621,7 @@
         },
         "responses": {
           "201": { "description": "Token value, shown once" },
-          "400": { "description": "Unknown client or invalid scope" },
+          "400": { "description": "Unknown client" },
           "403": { "description": "Administrator access required" }
         }
       }

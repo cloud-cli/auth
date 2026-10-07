@@ -44,7 +44,15 @@ import {
 } from './webauthn.js';
 import { consumeRecoveryCode, replaceRecoveryCodes } from './recovery.js';
 import { getAuditEvents, getAuditOptions, recordAudit } from './audit.js';
-import { createApiToken, introspectApiToken, listApiTokens, revokeApiToken } from './api-tokens.js';
+import {
+  createApiToken,
+  createAuthApiToken,
+  introspectApiToken,
+  listApiTokens,
+  listAuthApiTokens,
+  revokeApiToken,
+  verifyAuthApiToken,
+} from './api-tokens.js';
 import {
   approveQrLogin,
   completeQrLogin,
@@ -494,16 +502,11 @@ app.get('/api-tokens/:clientId', adminRoute, async (req, res) =>
   res.json(await listApiTokens(req.user!.id, req.params.clientId)),
 );
 app.get('/auth-api-tokens/:clientId', adminRoute, async (req, res) =>
-  res.json(await listApiTokens(req.params.clientId, req.params.clientId)),
+  res.json(await listAuthApiTokens(req.params.clientId)),
 );
 app.post('/auth-api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
   try {
-    const result = await createApiToken(
-      req.params.clientId,
-      req.params.clientId,
-      String(req.body?.label || ''),
-      Array.isArray(req.body?.scopes) ? req.body.scopes : [],
-    );
+    const result = await createAuthApiToken(req.params.clientId, String(req.body?.label || ''));
     res.status(201).json(result);
   } catch (error) {
     res.status(400).json({ error: String(error) });
@@ -531,10 +534,8 @@ app.post('/api-tokens/:clientId', express.json(), adminRoute, async (req, res) =
 app.post('/api-tokens/:clientId/issue', express.json(), async (req, res) => {
   const client = await getClient(req.params.clientId);
   const authorization = req.get('authorization') || '';
-  const [authenticatedClientId, clientSecret] = authorization.startsWith('Basic ')
-    ? Buffer.from(authorization.slice(6), 'base64').toString().split(':')
-    : ['', ''];
-  if (authenticatedClientId !== req.params.clientId || !client || !(await verifyClientSecret(client, clientSecret))) {
+  const authToken = authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : '';
+  if (!client || !(await verifyAuthApiToken(authToken, req.params.clientId))) {
     return res.status(401).json({ error: 'invalid_client' });
   }
   try {

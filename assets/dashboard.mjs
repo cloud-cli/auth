@@ -259,12 +259,12 @@ export async function getAuthApiTokens(clientId) {
   return response.json();
 }
 
-export async function createAuthApiToken(clientId, label, scopes) {
+export async function createAuthApiToken(clientId, label) {
   const response = await fetch(new URL('/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ label, scopes }),
+    body: JSON.stringify({ label }),
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Could not create Auth API token');
