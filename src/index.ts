@@ -104,14 +104,6 @@ function protectedRoute(req, res, next) {
   next();
 }
 
-function protectedPage(req, res, next) {
-  if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
-    return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
-  }
-
-  next();
-}
-
 function protectedRouteWithRedirect(req, res, next) {
   if (!req.isAuthenticated || !req.isAuthenticated() || !req.user?.id) {
     const returnUrl = req.get('referrer') || req.get('referer');
@@ -746,7 +738,6 @@ app.get('/userinfo', tokenUser, async (req, res) => {
   res.json(userAsJSON(user));
 });
 app.get('/me', serveAppEntry);
-app.get('/account', protectedPage, (_req, res) => res.redirect(302, '/me'));
 app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 

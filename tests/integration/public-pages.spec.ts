@@ -77,10 +77,9 @@ test('profile API remains protected', async ({ request }) => {
   expect(response.status()).toBe(401);
 });
 
-test('legacy account route redirects unauthenticated visitors to sign in', async ({ request }) => {
+test('removed account route returns not found', async ({ request }) => {
   const response = await request.get('/account', { maxRedirects: 0 });
-  expect(response.status()).toBe(302);
-  expect(response.headers().location).toBe('/login?url=%2Faccount');
+  expect(response.status()).toBe(404);
 });
 
 test('test users can access application and token management', async ({ page }) => {
@@ -183,9 +182,8 @@ test('header profile card expands to show account details and sign out', async (
 
   await page.goto('/me');
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
-  const legacyAccount = await page.request.get('/account', { maxRedirects: 0 });
-  expect(legacyAccount.status()).toBe(302);
-  expect(legacyAccount.headers().location).toBe('/me');
+  const removedAccount = await page.request.get('/account', { maxRedirects: 0 });
+  expect(removedAccount.status()).toBe(404);
   await page.setViewportSize({ width: 360, height: 800 });
   const profileToggle = page.getByRole('button', { name: 'Toggle profile details' });
   await expect(profileToggle).toHaveAttribute('aria-expanded', 'false');
