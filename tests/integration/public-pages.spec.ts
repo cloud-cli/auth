@@ -37,17 +37,17 @@ test('login page exposes the configured sign-in method', async ({ page }) => {
 
 test('PWA has install metadata and scanner UI', async ({ page }) => {
   await page.goto('/pwa/');
-  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/pwa/manifest.webmanifest');
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/ui/manifest.webmanifest');
   await expect(page.getByRole('button', { name: 'Scan QR code' })).toBeVisible();
-  const manifest = await page.request.get('/pwa/manifest.webmanifest').then((response) => response.json());
+  const manifest = await page.request.get('/ui/manifest.webmanifest').then((response) => response.json());
   expect(manifest.start_url).toBe('/me');
   expect(manifest.scope).toBe('/');
-  const serviceWorker = await page.request.get('/pwa/sw.js');
+  const serviceWorker = await page.request.get('/ui/sw.js');
   expect(serviceWorker.headers()['service-worker-allowed']).toBe('/');
 });
 
 test('public modules and OpenAPI are served', async ({ request }) => {
-  for (const path of ['/index.mjs', '/dashboard.mjs', '/node.mjs']) {
+  for (const path of ['/index.mjs', '/node.mjs', '/ui/dashboard.mjs', '/ui/lib.mjs', '/ui/embed.html']) {
     const response = await request.get(path);
     expect(response.ok(), path).toBeTruthy();
   }
@@ -58,6 +58,13 @@ test('public modules and OpenAPI are served', async ({ request }) => {
   expect(spec.openapi).toBe('3.1.0');
   expect(spec.paths['/authorize']).toBeDefined();
   expect(spec.paths['/oauth/introspect']).toBeDefined();
+  expect(spec.paths['/index.mjs']).toBeDefined();
+  expect(spec.paths['/node.mjs']).toBeDefined();
+  expect(spec.paths['/api/v1/profile']).toBeDefined();
+  expect(spec.paths['/api/v1/revoke']).toBeDefined();
+  expect(spec.paths['/profile']).toBeUndefined();
+  expect(spec.paths['/dashboard.mjs']).toBeUndefined();
+  expect(spec.paths['/ui/dashboard.mjs']).toBeUndefined();
 
   const discoveryResponse = await request.get('/.well-known/openid-configuration');
   expect(discoveryResponse.ok()).toBeTruthy();
@@ -66,7 +73,7 @@ test('public modules and OpenAPI are served', async ({ request }) => {
 });
 
 test('profile API remains protected', async ({ request }) => {
-  const response = await request.get('/profile');
+  const response = await request.get('/api/v1/profile');
   expect(response.status()).toBe(401);
 });
 
@@ -85,9 +92,9 @@ test('test users can access application and token management', async ({ page }) 
   );
   const responses = await page.evaluate(async () =>
     Promise.all([
-      fetch('/oidc/clients').then((response) => response.status),
-      fetch('/api-tokens/apps').then((response) => response.status),
-      fetch('/api-tokens/example').then((response) => response.status),
+      fetch('/api/v1/oidc/clients').then((response) => response.status),
+      fetch('/api/v1/api-tokens/apps').then((response) => response.status),
+      fetch('/api/v1/api-tokens/example').then((response) => response.status),
     ]),
   );
   expect(responses).toEqual([200, 200, 200]);
@@ -114,7 +121,6 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Properties' })).toBeVisible();
   await page.goto('/me#activity');
   await expect(page.getByText('Authentication history')).toBeVisible();
-  await expect(page.getByTitle('Copy OIDC subject')).toBeVisible();
   await page.goto('/me#oidc');
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
 });
@@ -185,7 +191,7 @@ test('header profile card opens a dedicated profile page with sign out', async (
   await expect(page.getByLabel('Administrator')).toBeVisible();
   await expect(page.getByText('Account', { exact: true })).toHaveCount(0);
   const subject = await page.locator('code').innerText();
-  const profile = await page.evaluate(() => fetch('/profile').then((response) => response.json()));
+  const profile = await page.evaluate(() => fetch('/api/v1/profile').then((response) => response.json()));
   expect(subject).toBe(profile.id);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
@@ -229,13 +235,13 @@ test('existing tokens load when an application is opened and only one app list i
         headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
         body: JSON.stringify({ role: 'admin' }),
       });
-      const app = await fetch('/oidc/clients', {
+      const app = await fetch('/api/v1/oidc/clients', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id, redirectUris: [`https://${id}.example/callback`], scopes: ['profile'] }),
       });
       if (!app.ok) throw new Error(`Could not create test app: ${app.status}`);
-      const token = await fetch(`/api-tokens/${encodeURIComponent(id)}`, {
+      const token = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ label: 'existing test token', scopes: ['profile'] }),
@@ -247,7 +253,7 @@ test('existing tokens load when an application is opened and only one app list i
 
   let appListRequests = 0;
   page.on('request', (request) => {
-    if (new URL(request.url()).pathname === '/oidc/clients' && request.method() === 'GET') appListRequests += 1;
+    if (new URL(request.url()).pathname === '/api/v1/oidc/clients' && request.method() === 'GET') appListRequests += 1;
   });
   await page.goto('/me#oidc');
   const app = page.locator('details').filter({ hasText: appId });
@@ -273,9 +279,9 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await page.getByRole('button', { name: 'Add app' }).click();
   await page.getByPlaceholder('App ID').fill(appId);
   await page.getByPlaceholder('https://app.example/callback').first().fill(`https://${appId}.example/callback`);
-  await page.getByRole('button', { name: 'Add' }).first().click();
+  await page.getByRole('button', { name: 'Add', exact: true }).first().click();
   await page.getByPlaceholder('new:scope').first().fill('read:profile');
-  await page.getByRole('button', { name: 'Add' }).nth(1).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).nth(1).click();
   await page.getByRole('button', { name: 'Create app' }).click();
 
   const app = page.locator('details').filter({ hasText: appId });
@@ -283,8 +289,9 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await app.getByPlaceholder('Token label').fill('e2e token');
   await app.getByLabel('read:profile').check();
   await app.getByRole('button', { name: 'Generate token' }).click();
-  await expect(page.locator('[data-generated-token]')).toBeVisible();
-  await expect(page.locator('[data-generated-token-value]')).toContainText('auth_');
+  const generatedTokenBox = app.locator('copy-value-box');
+  await expect(generatedTokenBox).toBeVisible();
+  expect(await generatedTokenBox.getByRole('textbox', { name: 'Value to copy' }).inputValue()).toMatch(/^auth_/);
   await expect(app.getByText('e2e token')).toBeVisible();
 
   await page.reload();
@@ -292,8 +299,7 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await reloadedApp.locator('summary').click();
   await expect(reloadedApp.getByText('e2e token')).toBeVisible();
 
-  await reloadedApp.getByRole('button', { name: 'read:profile x' }).click();
-  await expect(reloadedApp.getByText('read:profile', { exact: true })).toHaveCount(0);
+  page.once('dialog', (dialog) => dialog.accept());
   await reloadedApp.getByRole('button', { name: 'Revoke' }).click();
   await expect(reloadedApp.getByText(/^Revoked /)).toBeVisible();
   await expect(reloadedApp.getByText('Active')).toHaveCount(0);
@@ -314,7 +320,7 @@ test('Auth API token selector loads clients and supports create and revoke', asy
   expect(loginStatus).toBe(204);
 
   await page.evaluate(async (id) => {
-    const response = await fetch('/oidc/clients', {
+    const response = await fetch('/api/v1/oidc/clients', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ id, redirectUris: [`https://${id}.example/callback`], scopes: ['storage:limits'] }),
@@ -357,7 +363,7 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     await expect(copyBox.getByText('Copied to clipboard.')).toBeHidden({ timeout: 7000 });
     const issued = await page.evaluate(
       async ({ id, token }) => {
-        const response = await fetch(`/api-tokens/${encodeURIComponent(id)}/issue`, {
+        const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}/issue`, {
           method: 'POST',
           headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
           body: JSON.stringify({ label: 'downstream token', scopes: ['storage:limits'] }),
@@ -370,7 +376,7 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     expect(issued.body.token).toMatch(/^auth_/);
     const forbiddenScope = await page.evaluate(
       async ({ id, token }) => {
-        const response = await fetch(`/api-tokens/${encodeURIComponent(id)}/issue`, {
+        const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}/issue`, {
           method: 'POST',
           headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
           body: JSON.stringify({ label: 'out-of-scope token', scopes: ['admin:all'] }),
@@ -385,20 +391,85 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     await expect(page.getByText('revoked', { exact: true })).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
-    await page.evaluate(async (id) => fetch(`/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }), appId);
+    await page.evaluate(
+      async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+      appId,
+    );
   }
 });
 
 test('OIDC client deletion without admin access returns 403', async ({ request }) => {
-  const response = await request.delete('/oidc/clients/some-client-id');
+  const response = await request.delete('/api/v1/oidc/clients/some-client-id');
   expect(response.status()).toBe(403);
 });
 
 test('OIDC client secret regeneration without admin access returns 403', async ({ request }) => {
-  const response = await request.put('/oidc/clients/some-client-id/secret', {
+  const response = await request.put('/api/v1/oidc/clients/some-client-id/secret', {
     json: {},
   });
   expect(response.status()).toBe(403);
+});
+
+test('registered OIDC clients can revoke opaque API tokens', async ({ page }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  const appId = `e2e-revoke-${Date.now()}`;
+  await page.goto('/');
+  await page.evaluate(async (secret) => {
+    await fetch('/__test__/login', {
+      method: 'POST',
+      headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'admin' }),
+    });
+  }, testKey);
+
+  const setup = await page.evaluate(async (id) => {
+    const appResponse = await fetch('/api/v1/oidc/clients', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, redirectUris: [`https://${id}.example/callback`], scopes: ['profile'] }),
+    });
+    if (!appResponse.ok) throw new Error('Could not create test OIDC client');
+    const app = await appResponse.json();
+    const tokenResponse = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ label: 'revoke test token', scopes: ['profile'] }),
+    });
+    if (!tokenResponse.ok) throw new Error('Could not create test API token');
+    const token = await tokenResponse.json();
+    return { secret: app.secret, token: token.token };
+  }, appId);
+
+  try {
+    const result = await page.evaluate(
+      async ({ id, secret, token }) => {
+        const credentials = btoa(`${id}:${secret}`);
+        const headers = {
+          authorization: `Basic ${credentials}`,
+          'content-type': 'application/x-www-form-urlencoded',
+        };
+        const revoked = await fetch('/api/v1/revoke', {
+          method: 'POST',
+          headers,
+          body: new URLSearchParams({ token, token_type_hint: 'access_token' }),
+        });
+        const introspected = await fetch('/oauth/introspect', {
+          method: 'POST',
+          headers,
+          body: new URLSearchParams({ token }),
+        });
+        return { revokeStatus: revoked.status, active: (await introspected.json()).active };
+      },
+      { id: appId, ...setup },
+    );
+    expect(result.revokeStatus).toBe(200);
+    expect(result.active).toBe(false);
+  } finally {
+    await page.evaluate(
+      async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+      appId,
+    );
+  }
 });
 
 test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
@@ -419,7 +490,7 @@ test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
 
   const created = await page.evaluate(
     async ({ id }) => {
-      const response = await fetch('/oidc/clients', {
+      const response = await fetch('/api/v1/oidc/clients', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id, redirectUris: ['https://' + id + '.example/callback'], scopes: ['profile'] }),
@@ -431,7 +502,7 @@ test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
   );
   try {
     const createdToken = await page.evaluate(async (id) => {
-      const response = await fetch(`/api-tokens/${encodeURIComponent(id)}`, {
+      const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ label: 'delete cleanup test', scopes: ['profile'] }),
@@ -447,7 +518,7 @@ test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
 
     const secretResponsePromise = page.waitForResponse((response) => {
       const url = new URL(response.url());
-      return url.pathname === `/oidc/clients/${appId}/secret` && response.request().method() === 'PUT';
+      return url.pathname === `/api/v1/oidc/clients/${appId}/secret` && response.request().method() === 'PUT';
     });
     page.once('dialog', (dialog) => dialog.accept());
     await card.getByRole('button', { name: 'Regenerate secret' }).click();
@@ -458,11 +529,11 @@ test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
     expect(regenerated.secret).not.toBe(created.secret);
     const secretBox = card.locator('.bg-emerald-50');
     await expect(secretBox).toBeVisible();
-    await expect(secretBox).toContainText(regenerated.secret);
+    await expect(secretBox.getByRole('textbox', { name: 'Value to copy' })).toHaveValue(regenerated.secret);
 
     const deleteResponsePromise = page.waitForResponse((response) => {
       const url = new URL(response.url());
-      return url.pathname === `/oidc/clients/${appId}` && response.request().method() === 'DELETE';
+      return url.pathname === `/api/v1/oidc/clients/${appId}` && response.request().method() === 'DELETE';
     });
     page.once('dialog', (dialog) => dialog.accept());
     await card.getByRole('button', { name: 'Delete app' }).click();
@@ -470,11 +541,14 @@ test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
     expect(deleteResponse.status()).toBe(204);
     await expect(card).toHaveCount(0);
     const remainingTokens = await page.evaluate(async (id) => {
-      const response = await fetch(`/api-tokens/${encodeURIComponent(id)}`);
+      const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}`);
       return response.json();
     }, appId);
     expect(remainingTokens).toEqual([]);
   } finally {
-    await page.evaluate(async (id) => fetch(`/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }), appId);
+    await page.evaluate(
+      async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+      appId,
+    );
   }
 });

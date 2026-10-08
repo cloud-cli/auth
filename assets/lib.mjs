@@ -18,17 +18,17 @@ function toBoolean(r) {
 }
 
 async function getProfile() {
-  const r = await fetch(new URL('/profile', authDomain), fetchOptions);
+  const r = await fetch(new URL('/api/v1/profile', authDomain), fetchOptions);
   return toJson(r);
 }
 
 async function isAuthenticated() {
-  const r = await fetch(new URL('/profile', authDomain), { ...fetchOptions, method: 'HEAD' });
+  const r = await fetch(new URL('/api/v1/profile', authDomain), { ...fetchOptions, method: 'HEAD' });
   return Boolean(r.ok && r.status < 300);
 }
 
 async function signOut() {
-  const r = await fetch(new URL('/profile', authDomain), {
+  const r = await fetch(new URL('/api/v1/profile', authDomain), {
     ...fetchOptions,
     method: 'DELETE',
   });
@@ -37,17 +37,17 @@ async function signOut() {
 }
 
 async function getProperties() {
-  const r = await fetch(new URL('/properties', authDomain), fetchOptions);
+  const r = await fetch(new URL('/api/v1/properties', authDomain), fetchOptions);
   return await toJson(r);
 }
 
 async function getProperty(property) {
-  const r = await fetch(new URL('/properties/' + property, authDomain), fetchOptions);
+  const r = await fetch(new URL('/api/v1/properties/' + property, authDomain), fetchOptions);
   return r.ok ? (await toJson(r)).value : '';
 }
 
 async function setProperty(property, value) {
-  const r = await fetch(new URL('/properties', authDomain), {
+  const r = await fetch(new URL('/api/v1/properties', authDomain), {
     ...fetchOptions,
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
@@ -58,7 +58,7 @@ async function setProperty(property, value) {
 }
 
 async function deleteProperty(key) {
-  const r = await fetch(new URL('/properties/' + key, authDomain), {
+  const r = await fetch(new URL('/api/v1/properties/' + key, authDomain), {
     ...fetchOptions,
     method: 'DELETE',
   });

@@ -105,9 +105,19 @@ export function createAuthClient({
     return response.json();
   }
 
+  async function revokeApiToken(token) {
+    const credentials = Buffer.from(`${clientId}:${clientSecret || ''}`).toString('base64');
+    const response = await fetch(new URL('/api/v1/revoke', issuer), {
+      method: 'POST',
+      headers: { Authorization: `Basic ${credentials}`, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token, token_type_hint: 'access_token' }),
+    });
+    if (!response.ok) throw new Error(`Could not revoke API token: ${response.status}`);
+  }
+
   async function mintApiToken({ label, scopes }) {
     if (!authApiToken) throw new Error('An Auth API token is required to mint API tokens');
-    const response = await fetch(new URL(`/api-tokens/${encodeURIComponent(clientId)}/issue`, issuer), {
+    const response = await fetch(new URL(`/api/v1/api-tokens/${encodeURIComponent(clientId)}/issue`, issuer), {
       method: 'POST',
       headers: { Authorization: `Bearer ${authApiToken}`, 'content-type': 'application/json' },
       body: JSON.stringify({ label, scopes }),
@@ -123,7 +133,7 @@ export function createAuthClient({
     const cookie = getSessionCookie(request, sessionCookieName);
     if (!cookie) return null;
 
-    const response = await fetch(new URL('/profile', issuer), { headers: { Cookie: cookie } });
+    const response = await fetch(new URL('/api/v1/profile', issuer), { headers: { Cookie: cookie } });
     return response.ok ? response.json() : null;
   }
 
@@ -183,6 +193,7 @@ export function createAuthClient({
     getProfile,
     introspectToken,
     mintApiToken,
+    revokeApiToken,
     getSessionProfile,
     isSessionAuthenticated,
     requireSession,

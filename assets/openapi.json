@@ -3,7 +3,7 @@
   "info": {
     "title": "Cloud CLI Auth API",
     "version": "1.0.0",
-    "description": "Google-authenticated session and user-property API. Browser requests must include session cookies."
+    "description": "OIDC provider endpoints, versioned Auth APIs, and JavaScript integration modules. UI pages and UI-only assets are omitted."
   },
   "servers": [
     {
@@ -25,7 +25,7 @@
     }
   ],
   "paths": {
-    "/profile": {
+    "/api/v1/profile": {
       "get": {
         "tags": ["Authentication"],
         "summary": "Get the current user",
@@ -76,95 +76,7 @@
         }
       }
     },
-    "/": {
-      "get": {
-        "tags": ["Browser client"],
-        "summary": "Show the Auth landing page",
-        "responses": {
-          "200": {
-            "description": "HTML landing page",
-            "content": {
-              "text/html": {
-                "schema": { "type": "string" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/login": {
-      "get": {
-        "tags": ["Authentication"],
-        "summary": "Show the Google sign-in page",
-        "parameters": [
-          {
-            "name": "url",
-            "in": "query",
-            "description": "Optional URL to return to after sign-in",
-            "schema": {
-              "type": "string",
-              "format": "uri"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "HTML sign-in page",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/me": {
-      "get": {
-        "tags": ["Authentication"],
-        "summary": "Show the current user's profile page",
-        "responses": {
-          "200": {
-            "description": "HTML profile page",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthenticated"
-          }
-        }
-      }
-    },
-    "/auth/google": {
-      "get": {
-        "tags": ["Authentication"],
-        "summary": "Start Google OAuth sign-in",
-        "responses": {
-          "302": {
-            "description": "Redirect to Google"
-          }
-        }
-      }
-    },
-    "/auth/google/callback": {
-      "get": {
-        "tags": ["Authentication"],
-        "summary": "Handle the Google OAuth callback",
-        "responses": {
-          "302": {
-            "description": "Redirect to the profile page after a successful sign-in"
-          }
-        }
-      }
-    },
-    "/properties": {
+    "/api/v1/properties": {
       "get": {
         "tags": ["Properties"],
         "summary": "List the current user's properties",
@@ -220,7 +132,7 @@
         }
       }
     },
-    "/properties/{key}": {
+    "/api/v1/properties/{key}": {
       "parameters": [
         {
           "name": "key",
@@ -272,83 +184,7 @@
         }
       }
     },
-    "/embed": {
-      "get": {
-        "tags": ["Browser client"],
-        "summary": "Serve the hidden-frame browser RPC bridge",
-        "responses": {
-          "200": {
-            "description": "JavaScript module",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/index.mjs": {
-      "get": {
-        "tags": ["Browser client"],
-        "summary": "Serve the browser authentication ES module",
-        "responses": {
-          "200": {
-            "description": "JavaScript ES module",
-            "content": {
-              "text/javascript": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/dashboard.mjs": {
-      "get": {
-        "tags": ["Browser client"],
-        "summary": "Serve the Auth dashboard WebAuthn management module",
-        "responses": {
-          "200": {
-            "description": "JavaScript ES module"
-          }
-        }
-      }
-    },
-    "/lib.mjs": {
-      "get": {
-        "tags": ["Browser client"],
-        "summary": "Serve the browser RPC helper module",
-        "responses": {
-          "200": {
-            "description": "JavaScript ES module"
-          }
-        }
-      }
-    },
-    "/api": {
-      "get": {
-        "tags": ["Browser client"],
-        "summary": "Get this OpenAPI document",
-        "responses": {
-          "200": {
-            "description": "OpenAPI document",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/session/token": {
+    "/api/v1/session/token": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Issue a short-lived access token for an allowed audience",
@@ -396,20 +232,32 @@
         }
       }
     },
-    "/oidc/clients": {
+    "/api/v1/oidc/clients": {
       "get": {
         "tags": ["Authentication"],
         "summary": "List managed OIDC clients",
-        "security": [{ "apiKeyAuth": [] }],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Managed clients without secrets" },
-          "403": { "description": "Administrator access required" }
+          "200": {
+            "description": "Managed clients without secrets"
+          },
+          "403": {
+            "description": "Administrator access required"
+          }
         }
       },
       "post": {
         "tags": ["Authentication"],
         "summary": "Create a managed OIDC client",
-        "security": [{ "apiKeyAuth": [] }],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -418,49 +266,99 @@
                 "type": "object",
                 "required": ["id", "redirectUris"],
                 "properties": {
-                  "id": { "type": "string" },
-                  "redirectUris": { "type": "array", "items": { "type": "string", "format": "uri" } }
+                  "id": {
+                    "type": "string"
+                  },
+                  "redirectUris": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Client and one-time secret" },
-          "400": { "description": "Invalid client" },
-          "403": { "description": "Administrator access required" }
+          "201": {
+            "description": "Client and one-time secret"
+          },
+          "400": {
+            "description": "Invalid client"
+          },
+          "403": {
+            "description": "Administrator access required"
+          }
         }
       }
     },
-    "/audit": {
+    "/api/v1/audit": {
       "get": {
         "tags": ["Authentication"],
         "summary": "List the current user's authentication audit events",
         "responses": {
-          "200": { "description": "Authentication timeline" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
+          "200": {
+            "description": "Authentication timeline"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
         }
       }
     },
-    "/oidc/clients/{id}": {
+    "/api/v1/oidc/clients/{id}": {
       "delete": {
         "tags": ["Authentication"],
         "summary": "Remove a managed OIDC client",
-        "security": [{ "apiKeyAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "204": { "description": "Removed" },
-          "403": { "description": "Administrator access required" },
-          "404": { "description": "Not found" }
+          "204": {
+            "description": "Removed"
+          },
+          "403": {
+            "description": "Administrator access required"
+          },
+          "404": {
+            "description": "Not found"
+          }
         }
       }
     },
-    "/oidc/clients/{id}/secret": {
+    "/api/v1/oidc/clients/{id}/secret": {
       "put": {
         "tags": ["Authentication"],
         "summary": "Regenerate a managed OIDC client secret",
-        "security": [{ "apiKeyAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Regenerated secret",
@@ -470,31 +368,53 @@
                   "type": "object",
                   "required": ["id", "secret"],
                   "properties": {
-                    "id": { "type": "string" },
-                    "secret": { "type": "string" },
+                    "id": {
+                      "type": "string"
+                    },
+                    "secret": {
+                      "type": "string"
+                    },
                     "redirectUris": {
                       "type": "array",
-                      "items": { "type": "string", "format": "uri" }
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      }
                     },
                     "scopes": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   }
                 }
               }
             }
           },
-          "403": { "description": "Administrator access required" },
-          "404": { "description": "Not found" }
+          "403": {
+            "description": "Administrator access required"
+          },
+          "404": {
+            "description": "Not found"
+          }
         }
       }
     },
-    "/oidc/clients/{id}/scopes": {
+    "/api/v1/oidc/clients/{id}/scopes": {
       "put": {
         "tags": ["Authentication"],
         "summary": "Replace the allowed API scopes for a managed OIDC client",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -502,32 +422,67 @@
               "schema": {
                 "type": "object",
                 "required": ["scopes"],
-                "properties": { "scopes": { "type": "array", "items": { "type": "string" } } }
+                "properties": {
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Updated scopes" },
-          "400": { "description": "Invalid client or scope" },
-          "403": { "description": "Administrator access required" }
+          "200": {
+            "description": "Updated scopes"
+          },
+          "400": {
+            "description": "Invalid client or scope"
+          },
+          "403": {
+            "description": "Administrator access required"
+          }
         }
       }
     },
-    "/api-tokens/{clientId}": {
+    "/api/v1/api-tokens/{clientId}": {
       "get": {
         "tags": ["Authentication"],
         "summary": "List the current user's tokens for an OIDC app",
-        "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Token metadata without token values" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
+          "200": {
+            "description": "Token metadata without token values"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
         }
       },
       "post": {
         "tags": ["Authentication"],
         "summary": "Create a scoped opaque API token",
-        "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -536,38 +491,85 @@
                 "type": "object",
                 "required": ["label", "scopes"],
                 "properties": {
-                  "label": { "type": "string" },
-                  "scopes": { "type": "array", "items": { "type": "string" } }
+                  "label": {
+                    "type": "string"
+                  },
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Token value, shown once" },
-          "400": { "description": "Invalid app or scope" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
+          "201": {
+            "description": "Token value, shown once"
+          },
+          "400": {
+            "description": "Invalid app or scope"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
         }
       }
     },
-    "/api-tokens/{clientId}/{tokenId}": {
+    "/api/v1/api-tokens/{clientId}/{tokenId}": {
       "delete": {
         "tags": ["Authentication"],
         "summary": "Revoke a token by stable token ID",
         "parameters": [
-          { "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } },
-          { "name": "tokenId", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
-        "responses": { "204": { "description": "Revoked" }, "404": { "description": "Token not found" } }
+        "responses": {
+          "204": {
+            "description": "Revoked"
+          },
+          "404": {
+            "description": "Token not found"
+          }
+        }
       }
     },
-    "/api-tokens/{clientId}/issue": {
+    "/api/v1/api-tokens/{clientId}/issue": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Mint a downstream API token using an Auth API token",
         "description": "Requires an Auth API Bearer token issued to clientId. This credential has the fixed permission to mint tokens only for its own client. The request's downstream scopes must be configured for that OIDC client. The returned opaque token is shown once.",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -576,35 +578,69 @@
                 "type": "object",
                 "required": ["label", "scopes"],
                 "properties": {
-                  "label": { "type": "string" },
-                  "scopes": { "type": "array", "items": { "type": "string" } }
+                  "label": {
+                    "type": "string"
+                  },
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Opaque token and expiry" },
-          "400": { "description": "Unknown client or invalid scope" },
-          "401": { "description": "Missing, invalid, expired, or revoked Auth API token" }
+          "201": {
+            "description": "Opaque token and expiry"
+          },
+          "400": {
+            "description": "Unknown client or invalid scope"
+          },
+          "401": {
+            "description": "Missing, invalid, expired, or revoked Auth API token"
+          }
         }
       }
     },
-    "/auth-api-tokens/{clientId}": {
-      "parameters": [{ "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } }],
+    "/api/v1/auth-api-tokens/{clientId}": {
+      "parameters": [
+        {
+          "name": "clientId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "get": {
         "tags": ["Authentication"],
         "summary": "List Auth API tokens for a client (administrator only)",
-        "security": [{ "apiKeyAuth": [] }],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Token metadata, never token values" },
-          "403": { "description": "Administrator access required" }
+          "200": {
+            "description": "Token metadata, never token values"
+          },
+          "403": {
+            "description": "Administrator access required"
+          }
         }
       },
       "post": {
         "tags": ["Authentication"],
         "summary": "Create an Auth API token for a client (administrator only)",
-        "security": [{ "apiKeyAuth": [] }],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -613,43 +649,65 @@
                 "type": "object",
                 "required": ["label"],
                 "properties": {
-                  "label": { "type": "string", "description": "A label for this fixed-permission token" }
+                  "label": {
+                    "type": "string",
+                    "description": "A label for this fixed-permission token"
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Token value, shown once" },
-          "400": { "description": "Unknown client" },
-          "403": { "description": "Administrator access required" }
+          "201": {
+            "description": "Token value, shown once"
+          },
+          "400": {
+            "description": "Unknown client"
+          },
+          "403": {
+            "description": "Administrator access required"
+          }
         }
       }
     },
-    "/auth-api-tokens": {
-      "get": {
-        "tags": ["Authentication"],
-        "summary": "Open the combined signing keys and Auth API tokens dashboard (administrator only)",
-        "security": [{ "apiKeyAuth": [] }],
-        "responses": {
-          "302": { "description": "Redirect to the Auth API tokens dashboard section" },
-          "403": { "description": "Administrator access required" }
-        }
-      }
-    },
-    "/auth-api-tokens/{clientId}/{tokenId}": {
+    "/api/v1/auth-api-tokens/{clientId}/{tokenId}": {
       "delete": {
         "tags": ["Authentication"],
         "summary": "Revoke an Auth API token (administrator only)",
-        "security": [{ "apiKeyAuth": [] }],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "clientId", "in": "path", "required": true, "schema": { "type": "string" } },
-          { "name": "tokenId", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "204": { "description": "Revoked" },
-          "403": { "description": "Administrator access required" },
-          "404": { "description": "Token not found" }
+          "204": {
+            "description": "Revoked"
+          },
+          "403": {
+            "description": "Administrator access required"
+          },
+          "404": {
+            "description": "Token not found"
+          }
         }
       }
     },
@@ -657,7 +715,11 @@
       "post": {
         "tags": ["Authentication"],
         "summary": "Introspect an opaque API token",
-        "security": [{ "basicAuth": [] }],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -665,12 +727,23 @@
               "schema": {
                 "type": "object",
                 "required": ["token"],
-                "properties": { "token": { "type": "string" }, "token_type_hint": { "type": "string" } }
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "token_type_hint": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
-        "responses": { "200": { "description": "RFC 7662 token status" } }
+        "responses": {
+          "200": {
+            "description": "RFC 7662 token status"
+          }
+        }
       }
     },
     "/authorize": {
@@ -678,21 +751,65 @@
         "tags": ["Authentication"],
         "summary": "Start an OIDC authorization-code flow",
         "parameters": [
-          { "name": "response_type", "in": "query", "required": true, "schema": { "type": "string", "const": "code" } },
-          { "name": "client_id", "in": "query", "required": true, "schema": { "type": "string" } },
-          { "name": "redirect_uri", "in": "query", "required": true, "schema": { "type": "string", "format": "uri" } },
-          { "name": "state", "in": "query", "required": true, "schema": { "type": "string" } },
-          { "name": "code_challenge", "in": "query", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "response_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "code"
+            }
+          },
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "code_challenge_method",
             "in": "query",
             "required": true,
-            "schema": { "type": "string", "const": "S256" }
+            "schema": {
+              "type": "string",
+              "const": "S256"
+            }
           }
         ],
         "responses": {
-          "302": { "description": "Redirect to sign-in or the registered callback with code and state" },
-          "400": { "description": "Invalid or unregistered client request" }
+          "302": {
+            "description": "Redirect to sign-in or the registered callback with code and state"
+          },
+          "400": {
+            "description": "Invalid or unregistered client request"
+          }
         }
       }
     },
@@ -708,12 +825,26 @@
                 "type": "object",
                 "required": ["grant_type", "code", "client_id", "client_secret", "redirect_uri", "code_verifier"],
                 "properties": {
-                  "grant_type": { "type": "string", "const": "authorization_code" },
-                  "code": { "type": "string" },
-                  "client_id": { "type": "string" },
-                  "client_secret": { "type": "string" },
-                  "redirect_uri": { "type": "string", "format": "uri" },
-                  "code_verifier": { "type": "string" }
+                  "grant_type": {
+                    "type": "string",
+                    "const": "authorization_code"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "client_id": {
+                    "type": "string"
+                  },
+                  "client_secret": {
+                    "type": "string"
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "code_verifier": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -723,11 +854,19 @@
           "200": {
             "description": "Access and identity tokens",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/OidcTokenResponse" } }
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcTokenResponse"
+                }
+              }
             }
           },
-          "400": { "description": "Invalid request or authorization code" },
-          "503": { "description": "JWT service is not configured" }
+          "400": {
+            "description": "Invalid request or authorization code"
+          },
+          "503": {
+            "description": "JWT service is not configured"
+          }
         }
       }
     },
@@ -762,7 +901,11 @@
       "get": {
         "tags": ["Authentication"],
         "summary": "Get the OpenID Connect discovery document",
-        "responses": { "200": { "description": "OpenID Connect provider metadata" } }
+        "responses": {
+          "200": {
+            "description": "OpenID Connect provider metadata"
+          }
+        }
       }
     },
     "/userinfo": {
@@ -804,91 +947,141 @@
         }
       }
     },
-    "/node.mjs": {
-      "get": {
-        "tags": ["Node client"],
-        "summary": "Serve the Node.js OIDC and JWT client",
-        "responses": {
-          "200": {
-            "description": "JavaScript ES module",
-            "content": {
-              "text/javascript": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/webauthn/register/options": {
+    "/api/v1/webauthn/register/options": {
       "get": {
         "tags": ["Authentication"],
         "summary": "Create passkey registration options for the current user",
         "responses": {
-          "200": { "description": "WebAuthn registration options" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
+          "200": {
+            "description": "WebAuthn registration options"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
         }
       }
     },
-    "/webauthn/register/verify": {
+    "/api/v1/webauthn/register/verify": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Register a passkey for the current user",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Passkey registered" },
-          "400": { "description": "Invalid WebAuthn response" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
+          "201": {
+            "description": "Passkey registered"
+          },
+          "400": {
+            "description": "Invalid WebAuthn response"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
         }
       }
     },
-    "/webauthn/authentication/options": {
+    "/api/v1/webauthn/authentication/options": {
       "get": {
         "tags": ["Authentication"],
         "summary": "Create passkey authentication options",
-        "parameters": [{ "name": "login_hint", "in": "query", "required": false, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "WebAuthn authentication options" } }
-      }
-    },
-    "/webauthn/authentication/verify": {
-      "post": {
-        "tags": ["Authentication"],
-        "summary": "Authenticate with a passkey and create a session",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "parameters": [
+          {
+            "name": "login_hint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "204": { "description": "Authenticated" },
-          "401": { "description": "Invalid or revoked passkey" }
+          "200": {
+            "description": "WebAuthn authentication options"
+          }
         }
       }
     },
-    "/webauthn/credentials": {
+    "/api/v1/webauthn/authentication/verify": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Authenticate with a passkey and create a session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Authenticated"
+          },
+          "401": {
+            "description": "Invalid or revoked passkey"
+          }
+        }
+      }
+    },
+    "/api/v1/webauthn/credentials": {
       "get": {
         "tags": ["Authentication"],
         "summary": "List the current user's passkeys",
         "responses": {
           "200": {
             "description": "Registered passkeys",
-            "content": { "application/json": { "schema": { "type": "array" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
         }
       }
     },
-    "/webauthn/credentials/{credentialId}": {
+    "/api/v1/webauthn/credentials/{credentialId}": {
       "delete": {
         "tags": ["Authentication"],
         "summary": "Revoke one of the current user's passkeys",
-        "parameters": [{ "name": "credentialId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          {
+            "name": "credentialId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "204": { "description": "Passkey revoked" },
-          "404": { "description": "Passkey not found" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
+          "204": {
+            "description": "Passkey revoked"
+          },
+          "404": {
+            "description": "Passkey not found"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
         }
       }
     },
-    "/recovery-codes": {
+    "/api/v1/recovery-codes": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Generate a new set of one-time recovery codes",
@@ -899,47 +1092,97 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "properties": { "codes": { "type": "array", "items": { "type": "string" } } }
+                  "properties": {
+                    "codes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthenticated" }
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
         }
       }
     },
-    "/qr-login/start": {
+    "/api/v1/qr-login/start": {
       "get": {
         "tags": ["Authentication"],
         "summary": "Create a QR login approval transaction",
-        "parameters": [{ "name": "url", "in": "query", "required": false, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Transaction token, QR data URL, and PWA URL" } }
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction token, QR data URL, and PWA URL"
+          }
+        }
       }
     },
-    "/qr-login/status": {
+    "/api/v1/qr-login/status": {
       "get": {
         "tags": ["Authentication"],
         "summary": "Poll a laptop QR login transaction",
-        "parameters": [{ "name": "transaction", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Pending, denied, or approved transaction" },
-          "410": { "description": "Expired transaction" }
+          "200": {
+            "description": "Pending, denied, or approved transaction"
+          },
+          "410": {
+            "description": "Expired transaction"
+          }
         }
       }
     },
-    "/qr-login/details": {
+    "/api/v1/qr-login/details": {
       "get": {
         "tags": ["Authentication"],
         "summary": "Read a QR login transaction from an authenticated phone",
-        "parameters": [{ "name": "transaction", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          {
+            "name": "transaction",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Login details" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "410": { "description": "Expired transaction" }
+          "200": {
+            "description": "Login details"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "410": {
+            "description": "Expired transaction"
+          }
         }
       }
     },
-    "/qr-login/approve": {
+    "/api/v1/qr-login/approve": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Approve a QR login from the authenticated phone",
@@ -950,19 +1193,29 @@
               "schema": {
                 "type": "object",
                 "required": ["transaction"],
-                "properties": { "transaction": { "type": "string" } }
+                "properties": {
+                  "transaction": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
-          "204": { "description": "Approved" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "410": { "description": "Expired transaction" }
+          "204": {
+            "description": "Approved"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "410": {
+            "description": "Expired transaction"
+          }
         }
       }
     },
-    "/qr-login/deny": {
+    "/api/v1/qr-login/deny": {
       "post": {
         "tags": ["Authentication"],
         "summary": "Deny a QR login from the authenticated phone",
@@ -973,23 +1226,138 @@
               "schema": {
                 "type": "object",
                 "required": ["transaction"],
-                "properties": { "transaction": { "type": "string" } }
+                "properties": {
+                  "transaction": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
-          "204": { "description": "Denied" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "410": { "description": "Expired transaction" }
+          "204": {
+            "description": "Denied"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "410": {
+            "description": "Expired transaction"
+          }
         }
       }
     },
-    "/pwa/": {
+    "/api/v1/revoke": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Revoke an opaque API token",
+        "description": "Requires registered client credentials. Unknown tokens are treated as successfully revoked.",
+        "security": [{ "basicAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "token_type_hint": {
+                    "type": "string"
+                  }
+                },
+                "required": ["token"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token revoked or unknown"
+          },
+          "401": {
+            "description": "Invalid client credentials"
+          }
+        }
+      }
+    },
+    "/api/v1/keys": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "List signing keys",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/keys/rotate": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Rotate the active signing key",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/audit/options": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "List audit filter options",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/recovery": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Authenticate with a recovery code",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/api/v1/api-tokens/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "List current user API tokens",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    },
+    "/index.mjs": {
       "get": {
         "tags": ["Browser client"],
-        "summary": "Serve the minimal QR approval PWA",
-        "responses": { "200": { "description": "PWA HTML" } }
+        "summary": "Serve the browser authentication integration module",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module"
+          }
+        }
+      }
+    },
+    "/node.mjs": {
+      "get": {
+        "tags": ["Node client"],
+        "summary": "Serve the Node.js authentication integration module",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module"
+          }
+        }
       }
     }
   },
@@ -1068,12 +1436,16 @@
       },
       "OidcTokenResponse": {
         "allOf": [
-          { "$ref": "#/components/schemas/AccessToken" },
+          {
+            "$ref": "#/components/schemas/AccessToken"
+          },
           {
             "type": "object",
             "required": ["id_token"],
             "properties": {
-              "id_token": { "type": "string" }
+              "id_token": {
+                "type": "string"
+              }
             }
           }
         ]

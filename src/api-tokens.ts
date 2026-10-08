@@ -127,6 +127,18 @@ export async function revokeApiToken(userId: string, clientId: string, tokenId: 
   return true;
 }
 
+export async function revokePresentedApiToken(token: string, clientId: string) {
+  const tokenHash = hash(token);
+  const tokens = await rows<ApiToken>('auth_api_token', 'token_hash = ? AND client_id = ?', [tokenHash, clientId]);
+  if (!tokens[0]) return false;
+  await run('UPDATE auth_api_token SET revoked_at = ? WHERE token_hash = ? AND client_id = ?', [
+    new Date().toISOString(),
+    tokenHash,
+    clientId,
+  ]);
+  return true;
+}
+
 export async function introspectApiToken(token: string, clientId: string, clientSecret: string) {
   const client = await getClient(clientId);
   if (!client || !(await verifyClientSecret(client, clientSecret))) return null;

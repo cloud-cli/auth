@@ -1,4 +1,4 @@
-import { runCommand } from '/lib.mjs';
+import { runCommand } from '/ui/lib.mjs';
 const allowedOrigins = __EMBED_ALLOWED_ORIGINS__;
 window.addEventListener('message', (event) => {
   try {

@@ -8,7 +8,7 @@ if (!authDomain) {
 
 const embedded = new Promise((resolve, reject) => {
   const frame = document.createElement('iframe');
-  frame.src = String(new URL('/embed', authDomain));
+  frame.src = String(new URL('/ui/embed.html', authDomain));
 
   Object.assign(frame.style, {
     width: '0px',
@@ -139,7 +139,7 @@ export const deleteProperty = fetchCommand('deleteProperty');
 export const getProperties = fetchCommand('getProperties');
 export async function getProfile() {
   try {
-    const response = await fetch(new URL('/profile', authDomain), { credentials: 'include', mode: 'cors' });
+    const response = await fetch(new URL('/api/v1/profile', authDomain), { credentials: 'include', mode: 'cors' });
     if (!response.ok) throw new Error(response.status + ': ' + response.statusText);
     return response.json();
   } catch {
@@ -148,7 +148,7 @@ export async function getProfile() {
 }
 export async function isAuthenticated() {
   try {
-    const response = await fetch(new URL('/profile', authDomain), {
+    const response = await fetch(new URL('/api/v1/profile', authDomain), {
       credentials: 'include',
       mode: 'cors',
       method: 'HEAD',
@@ -167,7 +167,7 @@ export async function getAccessToken(audience) {
   const cached = tokens.get(audience);
   if (cached && cached.expiresAt > Date.now() + 30_000) return cached.token;
 
-  const response = await fetch(new URL('/session/token', authDomain), {
+  const response = await fetch(new URL('/api/v1/session/token', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },

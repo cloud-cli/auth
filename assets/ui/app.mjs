@@ -15,7 +15,7 @@ import {
   revokePasskey,
   setProperty,
   signInWithPasskey,
-} from '/dashboard.mjs';
+} from '/ui/dashboard.mjs';
 
 const page = document.body.dataset.page;
 const testLoginEnabled = document.body.dataset.testLogin === 'true';
@@ -159,7 +159,7 @@ export default function () {
   }
 
   async function signOut() {
-    await fetch('/profile', { method: 'DELETE', credentials: 'include' });
+    await fetch('/api/v1/profile', { method: 'DELETE', credentials: 'include' });
     location.href = '/login';
   }
 
@@ -187,14 +187,16 @@ export default function () {
   }
 
   async function loadQr() {
-    const response = await fetch('/qr-login/start?url=' + encodeURIComponent(value('url')), { credentials: 'include' });
+    const response = await fetch('/api/v1/qr-login/start?url=' + encodeURIComponent(value('url')), {
+      credentials: 'include',
+    });
     if (!response.ok) throw new Error('Could not start phone approval.');
     const transaction = await response.json();
     qr.value = transaction.qr;
     pwaUrl.value = transaction.pwaUrl;
     status.value = 'Waiting for approval on your phone...';
     const poll = async () => {
-      const result = await fetch('/qr-login/status?transaction=' + encodeURIComponent(transaction.token), {
+      const result = await fetch('/api/v1/qr-login/status?transaction=' + encodeURIComponent(transaction.token), {
         credentials: 'include',
       });
       if (!result.ok) return setMessage('This QR code expired. Start again.', true);
@@ -212,7 +214,7 @@ export default function () {
 
   async function resumeLogin() {
     const returnUrl = value('url') || '/me';
-    const response = await fetch('/profile', { credentials: 'include' });
+    const response = await fetch('/api/v1/profile', { credentials: 'include' });
     if (response.ok) location.replace(returnUrl);
     else if (value('url')) {
       sessionStorage.setItem('auth.returnUrl', value('url'));

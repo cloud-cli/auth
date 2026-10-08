@@ -61,9 +61,9 @@ docker run --name 'auth' --detach \
 
 Install Playwright browsers once with `pnpm exec playwright install chromium`. Run `pnpm test:integration` with the application environment configured; the tests start `pnpm start` automatically. To test an already-running deployment, set `INTEGRATION_BASE_URL` instead.
 
-The OpenAPI 3.1 document is served at `GET /api`.
+The OpenAPI 3.1 document is served at `GET /api`. All non-standard API endpoints use the `/api/v1/` prefix; standard OIDC protocol and discovery endpoints remain at their standard paths. UI pages and UI-only assets are omitted from OpenAPI, while the browser and Node integration modules remain documented.
 
-`POST /session/token` exchanges an authenticated browser session for a short-lived RS256 JWT. Its JSON body must include an audience configured in `JWT_AUDIENCES`; browser callers must originate from `AUTH_ALLOWED_ORIGINS`. Public signing keys are available at `GET /.well-known/jwks.json`.
+`POST /api/v1/session/token` exchanges an authenticated browser session for a short-lived RS256 JWT. Its JSON body must include an audience configured in `JWT_AUDIENCES`; browser callers must originate from `AUTH_ALLOWED_ORIGINS`. Public signing keys are available at `GET /.well-known/jwks.json`.
 
 OIDC clients can discover provider metadata at `/.well-known/openid-configuration`.
 
@@ -74,7 +74,7 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
   | awk '{ printf "%s\\n", $0 }' | tr -d '\n'
 ```
 
-Set the resulting PEM value as `JWT_PRIVATE_KEY` (literal `\n` sequences are accepted). `AUTH_DOMAIN` must match the issuer URL used by clients. `JWT_KEY_ID` is optional and defaults to `auth-1`; `JWT_TTL_SECONDS` defaults to 300. `JWT_AUDIENCES` is only required for browser-issued `/session/token` audiences, not for database-managed OIDC clients.
+Set the resulting PEM value as `JWT_PRIVATE_KEY` (literal `\n` sequences are accepted). `AUTH_DOMAIN` must match the issuer URL used by clients. `JWT_KEY_ID` is optional and defaults to `auth-1`; `JWT_TTL_SECONDS` defaults to 300. `JWT_AUDIENCES` is only required for browser-issued `/api/v1/session/token` audiences, not for database-managed OIDC clients.
 
 OIDC clients are managed at `/oidc`. `GET /authorize` creates a one-time authorization code for an authenticated user. The client exchanges it at `POST /token` using its client secret and PKCE verifier.
 
@@ -82,13 +82,13 @@ New OIDC clients can be managed at `/oidc` by users with the persisted `admin` r
 
 OIDC clients define allowed API scopes when registered. Authenticated users can create opaque, scoped API tokens for an app from the dashboard. Tokens are shown only once, stored hashed, expire after one year, and can be revoked.
 
-Backend integrations can mint downstream API tokens without a browser session or OIDC sign-in. An administrator first creates a fixed-purpose Auth API token for the registered client in **Keys & tokens**. Then call `POST /api-tokens/{clientId}/issue` with that token as a Bearer credential and JSON `{ "label": "storage limits", "scopes": ["scope:name"] }`. This credential has one fixed permission: minting tokens for its own client; it does not use the client's downstream API scopes. The issuance request's scopes must be configured for that client. The resulting downstream opaque token has the client ID as its subject and can be introspected using the registered OIDC client credentials. Store the Auth API token securely and revoke it from the dashboard if compromised.
+Backend integrations can mint downstream API tokens without a browser session or OIDC sign-in. An administrator first creates a fixed-purpose Auth API token for the registered client in **Keys & tokens**. Then call `POST /api/v1/api-tokens/{clientId}/issue` with that token as a Bearer credential and JSON `{ "label": "storage limits", "scopes": ["scope:name"] }`. This credential has one fixed permission: minting tokens for its own client; it does not use the client's downstream API scopes. The issuance request's scopes must be configured for that client. The resulting downstream opaque token has the client ID as its subject and can be introspected using the registered OIDC client credentials. Store the Auth API token securely and revoke it from the dashboard if compromised. Registered OAuth clients can revoke downstream opaque API tokens with `POST /api/v1/revoke`, using HTTP Basic client credentials and a form-encoded `token`; the endpoint follows RFC 7009 and returns success for unknown tokens.
 
-Administrators can manage these fixed-permission client-subject tokens in **Keys & tokens** on the dashboard (`/auth-api-tokens`); signing keys appear above Auth API tokens. They can also be managed through the admin-only `GET`, `POST`, and `DELETE /auth-api-tokens/{clientId}[/{tokenId}]` endpoints. This is separate from **API tokens**, which remain user-subject tokens created for an OIDC application's downstream API. Auth API tokens cannot manage users, passkeys, OIDC applications, or other account features.
+Administrators can manage these fixed-permission client-subject tokens in **Keys & tokens** on the dashboard (`/auth-api-tokens`); signing keys appear above Auth API tokens. They can also be managed through the admin-only `GET`, `POST`, and `DELETE /api/v1/auth-api-tokens/{clientId}[/{tokenId}]` endpoints. This is separate from **API tokens**, which remain user-subject tokens created for an OIDC application's downstream API. Auth API tokens cannot manage users, passkeys, OIDC applications, or other account features.
 
 Resource APIs validate these tokens through `POST /oauth/introspect` using the app's OIDC client credentials. The response follows OAuth 2.0 Token Introspection and includes `active`, `client_id`, `sub`, `scope`, `iat`, and `exp`. Responses advertise a 30-second private cache; resource APIs must not trust client-supplied validity headers.
 
-Authenticated activity is available at `/audit` and records authentication results plus OIDC authorization/token exchanges. It stores no tokens, cookies, authorization codes, or client secrets.
+Authenticated activity is available at `/api/v1/audit` and records authentication results plus OIDC authorization/token exchanges. It stores no tokens, cookies, authorization codes, or client secrets.
 
 Authorization codes are held in this server's memory for one minute. Run a single auth-server instance or use session affinity until the backing store supports atomic one-time code consumption.
 
@@ -108,7 +108,7 @@ QR login transactions are currently held in memory, so use one auth-server insta
 
 ## Frontend
 
-The API server contains no HTML. Pages are static Li3 apps under `assets/ui/` and are served through `/login`, `/me`, `/webauthn/login`, `/recovery`, `/qr-login`, and `/pwa/`. The frontend uses the existing browser client at `/index.mjs`; APIs remain JSON, JavaScript, or redirect endpoints.
+The API server contains no HTML. Pages are static Li3 apps under `assets/ui/` and are served through `/login`, `/me`, `/webauthn/login`, `/recovery`, `/qr-login`, and `/pwa/`. The frontend uses the existing browser client at `/index.mjs`; UI-only static modules and assets are served under `/ui/`.
 
 `GET /node.mjs` provides `createAuthClient({ clientId })` for Node.js services. It creates PKCE authorization requests, exchanges callbacks, verifies JWTs locally through the JWKS endpoint, obtains the user's public profile, and introspects opaque tokens. Provide `authApiToken` to enable `auth.mintApiToken({ label, scopes })`; this sends the fixed-purpose Auth API credential to mint a downstream token for the configured client. The requested downstream scopes must already be configured for that client. Keep `authApiToken` in a server-side secret store; it is distinct from `clientSecret`, which is used for OIDC and token introspection.
 
@@ -119,7 +119,7 @@ const token = await auth.mintApiToken({ label: 'storage limits', scopes: ['limit
 
 Node resource APIs can call `auth.introspectToken(token)` with `clientId` and `clientSecret` to validate scoped opaque tokens through the auth server.
 
-`GET /index.mjs` is the consumer browser client: sign-in state, profile, user properties, and temporary API tokens. WebAuthn credential management is intentionally isolated in `GET /dashboard.mjs` for the Auth dashboard UI.
+`GET /index.mjs` is the consumer browser client: sign-in state, profile, user properties, and temporary API tokens. WebAuthn credential management is intentionally isolated in `GET /ui/dashboard.mjs` for the Auth dashboard UI.
 
 For sibling domains that receive the shared auth cookie, it also provides `getSessionProfile(request)`, `isSessionAuthenticated(request)`, and `requireSession(request, response)`. These forward only the configured session cookie to the auth API. They do not work across unrelated domains; use the OIDC authorization-code flow there.
 
@@ -228,15 +228,15 @@ createServer(async (request, response) => {
 
 `auth.getSessionCookie(request)` returns the central `connect.sid` cookie value that `getSessionProfile`, `isSessionAuthenticated`, and `requireSession` forward to the auth API. These helpers are only useful when the incoming request already contains the shared auth cookie. The example's `todo.sid` is an application-owned session cookie and cannot be forwarded to the auth API.
 
-_GET /profile_:
+_GET /api/v1/profile_:
 
 Returns a JSON with `{ id, displayName, photo, properties }`
 
-_DELETE /profile_:
+_DELETE /api/v1/profile_:
 
 Deletes the current session
 
-_HEAD /profile_:
+_HEAD /api/v1/profile_:
 
 Returns 204 if authenticated, 401 if not
 
@@ -252,16 +252,16 @@ _GET /me_:
 
 Profile page of currently logged in user
 
-_PUT /properties_:
+_PUT /api/v1/properties_:
 
 Add a property to current user.
 Request body is a JSON with `{ key, value }`
 
-_DELETE /properties/:key_:
+_DELETE /api/v1/properties/:key_:
 
 Delete user property
 
-_GET /properties_:
+_GET /api/v1/properties_:
 
 Get all user properties
 

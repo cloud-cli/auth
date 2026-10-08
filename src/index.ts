@@ -51,6 +51,7 @@ import {
   listApiTokens,
   listAuthApiTokens,
   revokeApiToken,
+  revokePresentedApiToken,
   verifyAuthApiToken,
 } from './api-tokens.js';
 import {
@@ -266,7 +267,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/', serveAppEntry);
-app.get('/profile', browserCors, protectedRouteWithRedirect, async (req, res) => {
+app.get('/api/v1/profile', browserCors, protectedRouteWithRedirect, async (req, res) => {
   const user = await findByUserId(req.user?.id);
   if (user) {
     res.send(userAsJSON(user));
@@ -315,10 +316,10 @@ app.post('/__test__/login', express.json(), async (req, res) => {
     );
   });
 });
-app.head('/profile', browserCors, protectedRoute, (_req, res) => {
+app.head('/api/v1/profile', browserCors, protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
-app.delete('/profile', protectedRoute, logout);
+app.delete('/api/v1/profile', protectedRoute, logout);
 app.get('/login', (req, res) => {
   const returnUrl = typeof req.query.url === 'string' ? req.query.url : '/me';
   if (req.isAuthenticated?.() && req.user?.id && returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
@@ -330,15 +331,15 @@ app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
 app.get('/oidc', adminRoute, (_req, res) => res.redirect('/me#oidc'));
 app.get('/auth-api-tokens', adminRoute, (_req, res) => res.redirect('/me#auth-api-tokens'));
-app.get('/keys', adminRoute, async (_req, res) => res.json(await listSigningKeys()));
-app.post('/keys/rotate', express.json(), adminRoute, async (_req, res) => {
+app.get('/api/v1/keys', adminRoute, async (_req, res) => res.json(await listSigningKeys()));
+app.post('/api/v1/keys/rotate', express.json(), adminRoute, async (_req, res) => {
   try {
     res.status(201).json(await rotateSigningKey());
   } catch (error) {
     res.status(503).json({ error: String(error) });
   }
 });
-app.get('/audit', protectedRoute, async (req, res) =>
+app.get('/api/v1/audit', protectedRoute, async (req, res) =>
   res.json(
     await getAuditEvents(req.user!.id, {
       app: typeof req.query.app === 'string' ? req.query.app : '',
@@ -348,8 +349,8 @@ app.get('/audit', protectedRoute, async (req, res) =>
     }),
   ),
 );
-app.get('/audit/options', protectedRoute, async (req, res) => res.json(await getAuditOptions(req.user!.id)));
-app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) => {
+app.get('/api/v1/audit/options', protectedRoute, async (req, res) => res.json(await getAuditOptions(req.user!.id)));
+app.post('/api/v1/recovery', express.urlencoded({ extended: false }), async (req, res) => {
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
   if (!user) {
     await recordAudit({ event: 'recovery-authentication', app: 'recovery-code', result: 'failure' });
@@ -361,12 +362,12 @@ app.post('/recovery', express.urlencoded({ extended: false }), async (req, res) 
     res.redirect('/me');
   });
 });
-app.get('/qr-login/start', async (req, res) => {
+app.get('/api/v1/qr-login/start', async (req, res) => {
   const page = await qrLoginPage(req.sessionID, typeof req.query.url === 'string' ? req.query.url : '/me');
   res.json(page);
 });
 app.get('/qr-login', serveUi('qr-login.html'));
-app.get('/qr-login/status', async (req, res) => {
+app.get('/api/v1/qr-login/status', async (req, res) => {
   try {
     const token = typeof req.query.transaction === 'string' ? req.query.transaction : '';
     const transaction = await qrLoginOrigin(token, req.sessionID);
@@ -381,7 +382,7 @@ app.get('/qr-login/status', async (req, res) => {
     res.status(410).json({ status: 'expired' });
   }
 });
-app.get('/qr-login/details', protectedRoute, async (req, res) => {
+app.get('/api/v1/qr-login/details', protectedRoute, async (req, res) => {
   try {
     const token = typeof req.query.transaction === 'string' ? req.query.transaction : '';
     res.json(await qrLoginDetails(token));
@@ -389,7 +390,7 @@ app.get('/qr-login/details', protectedRoute, async (req, res) => {
     res.status(410).json({ error: 'Expired QR login' });
   }
 });
-app.post('/qr-login/approve', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/qr-login/approve', express.json(), protectedRoute, async (req, res) => {
   try {
     await approveQrLogin(String(req.body?.transaction || ''), req.user!.id);
     await recordAudit({ userId: req.user!.id, event: 'qr-approval', app: 'QR login', result: 'success' });
@@ -398,7 +399,7 @@ app.post('/qr-login/approve', express.json(), protectedRoute, async (req, res) =
     res.status(410).json({ error: 'Expired QR login' });
   }
 });
-app.post('/qr-login/deny', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/qr-login/deny', express.json(), protectedRoute, async (req, res) => {
   try {
     await denyQrLogin(String(req.body?.transaction || ''));
     res.sendStatus(204);
@@ -407,14 +408,11 @@ app.post('/qr-login/deny', express.json(), protectedRoute, async (req, res) => {
   }
 });
 app.get('/pwa/', serveUi('pwa.html'));
-app.get('/pwa/sw.js', (_req, res) => res.type('javascript').set('Service-Worker-Allowed', '/').send(pwaServiceWorker));
-app.get('/pwa/manifest.webmanifest', (_req, res) =>
-  res.type('application/manifest+json').send(uiAssets['manifest.webmanifest']),
-);
-app.get('/webauthn/register/options', protectedRoute, async (req, res) => {
+app.get('/ui/sw.js', (_req, res) => res.type('javascript').set('Service-Worker-Allowed', '/').send(pwaServiceWorker));
+app.get('/api/v1/webauthn/register/options', protectedRoute, async (req, res) => {
   res.json(await registrationOptions(req.user!.id));
 });
-app.post('/webauthn/register/verify', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/webauthn/register/verify', express.json(), protectedRoute, async (req, res) => {
   try {
     const authenticator = await registerAuthenticator(
       req.user!.id,
@@ -426,7 +424,7 @@ app.post('/webauthn/register/verify', express.json(), protectedRoute, async (req
     res.status(400).json({ error: String(error) });
   }
 });
-app.get('/webauthn/authentication/options', async (req, res) => {
+app.get('/api/v1/webauthn/authentication/options', async (req, res) => {
   const loginHint = typeof req.query.login_hint === 'string' ? req.query.login_hint : '';
   const user = loginHint
     ? loginHint.includes('@')
@@ -435,7 +433,7 @@ app.get('/webauthn/authentication/options', async (req, res) => {
     : null;
   res.json(await authenticationOptions(user?.userId));
 });
-app.post('/webauthn/authentication/verify', express.json(), async (req, res) => {
+app.post('/api/v1/webauthn/authentication/verify', express.json(), async (req, res) => {
   try {
     const { userId } = await authenticate(req.body);
     const user = await findByUserId(userId);
@@ -453,7 +451,7 @@ app.post('/webauthn/authentication/verify', express.json(), async (req, res) => 
     res.status(401).json({ error: String(error) });
   }
 });
-app.get('/webauthn/credentials', protectedRoute, async (req, res) => {
+app.get('/api/v1/webauthn/credentials', protectedRoute, async (req, res) => {
   const authenticators = await listAuthenticators(req.user!.id);
   res.json(
     authenticators.map(({ credentialId, label, transports, createdAt, lastUsedAt, revokedAt }) => ({
@@ -466,12 +464,12 @@ app.get('/webauthn/credentials', protectedRoute, async (req, res) => {
     })),
   );
 });
-app.post('/recovery-codes', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/recovery-codes', express.json(), protectedRoute, async (req, res) => {
   const user = await findByUserId(req.user!.id);
   if (!user) return res.status(404).send('');
   res.json({ codes: await replaceRecoveryCodes(user) });
 });
-app.delete('/webauthn/credentials/:credentialId', protectedRoute, async (req, res) => {
+app.delete('/api/v1/webauthn/credentials/:credentialId', protectedRoute, async (req, res) => {
   const revoked = await revokeAuthenticator(req.user!.id, req.params.credentialId);
   res.sendStatus(revoked ? 204 : 404);
 });
@@ -480,8 +478,8 @@ app.get('/api', (req, res) => {
   const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.host;
   res.type('application/json').send(openApiSpec.replace('__HOSTNAME__', host));
 });
-app.get('/oidc/clients', adminRoute, async (_req, res) => res.json(await listManagedClients()));
-app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
+app.get('/api/v1/oidc/clients', adminRoute, async (_req, res) => res.json(await listManagedClients()));
+app.post('/api/v1/oidc/clients', express.json(), adminRoute, async (req, res) => {
   try {
     const result = await createManagedClient(
       String(req.body?.id || ''),
@@ -493,19 +491,19 @@ app.post('/oidc/clients', express.json(), adminRoute, async (req, res) => {
     res.status(400).json({ error: String(error) });
   }
 });
-app.get('/api-tokens/me', protectedRoute, async (req, res) => {
+app.get('/api/v1/api-tokens/me', protectedRoute, async (req, res) => {
   const userId = req.user?.id;
   if (!userId) return res.status(401).send('');
   const clientId = typeof req.query?.clientId === 'string' ? req.query.clientId : undefined;
   res.json(await listApiTokens(userId, clientId));
 });
-app.get('/api-tokens/:clientId', adminRoute, async (req, res) =>
+app.get('/api/v1/api-tokens/:clientId', adminRoute, async (req, res) =>
   res.json(await listApiTokens(req.user!.id, req.params.clientId)),
 );
-app.get('/auth-api-tokens/:clientId', adminRoute, async (req, res) =>
+app.get('/api/v1/auth-api-tokens/:clientId', adminRoute, async (req, res) =>
   res.json(await listAuthApiTokens(req.params.clientId)),
 );
-app.post('/auth-api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
+app.post('/api/v1/auth-api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
   try {
     const result = await createAuthApiToken(req.params.clientId, String(req.body?.label || ''));
     res.status(201).json(result);
@@ -513,10 +511,10 @@ app.post('/auth-api-tokens/:clientId', express.json(), adminRoute, async (req, r
     res.status(400).json({ error: String(error) });
   }
 });
-app.delete('/auth-api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
+app.delete('/api/v1/auth-api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
   res.sendStatus((await revokeApiToken(req.params.clientId, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
-app.post('/api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
+app.post('/api/v1/api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
   try {
     res
       .status(201)
@@ -532,7 +530,7 @@ app.post('/api-tokens/:clientId', express.json(), adminRoute, async (req, res) =
     res.status(400).json({ error: String(error) });
   }
 });
-app.post('/api-tokens/:clientId/issue', express.json(), async (req, res) => {
+app.post('/api/v1/api-tokens/:clientId/issue', express.json(), async (req, res) => {
   const client = await getClient(req.params.clientId);
   const authorization = req.get('authorization') || '';
   const authToken = authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : '';
@@ -554,7 +552,7 @@ app.post('/api-tokens/:clientId/issue', express.json(), async (req, res) => {
     throw error;
   }
 });
-app.delete('/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
+app.delete('/api/v1/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
   res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
 app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (req, res) => {
@@ -568,11 +566,11 @@ app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (re
     .set('X-Token-Expires-At', String(result?.exp || 0))
     .json(result || { active: false });
 });
-app.delete('/oidc/clients/:id', adminRoute, async (req, res) =>
+app.delete('/api/v1/oidc/clients/:id', adminRoute, async (req, res) =>
   res.sendStatus((await removeManagedClient(req.params.id)) ? 204 : 404),
 );
 
-app.put('/oidc/clients/:id/secret', adminRoute, express.json(), async (req, res) => {
+app.put('/api/v1/oidc/clients/:id/secret', adminRoute, express.json(), async (req, res) => {
   try {
     const result = await regenerateManagedClientSecret(req.params.id);
     res.json(result);
@@ -582,7 +580,7 @@ app.put('/oidc/clients/:id/secret', adminRoute, express.json(), async (req, res)
     res.status(400).json({ error: message });
   }
 });
-app.post('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
+app.post('/api/v1/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
   try {
     res.json({
       scopes: await addManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []),
@@ -591,7 +589,7 @@ app.post('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res
     res.status(400).json({ error: String(error) });
   }
 });
-app.put('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
+app.put('/api/v1/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
   try {
     res.json({
       scopes: await updateManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []),
@@ -600,7 +598,7 @@ app.put('/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res)
     res.status(400).json({ error: String(error) });
   }
 });
-app.put('/oidc/clients/:id/callbacks', express.json(), adminRoute, async (req, res) => {
+app.put('/api/v1/oidc/clients/:id/callbacks', express.json(), adminRoute, async (req, res) => {
   try {
     res.json({
       redirectUris: await updateManagedClientRedirectUris(
@@ -612,8 +610,8 @@ app.put('/oidc/clients/:id/callbacks', express.json(), adminRoute, async (req, r
     res.status(400).json({ error: String(error) });
   }
 });
-app.options('/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
-app.post('/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
+app.options('/api/v1/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
+app.post('/api/v1/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
   const audience = typeof req.body?.audience === 'string' ? req.body.audience : '';
   if (!isTokenServiceConfigured()) return res.status(503).send('JWT service is not configured');
   if (!isAllowedAudience(audience)) return res.status(400).send('Invalid audience');
@@ -702,15 +700,20 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
 
   res.json(await tokenResponse(user, client_id));
 });
-app.post('/revoke', express.urlencoded({ extended: false }), async (req, res) => {
+app.post('/api/v1/revoke', express.urlencoded({ extended: false }), async (req, res) => {
   const authHeader = req.get('authorization') || '';
-  const [clientId, clientSecret] = authHeader.startsWith('Basic ')
-    ? Buffer.from(authHeader.slice(6), 'base64').toString().split(':')
-    : ['', ''];
+  const decodedCredentials = authHeader.startsWith('Basic ')
+    ? Buffer.from(authHeader.slice(6), 'base64').toString()
+    : '';
+  const separator = decodedCredentials.indexOf(':');
+  const clientId = separator < 0 ? '' : decodedCredentials.slice(0, separator);
+  const clientSecret = separator < 0 ? '' : decodedCredentials.slice(separator + 1);
   const client = await getClient(clientId);
   if (!client || !(await verifyClientSecret(client, clientSecret))) {
     return res.status(401).json({ error: 'invalid_client' });
   }
+  const token = typeof req.body?.token === 'string' ? req.body.token : '';
+  if (token) await revokePresentedApiToken(token, clientId);
   res.sendStatus(200);
 });
 app.get('/.well-known/jwks.json', async (_req, res) => {
@@ -740,7 +743,6 @@ app.get('/userinfo', tokenUser, async (req, res) => {
 
   res.json(userAsJSON(user));
 });
-app.get('/embed', serveUi('embed.html'));
 app.get('/me', serveAppEntry);
 app.get('/account', protectedPage, serveUi('account.html'));
 app.get('/auth/google', passport.authenticate('google', googleScopes));
@@ -756,9 +758,9 @@ const serveEsModule = (source) => (req, res) => {
 };
 
 app.get('/index.mjs', serveEsModule(esLibrary));
-app.get('/dashboard.mjs', serveEsModule(dashboardLibrary));
 app.get('/node.mjs', serveEsModule(nodeLibrary));
-app.get('/lib.mjs', serveEsModule(esHelper));
+app.get('/ui/dashboard.mjs', serveEsModule(dashboardLibrary));
+app.get('/ui/lib.mjs', serveEsModule(esHelper));
 app.get('/ui/google.svg', (_req, res) => res.type('image/svg+xml').send(readFileSync('./assets/google.svg', 'utf8')));
 app.get('/ui/:asset', (req, res) => {
   const asset = uiAssets[req.params.asset];
@@ -767,10 +769,15 @@ app.get('/ui/:asset', (req, res) => {
     ? 'text/css'
     : req.params.asset.endsWith('.svg')
       ? 'image/svg+xml'
-      : req.params.asset.endsWith('.html')
-        ? 'text/html'
-        : 'text/javascript';
-  const source = asset.replaceAll("from '/dashboard.mjs'", `from '${req.protocol}://${req.get('host')}/dashboard.mjs'`);
+      : req.params.asset.endsWith('.webmanifest')
+        ? 'application/manifest+json'
+        : req.params.asset.endsWith('.html')
+          ? 'text/html'
+          : 'text/javascript';
+  const source = asset.replaceAll(
+    "from '/ui/dashboard.mjs'",
+    `from '${req.protocol}://${req.get('host')}/ui/dashboard.mjs'`,
+  );
   res
     .set('Cache-Control', 'no-store')
     .type(type)
@@ -789,7 +796,7 @@ app.get('/ui/:asset', (req, res) => {
     );
 });
 
-app.put('/properties', protectedRoute, async (req, res) => {
+app.put('/api/v1/properties', protectedRoute, async (req, res) => {
   const buffer = Buffer.concat(await req.toArray()).toString('utf8');
 
   try {
@@ -803,7 +810,7 @@ app.put('/properties', protectedRoute, async (req, res) => {
   }
 });
 
-app.get('/properties', protectedRoute, async (req, res) => {
+app.get('/api/v1/properties', protectedRoute, async (req, res) => {
   try {
     const properties = await getProperties(req.user?.id);
     res.status(200).send(properties);
@@ -813,7 +820,7 @@ app.get('/properties', protectedRoute, async (req, res) => {
   }
 });
 
-app.delete('/properties/:key', protectedRoute, async (req, res) => {
+app.delete('/api/v1/properties/:key', protectedRoute, async (req, res) => {
   const key = req.params.key;
   const userId = req.user?.id;
 
@@ -831,7 +838,7 @@ app.delete('/properties/:key', protectedRoute, async (req, res) => {
   }
 });
 
-app.get('/properties/:key', protectedRoute, async (req, res) => {
+app.get('/api/v1/properties/:key', protectedRoute, async (req, res) => {
   const key = req.params.key;
   const userId = req.user?.id;
 

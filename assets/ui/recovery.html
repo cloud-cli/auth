@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#7257f5" />
-    <link rel="manifest" href="/pwa/manifest.webmanifest" />
+    <link rel="manifest" href="/ui/manifest.webmanifest" />
     <title>Recovery sign-in</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -16,7 +16,7 @@
     <script type="module" src="/ui/app.mjs"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/pwa/sw.js', { scope: '/' }).catch(() => {});
+        navigator.serviceWorker.register('/ui/sw.js', { scope: '/' }).catch(() => {});
       }
     </script>
   </head>
@@ -24,7 +24,7 @@
     <template app
       ><form
         class="grid w-full max-w-md gap-4 rounded-[2rem] bg-white p-8 shadow-2xl shadow-violet/10"
-        action="/recovery"
+        action="/api/v1/recovery"
         method="post"
       >
         <span class="text-xs font-extrabold tracking-[.18em] text-violet">ACCOUNT RECOVERY</span>

@@ -35,14 +35,16 @@ function credentialJSON(credential) {
 }
 
 export async function registerPasskey(label = 'Passkey') {
-  const optionsResponse = await fetch(new URL('/webauthn/register/options', authDomain), { credentials: 'include' });
+  const optionsResponse = await fetch(new URL('/api/v1/webauthn/register/options', authDomain), {
+    credentials: 'include',
+  });
   if (!optionsResponse.ok) throw new Error('Could not create passkey registration options');
   const options = await optionsResponse.json();
   options.challenge = decode(options.challenge);
   options.user.id = decode(options.user.id);
   options.excludeCredentials = (options.excludeCredentials || []).map((item) => ({ ...item, id: decode(item.id) }));
   const credential = await navigator.credentials.create({ publicKey: options });
-  const response = await fetch(new URL('/webauthn/register/verify', authDomain), {
+  const response = await fetch(new URL('/api/v1/webauthn/register/verify', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -53,7 +55,7 @@ export async function registerPasskey(label = 'Passkey') {
 }
 
 export async function signInWithPasskey(loginHint = '') {
-  const endpoint = new URL('/webauthn/authentication/options', authDomain);
+  const endpoint = new URL('/api/v1/webauthn/authentication/options', authDomain);
   if (loginHint) endpoint.searchParams.set('login_hint', loginHint);
   const optionsResponse = await fetch(endpoint, { credentials: 'include' });
   if (!optionsResponse.ok) throw new Error('Could not create passkey authentication options');
@@ -61,7 +63,7 @@ export async function signInWithPasskey(loginHint = '') {
   options.challenge = decode(options.challenge);
   options.allowCredentials = (options.allowCredentials || []).map((item) => ({ ...item, id: decode(item.id) }));
   const credential = await navigator.credentials.get({ publicKey: options });
-  const response = await fetch(new URL('/webauthn/authentication/verify', authDomain), {
+  const response = await fetch(new URL('/api/v1/webauthn/authentication/verify', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -71,32 +73,37 @@ export async function signInWithPasskey(loginHint = '') {
 }
 
 export async function getPasskeys() {
-  const response = await fetch(new URL('/webauthn/credentials', authDomain), { credentials: 'include' });
+  const response = await fetch(new URL('/api/v1/webauthn/credentials', authDomain), { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load passkeys');
   return response.json();
 }
 
 export async function getProfile() {
   if (!profileRequest) {
-    profileRequest = fetch(new URL('/profile', authDomain), { credentials: 'include' }).then(async (response) => {
-      if (!response.ok) throw new Error('Could not load profile');
-      return response.json();
-    });
+    profileRequest = fetch(new URL('/api/v1/profile', authDomain), { credentials: 'include' }).then(
+      async (response) => {
+        if (!response.ok) throw new Error('Could not load profile');
+        return response.json();
+      },
+    );
     profileRequest.catch(() => (profileRequest = undefined));
   }
   return profileRequest;
 }
 
 export async function revokePasskey(credentialId) {
-  const response = await fetch(new URL('/webauthn/credentials/' + encodeURIComponent(credentialId), authDomain), {
-    credentials: 'include',
-    method: 'DELETE',
-  });
+  const response = await fetch(
+    new URL('/api/v1/webauthn/credentials/' + encodeURIComponent(credentialId), authDomain),
+    {
+      credentials: 'include',
+      method: 'DELETE',
+    },
+  );
   if (!response.ok) throw new Error('Could not revoke passkey');
 }
 
 export async function generateRecoveryCodes() {
-  const response = await fetch(new URL('/recovery-codes', authDomain), {
+  const response = await fetch(new URL('/api/v1/recovery-codes', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -107,13 +114,13 @@ export async function generateRecoveryCodes() {
 }
 
 export async function getProperties() {
-  const response = await fetch(new URL('/properties', authDomain), { credentials: 'include' });
+  const response = await fetch(new URL('/api/v1/properties', authDomain), { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load properties');
   return response.json();
 }
 
 export async function setProperty(key, value) {
-  const response = await fetch(new URL('/properties', authDomain), {
+  const response = await fetch(new URL('/api/v1/properties', authDomain), {
     credentials: 'include',
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
@@ -123,7 +130,7 @@ export async function setProperty(key, value) {
 }
 
 export async function deleteProperty(key) {
-  const response = await fetch(new URL('/properties/' + encodeURIComponent(key), authDomain), {
+  const response = await fetch(new URL('/api/v1/properties/' + encodeURIComponent(key), authDomain), {
     credentials: 'include',
     method: 'DELETE',
   });
@@ -131,13 +138,13 @@ export async function deleteProperty(key) {
 }
 
 export async function getOidcClients() {
-  const response = await fetch(new URL('/oidc/clients', authDomain), { credentials: 'include' });
+  const response = await fetch(new URL('/api/v1/oidc/clients', authDomain), { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load OIDC clients');
   return response.json();
 }
 
 export async function createOidcClient(id, redirectUris, scopes) {
-  const response = await fetch(new URL('/oidc/clients', authDomain), {
+  const response = await fetch(new URL('/api/v1/oidc/clients', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -149,7 +156,7 @@ export async function createOidcClient(id, redirectUris, scopes) {
 }
 
 export async function removeOidcClient(id) {
-  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id), authDomain), {
+  const response = await fetch(new URL('/api/v1/oidc/clients/' + encodeURIComponent(id), authDomain), {
     credentials: 'include',
     method: 'DELETE',
   });
@@ -157,7 +164,7 @@ export async function removeOidcClient(id) {
 }
 
 export async function regenerateOidcClientSecret(id) {
-  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/secret', authDomain), {
+  const response = await fetch(new URL('/api/v1/oidc/clients/' + encodeURIComponent(id) + '/secret', authDomain), {
     credentials: 'include',
     method: 'PUT',
   });
@@ -167,7 +174,7 @@ export async function regenerateOidcClientSecret(id) {
 }
 
 export async function addOidcScopes(id, scopes) {
-  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), {
+  const response = await fetch(new URL('/api/v1/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -178,7 +185,7 @@ export async function addOidcScopes(id, scopes) {
 }
 
 export async function updateOidcScopes(id, scopes) {
-  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), {
+  const response = await fetch(new URL('/api/v1/oidc/clients/' + encodeURIComponent(id) + '/scopes', authDomain), {
     credentials: 'include',
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
@@ -190,7 +197,7 @@ export async function updateOidcScopes(id, scopes) {
 }
 
 export async function updateOidcCallbacks(id, redirectUris) {
-  const response = await fetch(new URL('/oidc/clients/' + encodeURIComponent(id) + '/callbacks', authDomain), {
+  const response = await fetch(new URL('/api/v1/oidc/clients/' + encodeURIComponent(id) + '/callbacks', authDomain), {
     credentials: 'include',
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
@@ -201,7 +208,7 @@ export async function updateOidcCallbacks(id, redirectUris) {
 }
 
 export async function getAuditEvents({ app = '', event = '', offset = 0 } = {}) {
-  const url = new URL('/audit', authDomain);
+  const url = new URL('/api/v1/audit', authDomain);
   url.searchParams.set('limit', '20');
   url.searchParams.set('offset', String(offset));
   if (app) url.searchParams.set('app', app);
@@ -212,19 +219,19 @@ export async function getAuditEvents({ app = '', event = '', offset = 0 } = {}) 
 }
 
 export async function getAuditOptions() {
-  const response = await fetch(new URL('/audit/options', authDomain), { credentials: 'include' });
+  const response = await fetch(new URL('/api/v1/audit/options', authDomain), { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load audit filters');
   return response.json();
 }
 
 export async function getSigningKeys() {
-  const response = await fetch(new URL('/keys', authDomain), { credentials: 'include' });
+  const response = await fetch(new URL('/api/v1/keys', authDomain), { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load signing keys');
   return response.json();
 }
 
 export async function getApiTokens(clientId) {
-  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), {
+  const response = await fetch(new URL('/api/v1/api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',
   });
   if (!response.ok) throw new Error('Could not load API tokens');
@@ -232,7 +239,7 @@ export async function getApiTokens(clientId) {
 }
 
 export async function createApiToken(clientId, label, scopes) {
-  const response = await fetch(new URL('/api-tokens/' + encodeURIComponent(clientId), authDomain), {
+  const response = await fetch(new URL('/api/v1/api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -245,14 +252,14 @@ export async function createApiToken(clientId, label, scopes) {
 
 export async function revokeApiToken(clientId, tokenId) {
   const response = await fetch(
-    new URL('/api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(tokenId), authDomain),
+    new URL('/api/v1/api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(tokenId), authDomain),
     { credentials: 'include', method: 'DELETE' },
   );
   if (!response.ok) throw new Error('Could not revoke API token');
 }
 
 export async function getAuthApiTokens(clientId) {
-  const response = await fetch(new URL('/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
+  const response = await fetch(new URL('/api/v1/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',
   });
   if (!response.ok) throw new Error('Could not load Auth API tokens');
@@ -260,7 +267,7 @@ export async function getAuthApiTokens(clientId) {
 }
 
 export async function createAuthApiToken(clientId, label) {
-  const response = await fetch(new URL('/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
+  const response = await fetch(new URL('/api/v1/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -273,14 +280,14 @@ export async function createAuthApiToken(clientId, label) {
 
 export async function revokeAuthApiToken(clientId, tokenId) {
   const response = await fetch(
-    new URL('/auth-api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(tokenId), authDomain),
+    new URL('/api/v1/auth-api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(tokenId), authDomain),
     { credentials: 'include', method: 'DELETE' },
   );
   if (!response.ok) throw new Error('Could not revoke Auth API token');
 }
 
 export async function rotateSigningKey() {
-  const response = await fetch(new URL('/keys/rotate', authDomain), {
+  const response = await fetch(new URL('/api/v1/keys/rotate', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
