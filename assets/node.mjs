@@ -44,6 +44,7 @@ export function createAuthClient({
   issuer = defaultIssuer,
   clientId,
   clientSecret,
+  authApiToken,
   sessionCookieName = 'connect.sid',
 } = {}) {
   if (!clientId) throw new Error('A client ID is required');
@@ -101,6 +102,20 @@ export function createAuthClient({
       body: new URLSearchParams({ token, token_type_hint: 'access_token' }),
     });
     if (!response.ok) throw new Error(`Could not introspect token: ${response.status}`);
+    return response.json();
+  }
+
+  async function mintApiToken({ label, scopes }) {
+    if (!authApiToken) throw new Error('An Auth API token is required to mint API tokens');
+    const response = await fetch(new URL(`/api-tokens/${encodeURIComponent(clientId)}/issue`, issuer), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authApiToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ label, scopes }),
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`Could not mint API token: ${response.status} ${detail}`);
+    }
     return response.json();
   }
 
@@ -167,6 +182,7 @@ export function createAuthClient({
     verifyToken,
     getProfile,
     introspectToken,
+    mintApiToken,
     getSessionProfile,
     isSessionAuthenticated,
     requireSession,

@@ -110,7 +110,12 @@ QR login transactions are currently held in memory, so use one auth-server insta
 
 The API server contains no HTML. Pages are static Li3 apps under `assets/ui/` and are served through `/login`, `/me`, `/webauthn/login`, `/recovery`, `/qr-login`, and `/pwa/`. The frontend uses the existing browser client at `/index.mjs`; APIs remain JSON, JavaScript, or redirect endpoints.
 
-`GET /node.mjs` provides `createAuthClient({ clientId })` for Node.js services. It creates PKCE authorization requests, exchanges callbacks, verifies JWTs locally through the JWKS endpoint, and obtains the user's public profile.
+`GET /node.mjs` provides `createAuthClient({ clientId })` for Node.js services. It creates PKCE authorization requests, exchanges callbacks, verifies JWTs locally through the JWKS endpoint, obtains the user's public profile, and introspects opaque tokens. Provide `authApiToken` to enable `auth.mintApiToken({ label, scopes })`; this sends the fixed-purpose Auth API credential to mint a downstream token for the configured client. The requested downstream scopes must already be configured for that client. Keep `authApiToken` in a server-side secret store; it is distinct from `clientSecret`, which is used for OIDC and token introspection.
+
+```js
+const auth = createAuthClient({ clientId: 'storage', authApiToken: process.env.AUTH_API_TOKEN });
+const token = await auth.mintApiToken({ label: 'storage limits', scopes: ['limits:write'] });
+```
 
 Node resource APIs can call `auth.introspectToken(token)` with `clientId` and `clientSecret` to validate scoped opaque tokens through the auth server.
 
