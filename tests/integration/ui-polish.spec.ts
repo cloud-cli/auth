@@ -18,13 +18,39 @@ test('account and dashboard brand marks are violet; OIDC application spacing and
 
   const appId = `e2e-ui-${Date.now()}`;
   await page.goto('/account');
+  const accountHeader = page.locator('main > header');
+  await expect(accountHeader).toHaveCSS('border-bottom-width', '0px');
+  await expect(accountHeader).toHaveCSS('padding-bottom', '0px');
   const accountBrand = page.locator('header a[href="/me"] svg');
   await expect(accountBrand).toBeVisible();
   await expect(accountBrand).toHaveCSS('color', 'rgb(114, 87, 245)');
+  await expect(accountBrand.locator('xpath=..')).toHaveCSS('font-size', '18px');
   await page.goto('/me');
+  const header = page.locator('main > header');
+  await expect(header).toHaveCSS('border-bottom-width', '0px');
+  await expect(header).toHaveCSS('padding-bottom', '0px');
+  await expect(page.locator('header a[href="/account"]')).toHaveCSS('padding', '8px');
   const dashboardBrand = page.locator('header a[href="/me"] svg');
   await expect(dashboardBrand).toBeVisible();
   await expect(dashboardBrand).toHaveCSS('color', 'rgb(114, 87, 245)');
+  await expect(dashboardBrand.locator('xpath=..')).toHaveCSS('font-size', '18px');
+  const nav = page.locator('auth-nav nav');
+  await expect(nav).toHaveCSS('justify-content', 'center');
+  await expect(nav).toHaveCSS('border-bottom-width', '1px');
+  await expect(page.locator('auth-nav a[href="/me#security"]')).toHaveClass(/rounded-md/);
+  for (const [section, selector] of [
+    ['security', 'dashboard-security section'],
+    ['properties', 'dashboard-properties section'],
+    ['activity', 'dashboard-activity section'],
+    ['oidc', 'dashboard-oidc section'],
+    ['auth-api-tokens', 'signing-key-manager section'],
+    ['auth-api-tokens', 'dashboard-auth-api-tokens section'],
+  ]) {
+    await page.goto(`/me#${section}`);
+    const pageSection = page.locator(selector);
+    await expect(pageSection).toHaveClass(/rounded-b-lg/);
+    await expect(pageSection).not.toHaveClass(/mt-/);
+  }
 
   await page.evaluate(async (id) => {
     const response = await fetch('/api/v1/oidc/clients', {
