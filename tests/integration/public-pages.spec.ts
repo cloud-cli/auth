@@ -171,6 +171,13 @@ test('header profile card opens a dedicated profile page with sign out', async (
   await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
   await expect(page.getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
   await expect(page.getByLabel('Administrator')).toBeVisible();
+  await expect(page.getByText('Account', { exact: true })).toHaveCount(0);
+  const subject = await page.locator('code').innerText();
+  const profile = await page.evaluate(() => fetch('/profile').then((response) => response.json()));
+  expect(subject).toBe(profile.id);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
+  await page.getByRole('button', { name: 'Copy OIDC subject' }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(subject);
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(pageErrors).toEqual([]);
