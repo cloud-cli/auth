@@ -168,6 +168,7 @@ test('header profile card opens a dedicated profile page with sign out', async (
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Open account profile' }).click();
   await expect(page).toHaveURL(/\/account$/);
+  await page.setViewportSize({ width: 360, height: 800 });
   await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
   await expect(page.getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
   await expect(page.getByLabel('Administrator')).toBeVisible();
@@ -175,6 +176,7 @@ test('header profile card opens a dedicated profile page with sign out', async (
   const subject = await page.locator('code').innerText();
   const profile = await page.evaluate(() => fetch('/profile').then((response) => response.json()));
   expect(subject).toBe(profile.id);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
   await page.getByRole('button', { name: 'Copy OIDC subject' }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(subject);
