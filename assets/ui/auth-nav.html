@@ -24,6 +24,14 @@
     >
     <template if="admin"
       ><a
+        class="flex min-h-10 shrink-0 items-center rounded-md px-3 py-2 text-xs font-semibold text-slate-500 sm:px-4 sm:text-sm"
+        class-active="current === '/me#users'"
+        href="/me#users"
+        >Users</a
+      ></template
+    >
+    <template if="admin"
+      ><a
         class="flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold text-slate-500 sm:gap-2 sm:px-4 sm:text-sm"
         class-active="current === '/me#auth-api-tokens' || current === '/me#keys'"
         href="/me#auth-api-tokens"

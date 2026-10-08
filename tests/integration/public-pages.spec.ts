@@ -81,6 +81,127 @@ test('profile API remains protected', async ({ request }) => {
   expect(response.status()).toBe(401);
 });
 
+test('admin-only page errors use the branded sign-in experience', async ({ request }) => {
+  const response = await request.get('/oidc', { headers: { accept: 'text/html' } });
+  expect(response.status()).toBe(403);
+  const body = await response.text();
+  expect(body).toContain('Welcome back');
+  expect(body).toContain('Sign in with an administrator account to continue.');
+  expect(body).not.toContain('{"error"');
+});
+
+test('invalid browser authorization and logout states use the branded error page', async ({ request }) => {
+  for (const path of [
+    '/authorize',
+    '/logout?client_id=missing&post_logout_redirect_uri=https%3A%2F%2Fclient.example%2Flogout',
+  ]) {
+    const response = await request.get(path, { headers: { accept: 'text/html' } });
+    expect(response.status()).toBe(400);
+    const body = await response.text();
+    expect(body).toContain('<!doctype html>');
+    expect(body).toContain('role="alert"');
+    expect(body).toContain('Welcome back');
+    expect(body).toContain('Try signing in again');
+    expect(body).toContain('Return to Auth home');
+  }
+});
+
+test('invalid authorization requests return actionable OAuth errors to registered apps', async ({ page }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  const clientId = `e2e-auth-error-${Date.now()}`;
+  const redirectUri = 'https://auth-error.example/callback';
+  await page.goto('/');
+  await page.evaluate(async (secret) => {
+    await fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } });
+  }, testKey);
+  const created = await page.evaluate(
+    async ({ id, uri }) => {
+      const response = await fetch('/api/v1/oidc/clients', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, redirectUris: [uri] }),
+      });
+      return response.status;
+    },
+    { id: clientId, uri: redirectUri },
+  );
+  expect(created).toBe(201);
+  try {
+    const query = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      state: 'retry-state',
+      code_challenge: 'invalid',
+      code_challenge_method: 'S256',
+      scope: 'openid',
+    });
+    const response = await page.request.get(`/authorize?${query}`, { maxRedirects: 0 });
+    expect(response.status()).toBe(302);
+    const callback = new URL(response.headers().location);
+    expect(callback.origin + callback.pathname).toBe(redirectUri);
+    expect(callback.searchParams.get('error')).toBe('invalid_request');
+    expect(callback.searchParams.get('state')).toBe('retry-state');
+    expect(callback.searchParams.get('error_description')).toContain('Start a new sign-in');
+
+    const legacyQuery = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      state: 'legacy-state',
+      code_challenge: 'A'.repeat(43),
+      code_challenge_method: 'S256',
+    });
+    const legacyResponse = await page.request.get(`/authorize?${legacyQuery}`, { maxRedirects: 0 });
+    expect(legacyResponse.status()).toBe(302);
+    const legacyCallback = new URL(legacyResponse.headers().location);
+    expect(legacyCallback.origin + legacyCallback.pathname).toBe(redirectUri);
+    expect(legacyCallback.searchParams.has('code')).toBe(true);
+    expect(legacyCallback.searchParams.get('state')).toBe('legacy-state');
+    expect(legacyCallback.searchParams.has('error')).toBe(false);
+  } finally {
+    await page.evaluate(
+      async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+      clientId,
+    );
+  }
+});
+
+test('admin Users page lists accounts and protects the current administrator', async ({ page, request }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  expect((await request.get('/api/v1/admin/users')).status()).toBe(403);
+  await page.goto('/');
+  await page.evaluate(async (secret) => {
+    await fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } });
+  }, testKey);
+  await page.goto('/me#users');
+  await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
+  const user = await page.evaluate(async () => (await fetch('/api/v1/admin/users')).json());
+  expect(user.length).toBeGreaterThan(0);
+  expect(user[0]).toHaveProperty('id');
+  expect(user[0]).toHaveProperty('email');
+  expect(user[0]).toHaveProperty('role');
+  const self = user.find((entry) => entry.id.startsWith('test-'));
+  expect(self).toBeDefined();
+  const details = page.locator('details').filter({ hasText: self.email });
+  await details.locator('summary').click();
+  await expect(details.getByText('Name: John Doe', { exact: true })).toBeVisible();
+  const response = await page.evaluate(async (id) => {
+    const result = await fetch(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ disabled: true }),
+    });
+    return result.status;
+  }, self.id);
+  expect(response).toBe(409);
+  const deleteStatus = await page.evaluate(async (id) => {
+    const result = await fetch(`/api/v1/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return result.status;
+  }, self.id);
+  expect(deleteStatus).toBe(409);
+});
+
 test('preferred username can be set once and cannot be changed through the API', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   await page.goto('/');
@@ -272,6 +393,7 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   await expect(page.getByText('Authentication history')).toBeVisible();
   await page.goto('/me#oidc');
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
+  await expect(page.getByText(/Confidential clients are server-side apps/)).toBeVisible();
 });
 
 test('profile identity and passkeys stay compact at mobile widths', async ({ page }) => {
@@ -523,6 +645,10 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     await expect(copyBox.getByText('Copied to clipboard.')).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(managementToken);
     await expect(copyBox.getByText('Copied to clipboard.')).toBeHidden({ timeout: 7000 });
+    await selector.selectOption('');
+    await expect(page.getByTestId('auth-token-empty-state')).toHaveText('');
+    await expect(page.getByText('browser test token')).toBeVisible();
+    await selector.selectOption(appId);
     const issued = await page.evaluate(
       async ({ id, token }) => {
         const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}/issue`, {

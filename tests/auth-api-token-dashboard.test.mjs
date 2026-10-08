@@ -14,7 +14,9 @@ test('Auth API token overview loads metadata per OIDC app and identifies its app
 
 test('Auth API token dashboard retains app-scoped create and revoke flows', () => {
   assert.match(component, /createAuthApiToken\(selected\.value, tokenLabel\.value\.trim\(\)\)/);
-  assert.match(component, /revokeAuthApiToken\(selected\.value, token\.tokenId\)/);
+  assert.match(component, /revokeAuthApiToken\(entry\.appId, entry\.token\.tokenId\)/);
   assert.match(component, /Copy this Auth API token now\. It is only shown once\./);
   assert.doesNotMatch(component, /entry\.token\.token\b/);
+  assert.equal((component.match(/for="entry of visibleTokens"/g) || []).length, 1);
+  assert.match(component, /No Auth API tokens exist for this app\./);
 });

@@ -1,4 +1,4 @@
-import { Authenticator, User, rows, setPreferredUsername as persistPreferredUsername } from './database.js';
+import { all, Authenticator, User, rows, setPreferredUsername as persistPreferredUsername } from './database.js';
 
 export function normalizePreferredUsername(value: unknown): string {
   if (typeof value !== 'string') throw new Error('Username must be a string.');
@@ -32,6 +32,14 @@ export async function findByUserId(userId: string | undefined) {
 
   const all = await rows<User>('auth_user', 'user_id = ?', [String(userId)]);
   return all[0];
+}
+
+export async function isUserSuspended(userId: string) {
+  const status = await all<{ disabled: number; blocked: number }>(
+    'SELECT u.disabled, EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = u.profile_id) AS blocked FROM auth_user u WHERE u.user_id = ?',
+    [userId],
+  );
+  return !status[0] || Boolean(status[0].disabled) || Boolean(status[0].blocked);
 }
 
 export async function findByEmail(email: string) {

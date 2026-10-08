@@ -1,6 +1,6 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { saveUser, User } from './database.js';
-import { findByEmail } from './user.js';
+import { findByEmail, isUserSuspended } from './user.js';
 
 function normalize(code: string) {
   return code.replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -30,7 +30,7 @@ export async function replaceRecoveryCodes(user: User) {
 
 export async function consumeRecoveryCode(email: string, code: string) {
   const user = await findByEmail(email);
-  if (!user || !Array.isArray(user.recoveryCodes)) return null;
+  if (!user || (await isUserSuspended(user.userId)) || !Array.isArray(user.recoveryCodes)) return null;
   const normalized = normalize(code);
   const index = user.recoveryCodes.findIndex((stored) => {
     const [encodedSalt, expected] = stored.split(':');

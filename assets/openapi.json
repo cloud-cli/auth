@@ -331,11 +331,16 @@
                   },
                   "postLogoutRedirectUris": {
                     "type": "array",
-                    "items": { "type": "string", "format": "uri" }
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    }
                   },
                   "scopes": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "isPublic": {
                     "type": "boolean",
@@ -347,7 +352,9 @@
           }
         },
         "responses": {
-          "201": { "description": "Client; confidential clients also receive a one-time secret" },
+          "201": {
+            "description": "Client; confidential clients also receive a one-time secret"
+          },
           "400": {
             "description": "Invalid client"
           },
@@ -407,8 +414,21 @@
       "put": {
         "tags": ["Admin-only APIs"],
         "summary": "Set post-logout redirect URLs for an OIDC client",
-        "security": [{ "apiKeyAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -419,7 +439,10 @@
                 "properties": {
                   "postLogoutRedirectUris": {
                     "type": "array",
-                    "items": { "type": "string", "format": "uri" }
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    }
                   }
                 }
               }
@@ -427,9 +450,15 @@
           }
         },
         "responses": {
-          "200": { "description": "Saved post-logout redirect URLs" },
-          "403": { "description": "Administrator access required" },
-          "400": { "description": "Invalid client or redirect URI" }
+          "200": {
+            "description": "Saved post-logout redirect URLs"
+          },
+          "400": {
+            "description": "Invalid client or redirect URI"
+          },
+          "403": {
+            "description": "Administrator access required"
+          }
         }
       }
     },
@@ -881,8 +910,8 @@
           {
             "name": "scope",
             "in": "query",
-            "required": true,
-            "description": "Space-delimited; must contain openid. Only openid, profile, and email are supported.",
+            "required": false,
+            "description": "Space-delimited. If omitted or blank, defaults to openid; only openid, profile, and email are supported.",
             "schema": {
               "type": "string"
             }
@@ -916,10 +945,10 @@
         ],
         "responses": {
           "302": {
-            "description": "Redirect to sign-in or the registered callback with code and state"
+            "description": "Redirect to sign-in, or to a registered callback with authorization response or standard OAuth error parameters"
           },
           "400": {
-            "description": "Invalid or unregistered client request"
+            "description": "Branded HTML error page with retry and home actions when the callback cannot be trusted"
           }
         }
       }
@@ -929,19 +958,47 @@
         "tags": ["JWT APIs"],
         "summary": "End the Auth browser session for an OIDC relying party",
         "parameters": [
-          { "name": "client_id", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "id_token_hint", "in": "query", "required": false, "schema": { "type": "string" } },
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id_token_hint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "post_logout_redirect_uri",
             "in": "query",
             "required": false,
-            "schema": { "type": "string", "format": "uri" }
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
           },
-          { "name": "state", "in": "query", "required": false, "schema": { "type": "string" } }
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "302": { "description": "Redirect to the registered post-logout URI or Auth home" },
-          "400": { "description": "Invalid ID Token hint or unregistered post-logout URI" }
+          "302": {
+            "description": "Redirect to the registered post-logout URI or Auth home"
+          },
+          "400": {
+            "description": "Invalid ID Token hint or unregistered post-logout URI"
+          }
         }
       }
     },
@@ -1496,6 +1553,86 @@
           }
         }
       }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "tags": ["Admin-only APIs"],
+        "summary": "List users for administrators",
+        "responses": {
+          "200": {
+            "description": "Users ordered by email"
+          },
+          "403": {
+            "description": "Administrator access required"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "patch": {
+        "tags": ["Admin-only APIs"],
+        "summary": "Update a user username, suspension, or Google identity block",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "preferred_username": {
+                    "type": "string"
+                  },
+                  "disabled": {
+                    "type": "boolean"
+                  },
+                  "blocked": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "description": "Invalid update"
+          },
+          "403": {
+            "description": "Administrator access required"
+          },
+          "409": {
+            "description": "Would lock out administrator"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Admin-only APIs"],
+        "summary": "Permanently delete a user and associated data",
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "403": {
+            "description": "Administrator access required"
+          },
+          "409": {
+            "description": "Cannot delete the final administrator"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1530,12 +1667,28 @@
         "type": "object",
         "required": ["sub"],
         "properties": {
-          "sub": { "type": "string" },
-          "name": { "type": "string" },
-          "preferred_username": { "type": "string" },
-          "email": { "type": "string", "format": "email" },
-          "picture": { "type": "string", "format": "uri" },
-          "photo": { "type": "string", "format": "uri", "description": "Compatibility alias for picture." }
+          "sub": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "preferred_username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "picture": {
+            "type": "string",
+            "format": "uri"
+          },
+          "photo": {
+            "type": "string",
+            "format": "uri",
+            "description": "Compatibility alias for picture."
+          }
         }
       },
       "PropertyInput": {

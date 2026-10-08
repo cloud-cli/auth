@@ -30,3 +30,10 @@ test('every documented operation uses a declared section', () => {
     for (const name of operation.tags) assert.ok(tags.has(name), `Undeclared tag ${name}`);
   }
 });
+
+test('administrator user management operations are documented', () => {
+  assert.equal(spec.paths['/api/v1/admin/users'].get.tags[0], 'Admin-only APIs');
+  assert.equal(spec.paths['/api/v1/admin/users/{id}'].patch.tags[0], 'Admin-only APIs');
+  assert.equal(spec.paths['/api/v1/admin/users/{id}'].delete.tags[0], 'Admin-only APIs');
+  assert.ok(spec.paths['/api/v1/admin/users/{id}'].patch.requestBody);
+});

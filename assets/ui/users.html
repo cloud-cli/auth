@@ -1,0 +1,91 @@
+<template component="dashboard-users">
+  <section class="mx-auto mt-6 max-w-5xl rounded-2xl bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold text-ink">Users</h2>
+    <p class="mb-4 text-sm text-slate-500">
+      Suspend or block access without revoking API tokens; access returns when restored. Deletion permanently erases
+      account data.
+    </p>
+    <template for="user of users">
+      <details class="border-t border-slate-100 py-3">
+        <summary class="cursor-pointer font-semibold">
+          {{ user.email }} <span class="text-xs text-slate-500">{{ user.disabled ? ' · Suspended' : '' }}</span>
+        </summary>
+        <div class="grid gap-2 py-3 text-sm sm:grid-cols-2">
+          <p>Name: {{ user.name }}</p>
+          <p>UUID: <code>{{ user.id }}</code></p>
+          <p>Google identity: <code>{{ user.profileId }}</code></p>
+          <p>Last seen: {{ user.lastSeen || 'Never' }}</p>
+          <p>Role: {{ user.role }}</p>
+          <p>Identity: {{ user.blocked ? 'Blocked' : 'Allowed' }}</p>
+          <form on-submit="saveUsername(user, $event)" class="flex gap-2">
+            <input
+              class="rounded border px-2"
+              name="preferred_username"
+              placeholder="Preferred username"
+              value="{{ user.preferredUsername || '' }}"
+            /><button class="text-violet">Save username</button>
+          </form>
+          <div class="flex flex-wrap gap-2">
+            <button class="text-violet" on-click="toggleDisabled(user)">
+              {{ user.disabled ? 'Enable' : 'Disable' }}
+            </button>
+            <button class="text-violet" on-click="toggleBlocked(user)">
+              {{ user.blocked ? 'Unblock' : 'Block identity' }}
+            </button>
+            <button class="text-red-600" on-click="removeUser(user)">Delete</button>
+          </div>
+        </div>
+      </details>
+    </template>
+  </section>
+  <script setup>
+    import { ref } from '@li3/web';
+    export default function () {
+      const users = ref([]);
+      async function loadUsers() {
+        const response = await fetch('/api/v1/admin/users', { credentials: 'include' });
+        if (!response.ok) throw new Error('Could not load users');
+        users.value = await response.json();
+      }
+      async function update(user, body) {
+        const response = await fetch('/api/v1/admin/users/' + encodeURIComponent(user.id), {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          alert(error.error || 'Could not update user');
+          return;
+        }
+        await loadUsers();
+      }
+      function toggleDisabled(user) {
+        return update(user, { disabled: !user.disabled });
+      }
+      function toggleBlocked(user) {
+        return update(user, { blocked: !user.blocked });
+      }
+      async function saveUsername(user, event) {
+        event.preventDefault();
+        await update(user, { preferred_username: new FormData(event.target).get('preferred_username') });
+      }
+      async function removeUser(user) {
+        if (!confirm(`Permanently delete ${user.email} and all associated data?`)) return;
+        const response = await fetch('/api/v1/admin/users/' + encodeURIComponent(user.id), {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          alert(error.error || 'Could not delete user');
+          return;
+        }
+        await loadUsers();
+      }
+      loadUsers().catch((error) => alert(error.message));
+      return { users, toggleDisabled, toggleBlocked, saveUsername, removeUser };
+    }
+  </script>
+</template>

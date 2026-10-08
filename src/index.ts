@@ -1,8 +1,15 @@
 import express from 'express';
 import { createHash, timingSafeEqual } from 'crypto';
 import { readFileSync } from 'fs';
-import migrate from '../db/migrations/006_add_oidc_logout_uris.js';
-import { findByEmail, findByUserId, setPreferredUsername, userAsJSON } from './user.js';
+import migrate from '../db/migrations/007_user_management.js';
+import {
+  findByEmail,
+  findByUserId,
+  isUserSuspended,
+  setPreferredUsername,
+  userAsJSON,
+  normalizePreferredUsername,
+} from './user.js';
 import { initDatabase } from './database.js';
 import session from './session.js';
 import log from './log.js';
@@ -84,6 +91,7 @@ const uiAssets = Object.fromEntries(
     'oidc-apps.html',
     'keys.html',
     'tokens.html',
+    'users.html',
     'copy-value.html',
     'passkey.html',
     'recovery.html',
@@ -154,6 +162,8 @@ async function tokenUser(req, res, next) {
   try {
     const { payload } = await verifyAccessToken(token, audience);
     if (!payload.sub) return res.status(401).send('');
+    const identity = await findByUserId(String(payload.sub));
+    if (!identity || (await isUserSuspended(identity.userId))) return res.status(401).send('');
 
     req.tokenUserId = payload.sub;
     req.tokenAudience = audience;
@@ -198,9 +208,110 @@ function browserCors(req, res, next) {
 }
 
 async function adminRoute(req, res, next) {
-  if (!req.isAuthenticated?.()) return res.status(403).send('');
-  if ((await findByUserId(req.user?.id))?.role !== 'admin') return res.status(403).send('');
+  if (!req.isAuthenticated?.() || (await findByUserId(req.user?.id))?.role !== 'admin') {
+    if (!req.path.startsWith('/api/') && req.accepts('html')) {
+      const message = req.isAuthenticated?.()
+        ? 'Administrator access is required to view this page.'
+        : 'Sign in with an administrator account to continue.';
+      return res.status(403).type('html').send(renderAuthError(message));
+    }
+    return res.status(403).send('');
+  }
   next();
+}
+
+function registerUserAdminRoutes() {
+  app.get('/api/v1/admin/users', adminRoute, async (_req, res) => {
+    const { all } = await import('./database.js');
+    res.json(
+      await all(
+        'SELECT user_id AS id, profile_id AS profileId, email, name, photo, last_seen AS lastSeen, role, preferred_username AS preferredUsername, disabled, EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = auth_user.profile_id) AS blocked FROM auth_user ORDER BY email COLLATE NOCASE',
+      ),
+    );
+  });
+  app.patch('/api/v1/admin/users/:id', express.json(), adminRoute, async (req, res) => {
+    const { all, run } = await import('./database.js');
+    const id = req.params.id;
+    const target: any = (await all<any>('SELECT * FROM auth_user WHERE user_id = ?', [id]))[0];
+    if (!target) return res.sendStatus(404);
+    const body = req.body || {};
+    if (id === req.user!.id && (body.disabled === true || (body.role && body.role !== 'admin')))
+      return res.status(409).json({ error: 'Cannot disable or demote your own account.' });
+    const admins = await all<any>("SELECT user_id FROM auth_user WHERE role = 'admin'");
+    if (target.role === 'admin' && admins.length <= 1 && body.disabled === true)
+      return res.status(409).json({ error: 'Cannot disable the final administrator.' });
+    if ('preferred_username' in body) {
+      try {
+        const username = normalizePreferredUsername(body.preferred_username);
+        await run('UPDATE auth_user SET preferred_username = ? WHERE user_id = ?', [username, id]);
+        return res.json({ preferred_username: username });
+      } catch (error) {
+        return res.status(400).json({ error: String(error) });
+      }
+    }
+    if (body.disabled === true || body.disabled === false) {
+      await run('UPDATE auth_user SET disabled = ? WHERE user_id = ?', [body.disabled ? 1 : 0, id]);
+      if (body.disabled) {
+        const sessions = await all('SELECT sid, session FROM auth_session');
+        for (const item of sessions as any[]) {
+          try {
+            if (JSON.parse(item.session)?.passport?.user === id)
+              await run('DELETE FROM auth_session WHERE sid = ?', [item.sid]);
+          } catch {}
+        }
+      }
+      return res.json({ ok: true });
+    }
+    if (body.blocked === true || body.blocked === false) {
+      if (body.blocked && id === req.user!.id)
+        return res.status(409).json({ error: 'Cannot block your own sign-in identity.' });
+      if (
+        body.blocked &&
+        target.role === 'admin' &&
+        (await all<any>("SELECT user_id FROM auth_user WHERE role = 'admin'")).length <= 1
+      )
+        return res.status(409).json({ error: 'Cannot block the final administrator.' });
+      if (body.blocked)
+        await run('INSERT OR REPLACE INTO auth_blocked_identity (profile_id, blocked_at) VALUES (?, ?)', [
+          target.profile_id,
+          new Date().toISOString(),
+        ]);
+      else await run('DELETE FROM auth_blocked_identity WHERE profile_id = ?', [target.profile_id]);
+      if (body.blocked) {
+        const sessions = await all('SELECT sid, session FROM auth_session');
+        for (const item of sessions as any[]) {
+          try {
+            if (JSON.parse(item.session)?.passport?.user === id)
+              await run('DELETE FROM auth_session WHERE sid = ?', [item.sid]);
+          } catch {}
+        }
+      }
+      return res.json({ ok: true });
+    }
+    return res.status(400).json({ error: 'Unsupported user update.' });
+  });
+  app.delete('/api/v1/admin/users/:id', adminRoute, async (req, res) => {
+    const { all, run } = await import('./database.js');
+    const id = req.params.id;
+    const users = await all<any>('SELECT user_id, profile_id, role FROM auth_user ORDER BY user_id');
+    const target = users.find((user: any) => user.user_id === id);
+    if (!target) return res.sendStatus(404);
+    if (target.role === 'admin' && users.filter((user: any) => user.role === 'admin').length <= 1)
+      return res.status(409).json({ error: 'Cannot delete the final administrator.' });
+    const sessions = await all('SELECT sid, session FROM auth_session');
+    for (const session of sessions as any[]) {
+      try {
+        if (JSON.parse(session.session)?.passport?.user === id)
+          await run('DELETE FROM auth_session WHERE sid = ?', [session.sid]);
+      } catch {}
+    }
+    for (const table of ['auth_authenticator', 'auth_api_token', 'auth_property', 'auth_qr_login'])
+      await run(`DELETE FROM ${table} WHERE user_id = ?`, [id]);
+    await run('DELETE FROM auth_audit_event WHERE user_id = ?', [id]);
+    await run('DELETE FROM auth_blocked_identity WHERE profile_id = ?', [target.profile_id]);
+    await run('DELETE FROM auth_user WHERE user_id = ?', [id]);
+    res.json({ ok: true });
+  });
 }
 
 function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
@@ -230,6 +341,17 @@ function serveUi(name: string) {
 }
 
 const testLoginEnabled = Boolean(process.env.AUTH_TEST_KEYS || process.env.AUTH_TEST_SECRET);
+
+function renderAuthError(message: string) {
+  const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  const escaped = message.replace(/[&<>"']/g, (character) => entities[character]);
+  return uiAssets['login.html']
+    .replace(
+      '<h2 class="text-3xl font-extrabold tracking-[-.03em]">Welcome back</h2>',
+      `<h2 class="text-3xl font-extrabold tracking-[-.03em]">Welcome back</h2><p role="alert" class="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">${escaped}</p><div class="flex flex-wrap gap-3"><a class="rounded-xl bg-violet px-4 py-3 text-sm font-bold text-white" href="/login">Try signing in again</a><a class="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold" href="/">Return to Auth home</a></div>`,
+    )
+    .replace('__TEST_LOGIN_ENABLED__', testLoginEnabled ? 'true' : 'false');
+}
 
 function configuredTestKeys() {
   return (process.env.AUTH_TEST_KEYS || process.env.AUTH_TEST_SECRET || '')
@@ -269,6 +391,7 @@ app.set('trust proxy', 1);
 app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
+registerUserAdminRoutes();
 
 app.use((req, res, next) => {
   res.on('finish', () => {
@@ -309,6 +432,7 @@ app.post('/__test__/login', express.json(), async (req, res) => {
   const userId = testUserId(key);
   const role = 'admin';
   let user = await findByUserId(userId);
+  if (user && (await isUserSuspended(user.userId))) return res.status(403).json({ error: 'This account is disabled.' });
   if (!user) {
     user = {
       userId,
@@ -456,13 +580,13 @@ app.get('/api/v1/webauthn/authentication/options', async (req, res) => {
       ? await findByEmail(loginHint)
       : await findByUserId(loginHint)
     : null;
-  res.json(await authenticationOptions(user?.userId));
+  res.json(await authenticationOptions(user && !(await isUserSuspended(user.userId)) ? user.userId : undefined));
 });
 app.post('/api/v1/webauthn/authentication/verify', express.json(), async (req, res) => {
   try {
     const { userId } = await authenticate(req.body);
     const user = await findByUserId(userId);
-    if (!user) return res.status(401).json({ error: 'User not found' });
+    if (!user || (await isUserSuspended(user.userId))) return res.status(401).json({ error: 'User not found' });
     await recordAudit({ userId, event: 'passkey-authentication', app: 'WebAuthn', result: 'success' });
     req.login(userAsJSON(user), (error) => {
       if (error) return res.status(500).json({ error: 'Could not create session' });
@@ -591,7 +715,7 @@ app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (re
     : ['', ''];
   const result = await introspectApiToken(String(req.body?.token || ''), clientId, clientSecret);
   res
-    .set('Cache-Control', 'private, max-age=30')
+    .set('Cache-Control', 'no-store')
     .set('X-Token-Expires-At', String(result?.exp || 0))
     .json(result || { active: false });
 });
@@ -668,7 +792,8 @@ app.get('/authorize', async (req, res) => {
     req.query;
   const clientId = typeof client_id === 'string' ? client_id : '';
   const redirectUri = typeof redirect_uri === 'string' ? redirect_uri : '';
-  const requestedScopes = typeof scope === 'string' ? scope.split(/\s+/).filter(Boolean) : [];
+  const hasScope = typeof scope !== 'undefined';
+  const requestedScopes = typeof scope === 'string' && scope.trim().length > 0 ? scope.trim().split(/\s+/) : ['openid'];
   const client = await getClient(clientId);
 
   const validationErrors = [
@@ -679,8 +804,7 @@ app.get('/authorize', async (req, res) => {
     typeof state === 'string' && state.length === 0 && 'missing_state',
     (typeof code_challenge !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(code_challenge)) && 'invalid_code_challenge',
     code_challenge_method !== 'S256' && 'invalid_code_challenge_method',
-    typeof scope !== 'string' && 'missing_scope',
-    requestedScopes.length === 0 && 'missing_scope',
+    hasScope && typeof scope !== 'string' && 'invalid_scope',
     typeof nonce === 'string' && (nonce.length === 0 || nonce.length > 512) && 'invalid_nonce',
     client && !validateAuthorizationScopes(requestedScopes) && 'invalid_scope',
   ].filter(Boolean);
@@ -691,7 +815,18 @@ app.get('/authorize', async (req, res) => {
       validationErrors,
     });
     await recordAudit({ event: 'oidc-authorization', app: clientId || 'unknown', result: 'failure', redirectUri });
-    return res.status(400).send('Invalid authorization request');
+    if (client && client.redirectUris.includes(redirectUri)) {
+      const callback = new URL(redirectUri);
+      callback.searchParams.set('error', 'invalid_request');
+      callback.searchParams.set('error_description', 'The sign-in request is invalid or expired. Start a new sign-in.');
+      if (typeof state === 'string' && state.length > 0 && state.length <= 1024)
+        callback.searchParams.set('state', state);
+      return res.redirect(String(callback));
+    }
+    return res
+      .status(400)
+      .type('html')
+      .send(renderAuthError('This sign-in request is invalid or has expired. Start again from the application.'));
   }
   if (!req.isAuthenticated?.() || !req.user?.id) {
     return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
@@ -708,7 +843,7 @@ app.get('/authorize', async (req, res) => {
       typeof nonce === 'string' ? nonce : undefined,
     );
   } catch {
-    return res.status(400).send('Invalid authorization scope');
+    return res.status(400).type('html').send(renderAuthError('This application requested unsupported access.'));
   }
   await recordAudit({
     userId: req.user.id,
@@ -749,7 +884,7 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
   }
 
   const user = await findByUserId(authorizationCode.userId);
-  if (!user) {
+  if (!user || (await isUserSuspended(user.userId))) {
     await recordAudit({ event: 'oidc-token-exchange', app: clientId, result: 'failure', redirectUri: redirect_uri });
     return res.status(400).json({ error: 'invalid_grant' });
   }
@@ -773,18 +908,22 @@ app.get('/logout', async (req, res) => {
   let redirect: URL | undefined;
 
   if (postLogoutRedirectUri) {
-    if (!idTokenHint || !clientId) return res.status(400).send('Invalid logout request');
+    if (!idTokenHint || !clientId)
+      return res.status(400).type('html').send(renderAuthError('This sign-out request is invalid or has expired.'));
     const client = await getClient(clientId);
     if (!client || !client.postLogoutRedirectUris.includes(postLogoutRedirectUri)) {
-      return res.status(400).send('Unregistered post-logout redirect URI');
+      return res
+        .status(400)
+        .type('html')
+        .send(renderAuthError('This application cannot receive the sign-out response.'));
     }
     try {
       const { payload } = await verifyIdentityToken(idTokenHint, clientId);
       if (!payload.sub || (req.user?.id && req.user.id !== payload.sub)) {
-        return res.status(400).send('Invalid ID Token hint');
+        return res.status(400).type('html').send(renderAuthError('This sign-out session is invalid or has expired.'));
       }
     } catch {
-      return res.status(400).send('Invalid ID Token hint');
+      return res.status(400).type('html').send(renderAuthError('This sign-out session is invalid or has expired.'));
     }
     redirect = new URL(postLogoutRedirectUri);
     if (state) redirect.searchParams.set('state', state);
@@ -792,14 +931,16 @@ app.get('/logout', async (req, res) => {
     try {
       await verifyIdentityToken(idTokenHint, clientId);
     } catch {
-      return res.status(400).send('Invalid ID Token hint');
+      return res.status(400).type('html').send(renderAuthError('This sign-out session is invalid or has expired.'));
     }
   }
 
   req.logout((logoutError) => {
-    if (logoutError) return res.status(500).send('Could not end session');
+    if (logoutError)
+      return res.status(500).type('html').send(renderAuthError('Could not complete sign-out. Please try again.'));
     req.session.destroy((sessionError) => {
-      if (sessionError) return res.status(500).send('Could not end session');
+      if (sessionError)
+        return res.status(500).type('html').send(renderAuthError('Could not complete sign-out. Please try again.'));
       res.clearCookie('connect.sid', { domain: process.env.SESSION_DOMAIN || undefined, path: '/' });
       res.redirect(redirect ? String(redirect) : '/');
     });

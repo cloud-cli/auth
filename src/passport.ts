@@ -1,12 +1,16 @@
 import passport, { Profile } from 'passport';
 import { randomUUID } from 'crypto';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { userAsJSON, findByProfileId, findByUserId } from './user.js';
-import { saveUser } from './database.js';
+import { userAsJSON, findByProfileId, findByUserId, isUserSuspended } from './user.js';
+import { all, saveUser } from './database.js';
 import { recordAudit } from './audit.js';
 
 async function onUserSignIn(accessToken: string, refreshToken: string, profile: Profile, done: any) {
   let user = await findByProfileId(profile.id);
+
+  const blocked = await all('SELECT profile_id FROM auth_blocked_identity WHERE profile_id = ?', [profile.id]);
+  if (blocked.length) return done(null, false, { message: 'This identity is blocked.' });
+  if (user?.disabled) return done(null, false, { message: 'This account is disabled.' });
 
   if (!user) {
     user = {
@@ -64,7 +68,7 @@ passport.deserializeUser(async (id: string, done: any) => {
   try {
     const user = await findByUserId(id);
 
-    if (user) {
+    if (user && !(await isUserSuspended(user.userId))) {
       return done(null, userAsJSON(user));
     }
 

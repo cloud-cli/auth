@@ -7,6 +7,10 @@
           Add app
         </button>
       </div>
+      <p class="mt-2 text-sm text-slate-500">
+        Confidential clients are server-side apps that can keep a client secret. Public/native clients run on phones or
+        desktops and use PKCE without a secret.
+      </p>
       <app-form bind-admin="admin" bind-form-open="formOpen" on-created="load()"></app-form>
       <div class="mt-3 grid gap-2">
         <template for="app of apps"

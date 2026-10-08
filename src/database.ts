@@ -13,6 +13,7 @@ export type User = {
   recoveryCodes?: string[];
   role: 'user' | 'admin';
   preferredUsername?: string | null;
+  disabled?: boolean | number;
 };
 
 export type UserProperty = { uid: string; userId: string; key: string; value: unknown };
@@ -91,6 +92,7 @@ const tableColumns: Record<string, Record<string, string>> = {
     lastSeen: 'last_seen',
     recoveryCodes: 'recovery_codes',
     preferredUsername: 'preferred_username',
+    disabled: 'disabled',
   },
   auth_property: { uid: 'uid', userId: 'user_id', key: 'key', value: 'value' },
   auth_session: { sid: 'sid', session: 'session' },

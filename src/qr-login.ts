@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import { randomBytes } from 'crypto';
 import { QrLoginTransaction, rows, run } from './database.js';
-import { findByUserId, userAsJSON } from './user.js';
+import { findByUserId, isUserSuspended, userAsJSON } from './user.js';
 
 const configuredLifetime = Number(process.env.QR_LOGIN_TTL_SECONDS || 300);
 const lifetime =
@@ -88,7 +88,7 @@ export async function completeQrLogin(token: string, sessionId: string) {
   const transaction = await getTransaction(token);
   if (transaction.sessionId !== sessionId || transaction.status !== 'approved' || !transaction.userId) return null;
   const user = await findByUserId(transaction.userId);
-  if (!user) return null;
+  if (!user || (await isUserSuspended(user.userId))) return null;
   await run('DELETE FROM auth_qr_login WHERE token = ?', [transaction.token]);
   return { user: userAsJSON(user), returnUrl: transaction.returnUrl };
 }

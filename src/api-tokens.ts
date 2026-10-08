@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
-import { ApiToken, json, rows, run } from './database.js';
+import { all, ApiToken, json, rows, run } from './database.js';
 import { getClient, verifyClientSecret } from './oidc.js';
 
 const ttl = 365 * 24 * 60 * 60 * 1000;
@@ -87,6 +87,11 @@ export async function verifyAuthApiToken(token: string, clientId: string) {
   ) {
     return false;
   }
+  const account = await all<{ disabled: number; blocked: number }>(
+    'SELECT u.disabled, EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = u.profile_id) AS blocked FROM auth_user u WHERE u.user_id = ?',
+    [item.userId],
+  );
+  if (account[0] && (account[0].disabled || account[0].blocked)) return false;
   await run('UPDATE auth_api_token SET last_used_at = ? WHERE token_hash = ?', [
     new Date().toISOString(),
     item.tokenHash,
@@ -145,6 +150,11 @@ export async function introspectApiToken(token: string, clientId: string, client
   const tokens = await rows<ApiToken>('auth_api_token', 'token_hash = ? AND client_id = ?', [hash(token), clientId]);
   const item = tokens[0];
   if (!item || item.revokedAt || Date.parse(item.expiresAt) <= Date.now()) return { active: false };
+  const account = await all<{ disabled: number; blocked: number }>(
+    'SELECT u.disabled, EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = u.profile_id) AS blocked FROM auth_user u WHERE u.user_id = ?',
+    [item.userId],
+  );
+  if (account[0] && (account[0].disabled || account[0].blocked)) return { active: false };
   const allowed = new Set(client.scopes || []);
   const scopes = item.scopes.filter((scope) => allowed.has(scope));
   if (!scopes.length) return { active: false };
