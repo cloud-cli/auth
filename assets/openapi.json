@@ -12,10 +12,27 @@
   ],
   "tags": [
     {
-      "name": "Authentication"
+      "name": "Profile",
+      "description": "Current user profile and session endpoints."
     },
     {
       "name": "Properties"
+    },
+    {
+      "name": "API tokens",
+      "description": "Opaque API tokens scoped to registered OIDC clients."
+    },
+    {
+      "name": "JWT APIs",
+      "description": "OIDC protocol, JWT discovery, and session token endpoints."
+    },
+    {
+      "name": "Admin-only APIs",
+      "description": "Administrator endpoints for managing OIDC clients, Auth API tokens, and JWT signing keys."
+    },
+    {
+      "name": "UI-only APIs",
+      "description": "Authentication and dashboard endpoints used by the Auth browser UI."
     },
     {
       "name": "Browser client"
@@ -27,7 +44,7 @@
   "paths": {
     "/api/v1/profile": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["Profile"],
         "summary": "Get the current user",
         "responses": {
           "200": {
@@ -49,7 +66,7 @@
         }
       },
       "head": {
-        "tags": ["Authentication"],
+        "tags": ["Profile"],
         "summary": "Check whether the current session is authenticated",
         "responses": {
           "204": {
@@ -61,7 +78,7 @@
         }
       },
       "delete": {
-        "tags": ["Authentication"],
+        "tags": ["Profile"],
         "summary": "Sign out the current user",
         "responses": {
           "202": {
@@ -186,7 +203,7 @@
     },
     "/api/v1/session/token": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["JWT APIs"],
         "summary": "Issue a short-lived access token for an allowed audience",
         "description": "Requires an authenticated browser session and an Origin listed in AUTH_ALLOWED_ORIGINS.",
         "requestBody": {
@@ -234,7 +251,7 @@
     },
     "/api/v1/oidc/clients": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "List managed OIDC clients",
         "security": [
           {
@@ -251,7 +268,7 @@
         }
       },
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "Create a managed OIDC client",
         "security": [
           {
@@ -296,7 +313,7 @@
     },
     "/api/v1/audit": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "List the current user's authentication audit events",
         "responses": {
           "200": {
@@ -310,7 +327,7 @@
     },
     "/api/v1/oidc/clients/{id}": {
       "delete": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "Remove a managed OIDC client",
         "security": [
           {
@@ -342,7 +359,7 @@
     },
     "/api/v1/oidc/clients/{id}/secret": {
       "put": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "Regenerate a managed OIDC client secret",
         "security": [
           {
@@ -403,7 +420,7 @@
     },
     "/api/v1/oidc/clients/{id}/scopes": {
       "put": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "Replace the allowed API scopes for a managed OIDC client",
         "parameters": [
           {
@@ -449,7 +466,7 @@
     },
     "/api/v1/api-tokens/{clientId}": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["API tokens"],
         "summary": "List the current user's tokens for an OIDC app",
         "parameters": [
           {
@@ -471,7 +488,7 @@
         }
       },
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["API tokens"],
         "summary": "Create a scoped opaque API token",
         "parameters": [
           {
@@ -520,7 +537,7 @@
     },
     "/api/v1/api-tokens/{clientId}/{tokenId}": {
       "delete": {
-        "tags": ["Authentication"],
+        "tags": ["API tokens"],
         "summary": "Revoke a token by stable token ID",
         "parameters": [
           {
@@ -552,7 +569,7 @@
     },
     "/api/v1/api-tokens/{clientId}/issue": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["API tokens"],
         "summary": "Mint a downstream API token using an Auth API token",
         "description": "Requires an Auth API Bearer token issued to clientId. This credential has the fixed permission to mint tokens only for its own client. The request's downstream scopes must be configured for that OIDC client. The returned opaque token is shown once.",
         "security": [
@@ -617,7 +634,7 @@
         }
       ],
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "List Auth API tokens for a client (administrator only)",
         "security": [
           {
@@ -634,7 +651,7 @@
         }
       },
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "Create an Auth API token for a client (administrator only)",
         "security": [
           {
@@ -673,7 +690,7 @@
     },
     "/api/v1/auth-api-tokens/{clientId}/{tokenId}": {
       "delete": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "Revoke an Auth API token (administrator only)",
         "security": [
           {
@@ -713,7 +730,7 @@
     },
     "/oauth/introspect": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["JWT APIs"],
         "summary": "Introspect an opaque API token",
         "security": [
           {
@@ -748,7 +765,7 @@
     },
     "/authorize": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["JWT APIs"],
         "summary": "Start an OIDC authorization-code flow",
         "parameters": [
           {
@@ -815,7 +832,7 @@
     },
     "/token": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["JWT APIs"],
         "summary": "Exchange an OIDC authorization code",
         "requestBody": {
           "required": true,
@@ -872,7 +889,7 @@
     },
     "/.well-known/jwks.json": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["JWT APIs"],
         "summary": "Get public JWT signing keys",
         "responses": {
           "200": {
@@ -899,7 +916,7 @@
     },
     "/.well-known/openid-configuration": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["JWT APIs"],
         "summary": "Get the OpenID Connect discovery document",
         "responses": {
           "200": {
@@ -910,7 +927,7 @@
     },
     "/userinfo": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["JWT APIs"],
         "summary": "Get a user's profile from a verified JWT",
         "parameters": [
           {
@@ -949,7 +966,7 @@
     },
     "/api/v1/webauthn/register/options": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Create passkey registration options for the current user",
         "responses": {
           "200": {
@@ -963,7 +980,7 @@
     },
     "/api/v1/webauthn/register/verify": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Register a passkey for the current user",
         "requestBody": {
           "required": true,
@@ -990,7 +1007,7 @@
     },
     "/api/v1/webauthn/authentication/options": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Create passkey authentication options",
         "parameters": [
           {
@@ -1011,7 +1028,7 @@
     },
     "/api/v1/webauthn/authentication/verify": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Authenticate with a passkey and create a session",
         "requestBody": {
           "required": true,
@@ -1035,7 +1052,7 @@
     },
     "/api/v1/webauthn/credentials": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "List the current user's passkeys",
         "responses": {
           "200": {
@@ -1056,7 +1073,7 @@
     },
     "/api/v1/webauthn/credentials/{credentialId}": {
       "delete": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Revoke one of the current user's passkeys",
         "parameters": [
           {
@@ -1072,18 +1089,18 @@
           "204": {
             "description": "Passkey revoked"
           },
-          "404": {
-            "description": "Passkey not found"
-          },
           "401": {
             "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Passkey not found"
           }
         }
       }
     },
     "/api/v1/recovery-codes": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Generate a new set of one-time recovery codes",
         "responses": {
           "200": {
@@ -1112,7 +1129,7 @@
     },
     "/api/v1/qr-login/start": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Create a QR login approval transaction",
         "parameters": [
           {
@@ -1133,7 +1150,7 @@
     },
     "/api/v1/qr-login/status": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Poll a laptop QR login transaction",
         "parameters": [
           {
@@ -1157,7 +1174,7 @@
     },
     "/api/v1/qr-login/details": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Read a QR login transaction from an authenticated phone",
         "parameters": [
           {
@@ -1184,7 +1201,7 @@
     },
     "/api/v1/qr-login/approve": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Approve a QR login from the authenticated phone",
         "requestBody": {
           "required": true,
@@ -1217,7 +1234,7 @@
     },
     "/api/v1/qr-login/deny": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Deny a QR login from the authenticated phone",
         "requestBody": {
           "required": true,
@@ -1250,10 +1267,14 @@
     },
     "/api/v1/revoke": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["API tokens"],
         "summary": "Revoke an opaque API token",
         "description": "Requires registered client credentials. Unknown tokens are treated as successfully revoked.",
-        "security": [{ "basicAuth": [] }],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1285,7 +1306,7 @@
     },
     "/api/v1/keys": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "List signing keys",
         "responses": {
           "200": {
@@ -1296,7 +1317,7 @@
     },
     "/api/v1/keys/rotate": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["Admin-only APIs"],
         "summary": "Rotate the active signing key",
         "responses": {
           "200": {
@@ -1307,7 +1328,7 @@
     },
     "/api/v1/audit/options": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "List audit filter options",
         "responses": {
           "200": {
@@ -1318,7 +1339,7 @@
     },
     "/api/v1/recovery": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": ["UI-only APIs"],
         "summary": "Authenticate with a recovery code",
         "responses": {
           "200": {
@@ -1329,7 +1350,7 @@
     },
     "/api/v1/api-tokens/me": {
       "get": {
-        "tags": ["Authentication"],
+        "tags": ["API tokens"],
         "summary": "List current user API tokens",
         "responses": {
           "200": {

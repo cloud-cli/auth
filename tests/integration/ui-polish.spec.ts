@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 
 const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
 
-test('account brand mark and OIDC application spacing and borders', async ({ page }) => {
+test('account and dashboard brand marks are violet; OIDC application spacing and borders are correct', async ({
+  page,
+}) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
 
   await page.goto('/');
@@ -16,7 +18,13 @@ test('account brand mark and OIDC application spacing and borders', async ({ pag
 
   const appId = `e2e-ui-${Date.now()}`;
   await page.goto('/account');
-  await expect(page.locator('header a[href="/me"] svg')).toBeVisible();
+  const accountBrand = page.locator('header a[href="/me"] svg');
+  await expect(accountBrand).toBeVisible();
+  await expect(accountBrand).toHaveCSS('color', 'rgb(114, 87, 245)');
+  await page.goto('/me');
+  const dashboardBrand = page.locator('header a[href="/me"] svg');
+  await expect(dashboardBrand).toBeVisible();
+  await expect(dashboardBrand).toHaveCSS('color', 'rgb(114, 87, 245)');
 
   await page.evaluate(async (id) => {
     const response = await fetch('/api/v1/oidc/clients', {
@@ -38,6 +46,14 @@ test('account brand mark and OIDC application spacing and borders', async ({ pag
     const callbackForm = appDetails.locator('form').first();
     const marginTop = await callbackForm.evaluate((element) => Number.parseFloat(getComputedStyle(element).marginTop));
     expect(marginTop).toBe(24);
+    const callbackSectionMargin = await callbackForm.evaluate((element) => {
+      let current = element.parentElement;
+      while (current && !current.querySelector('strong')?.textContent?.includes('Callback URLs')) {
+        current = current.parentElement;
+      }
+      return Number.parseFloat(getComputedStyle(current!).marginTop);
+    });
+    expect(callbackSectionMargin).toBe(20);
   } finally {
     await page.evaluate(
       async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
