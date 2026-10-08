@@ -323,7 +323,10 @@ app.delete('/api/v1/profile', protectedRoute, logout);
 app.get('/login', (req, res) => {
   const returnUrl = typeof req.query.url === 'string' ? req.query.url : '/me';
   if (req.isAuthenticated?.() && req.user?.id && returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
-    return res.redirect(302, returnUrl);
+    const destination = new URL(returnUrl, `${req.protocol}://${req.get('host')}`);
+    const signinNonce = typeof req.query.signinNonce === 'string' ? req.query.signinNonce : '';
+    if (/^[a-zA-Z0-9_-]{1,128}$/.test(signinNonce)) destination.searchParams.set('signinNonce', signinNonce);
+    return res.redirect(302, destination.pathname + destination.search + destination.hash);
   }
   serveUi('login.html')(req, res);
 });
@@ -774,10 +777,13 @@ app.get('/ui/:asset', (req, res) => {
         : req.params.asset.endsWith('.html')
           ? 'text/html'
           : 'text/javascript';
-  const source = asset.replaceAll(
-    "from '/ui/dashboard.mjs'",
-    `from '${req.protocol}://${req.get('host')}/ui/dashboard.mjs'`,
-  );
+  const browserOrigins = [process.env.AUTH_ALLOWED_ORIGINS, process.env.EMBED_ALLOWED_ORIGINS]
+    .flatMap((value) => (value || '').split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const source = asset
+    .replaceAll("from '/ui/dashboard.mjs'", `from '${req.protocol}://${req.get('host')}/ui/dashboard.mjs'`)
+    .replace('__BROWSER_ALLOWED_ORIGINS__', JSON.stringify(browserOrigins));
   res
     .set('Cache-Control', 'no-store')
     .type(type)

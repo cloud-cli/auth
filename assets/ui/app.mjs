@@ -19,10 +19,30 @@ import {
 
 const page = document.body.dataset.page;
 const testLoginEnabled = document.body.dataset.testLogin === 'true';
+const browserOrigins = __BROWSER_ALLOWED_ORIGINS__;
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
+
+function isAllowedBrowserOrigin(origin) {
+  try {
+    const hostname = new URL(origin).hostname;
+    return browserOrigins.some((value) => {
+      if (value === origin) return true;
+      const domain = value
+        .replace(/^https?:\/\//, '')
+        .replace(/^\./, '')
+        .split('/')[0];
+      return domain && (hostname === domain || hostname.endsWith('.' + domain));
+    });
+  } catch {
+    return false;
+  }
+}
 document.querySelectorAll('lucide-icon[icon="trash-2"]').forEach((icon) => icon.setAttribute('icon', 'trash'));
 
 export default function () {
+  if (page === 'login' && value('signinNonce')) {
+    sessionStorage.setItem('auth.popup.signinNonce', value('signinNonce'));
+  }
   const busy = ref(false);
   const message = ref('');
   const error = ref(false);
@@ -77,7 +97,10 @@ export default function () {
         body: JSON.stringify({ key: testKey.value }),
       });
       if (!response.ok) throw new Error(response.status === 401 ? 'Invalid test API key.' : 'Could not sign in.');
-      location.href = value('url') || '/me';
+      const returnUrl = new URL(value('url') || '/me', location.origin);
+      const nonce = value('signinNonce') || sessionStorage.getItem('auth.popup.signinNonce');
+      if (nonce) returnUrl.searchParams.set('signinNonce', nonce);
+      location.href = returnUrl.pathname + returnUrl.search + returnUrl.hash;
     } catch (reason) {
       setMessage(reason.message || 'Could not sign in.', true);
     } finally {
@@ -92,7 +115,24 @@ export default function () {
   async function loadProfile() {
     const profile = await getProfile();
     user.value = profile;
-    if (window.opener) window.opener.postMessage({ event: 'signin', detail: profile }, location.origin);
+    const nonce = value('signinNonce') || sessionStorage.getItem('auth.popup.signinNonce');
+    if (window.opener && nonce) {
+      const onPopupPing = (event) => {
+        if (
+          event.source !== window.opener ||
+          event.data?.event !== 'auth-popup-ping' ||
+          event.data?.detail?.nonce !== nonce ||
+          !isAllowedBrowserOrigin(event.origin)
+        ) {
+          return;
+        }
+        window.opener.postMessage({ event: 'signin', detail: { nonce, profile } }, event.origin);
+        window.removeEventListener('message', onPopupPing);
+        sessionStorage.removeItem('auth.popup.signinNonce');
+        window.close();
+      };
+      window.addEventListener('message', onPopupPing);
+    }
   }
 
   async function addPasskey() {

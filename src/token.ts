@@ -8,7 +8,7 @@ const privateKeyFile = process.env.JWT_PRIVATE_KEY_FILE || '';
 const privateKeyPem = privateKeyFile ? readFileSync(privateKeyFile, 'utf8') : process.env.JWT_PRIVATE_KEY || '';
 const encryptionKeyFile = process.env.JWT_KEY_ENCRYPTION_KEY_FILE || '';
 const encryptionKey = encryptionKeyFile ? Buffer.from(readFileSync(encryptionKeyFile, 'utf8').trim(), 'hex') : null;
-const keyId = process.env.JWT_KEY_ID || 'auth-1';
+const configuredKeyId = process.env.JWT_KEY_ID || 'auth-1';
 const ttl = Number(process.env.JWT_TTL_SECONDS || 300);
 const audiences = new Set(
   (process.env.JWT_AUDIENCES || '')
@@ -18,6 +18,7 @@ const audiences = new Set(
 );
 
 let signingKey: CryptoKey | undefined;
+let signingKeyId = configuredKeyId;
 let verificationKey: CryptoKey | undefined;
 const verificationKeys = new Map<string, CryptoKey>();
 
@@ -82,7 +83,7 @@ export async function initializeSigningKeys() {
       .toString();
     await run(
       'INSERT INTO auth_signing_key (kid, encrypted_private_key, public_key, status, created_at) VALUES (?, ?, ?, ?, ?)',
-      [keyId, encryptPrivateKey(privateKeyPem), publicKey, 'active', new Date().toISOString()],
+      [configuredKeyId, encryptPrivateKey(privateKeyPem), publicKey, 'active', new Date().toISOString()],
     );
   }
   const stored = await rows<SigningKey>('auth_signing_key');
@@ -92,6 +93,7 @@ export async function initializeSigningKeys() {
   const activeKey = stored.find((item) => item.status === 'active');
   if (activeKey) {
     signingKey = await importPKCS8(decryptPrivateKey(activeKey.encryptedPrivateKey), 'RS256');
+    signingKeyId = activeKey.kid;
     verificationKey = verificationKeys.get(activeKey.kid);
   }
 }
@@ -136,7 +138,7 @@ export async function createAccessToken(userId: string, audience: string) {
   if (!signingKey) throw new Error('JWT signing is not configured');
 
   return new SignJWT()
-    .setProtectedHeader({ alg: 'RS256', kid: keyId, typ: 'JWT' })
+    .setProtectedHeader({ alg: 'RS256', kid: signingKeyId, typ: 'JWT' })
     .setSubject(userId)
     .setIssuer(issuer)
     .setAudience(audience)
@@ -150,7 +152,7 @@ export async function createIdentityToken(user: User, audience: string) {
   if (!signingKey) throw new Error('JWT signing is not configured');
 
   return new SignJWT({ name: user.name, email: user.email, picture: user.photo })
-    .setProtectedHeader({ alg: 'RS256', kid: keyId, typ: 'JWT' })
+    .setProtectedHeader({ alg: 'RS256', kid: signingKeyId, typ: 'JWT' })
     .setSubject(user.userId)
     .setIssuer(issuer)
     .setAudience(audience)

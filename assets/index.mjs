@@ -1,6 +1,11 @@
 const authDomain = '__API_URL__';
 const commandQueue = {};
 let popup = null;
+let signInPending = false;
+let pollTimer = null;
+let closeTimer = null;
+let signInNonce = null;
+let profilePollInFlight = false;
 
 if (!authDomain) {
   throw new Error('Failed to load authentication endpoint!');
@@ -61,12 +66,13 @@ window.addEventListener('message', (e) => {
       }
       break;
     case 'signin':
-      if (popup) {
-        popup.close();
-        popup = null;
+      if (signInPending && e.source === popup && detail?.nonce === signInNonce) {
+        if (detail.profile) finishSignIn(detail.profile);
+        else
+          getProfile()
+            .then(finishSignIn)
+            .catch(() => {});
       }
-
-      events.dispatchEvent(new CustomEvent('state', { detail }));
       break;
 
     default:
@@ -75,21 +81,87 @@ window.addEventListener('message', (e) => {
 });
 
 export const events = new EventTarget();
+function finishSignIn(profile) {
+  if (!signInPending || !profile) return;
+  clearInterval(pollTimer);
+  clearTimeout(closeTimer);
+  pollTimer = null;
+  closeTimer = null;
+  signInPending = false;
+  if (popup && !popup.closed) popup.close();
+  popup = null;
+  signInNonce = null;
+  profilePollInFlight = false;
+  events.dispatchEvent(new CustomEvent('signin', { detail: profile }));
+  events.dispatchEvent(new CustomEvent('state', { detail: profile }));
+}
+function startProfilePoll() {
+  const poll = async () => {
+    if (!signInPending) return;
+    if (popup && !popup.closed) {
+      popup.postMessage({ event: 'auth-popup-ping', detail: { nonce: signInNonce } }, authDomain);
+      clearTimeout(closeTimer);
+      closeTimer = null;
+    } else if (popup?.closed && !closeTimer) {
+      closeTimer = setTimeout(() => {
+        if (signInPending && popup?.closed) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          closeTimer = null;
+          signInPending = false;
+          popup = null;
+          signInNonce = null;
+        }
+      }, 10_000);
+    }
+
+    if (!profilePollInFlight) {
+      profilePollInFlight = true;
+      getProfile()
+        .then((profile) => finishSignIn(profile))
+        .catch(() => {})
+        .finally(() => {
+          profilePollInFlight = false;
+        });
+    }
+  };
+  poll();
+  pollTimer = setInterval(poll, 700);
+}
 export function postMessage(message) {
   embedded.then((window) => window.postMessage(message));
 }
 
+function createSignInNonce() {
+  if (window.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function signIn(usePopUp) {
   if (usePopUp) {
+    if (signInPending && popup && !popup.closed) return;
+    clearInterval(pollTimer);
+    clearTimeout(closeTimer);
+    signInPending = true;
+    signInNonce = createSignInNonce();
     const { innerWidth, innerHeight } = window;
     const left = Math.round((innerWidth - 640) / 2);
     const top = Math.round((innerHeight - 480) / 2);
 
-    popup = window.open(
-      String(new URL('/login', authDomain)),
-      'signin',
-      `popup,width=640,height=630,left=${left},top=${top}`,
-    );
+    const loginUrl = new URL('/login', authDomain);
+    loginUrl.searchParams.set('signinNonce', signInNonce);
+    popup = window.open(String(loginUrl), 'signin', `popup,width=640,height=630,left=${left},top=${top}`);
+    if (!popup) {
+      signInPending = false;
+      signInNonce = null;
+      location.href = String(new URL('/login?url=' + encodeURIComponent(location.href), authDomain));
+      return;
+    }
+    startProfilePoll();
     return;
   }
 
