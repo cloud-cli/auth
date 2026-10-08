@@ -38,32 +38,9 @@
         >
           <span class="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-mint/30 blur-xl"></span>
           <h2 class="text-3xl font-extrabold tracking-[-.03em]">Welcome back</h2>
-          <template if="!testLoginEnabled"><p class="text-slate-500">Choose how to continue:</p></template>
-          <template if="testLoginEnabled"
-            ><p class="text-slate-500">Use the test API key for this environment:</p>
-            <form class="grid gap-3" on-submit.prevent="testLogin()">
-              <label class="grid gap-1 text-sm font-semibold" for="test-key">Test API key</label>
-              <input
-                id="test-key"
-                type="password"
-                autocomplete="off"
-                required
-                attr-value="testKey"
-                on-input="setTestKey($event.target.value)"
-                class="min-h-12 rounded-2xl border border-slate-200 px-4 outline-none focus:border-violet"
-              />
-              <button
-                type="submit"
-                class="flex min-h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-violet to-purple-500 px-4 font-bold text-white shadow-lg shadow-violet/20"
-              >
-                Sign in
-              </button>
-              <p template if="message" class="text-sm" attr-class="error ? 'text-rose-600' : 'text-emerald-700'">
-                {{ message }}
-              </p>
-            </form></template
-          ><template if="!testLoginEnabled"
-            ><a
+          <template if="!testLoginEnabled"
+            ><p class="text-slate-500">Choose how to continue:</p>
+            <a
               class="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 font-bold"
               href="/auth/google"
               ><img class="h-5 w-5" src="/ui/google.svg" alt="" />Continue with Google</a
@@ -71,14 +48,47 @@
               class="flex min-h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-violet to-purple-500 px-4 font-bold text-white shadow-lg shadow-violet/20"
               attr-href="passkeyUrl"
               >Use a passkey</a
-            ><a
-              class="flex min-h-12 items-center justify-center rounded-2xl border border-slate-200 px-4 font-bold"
-              attr-href="qrUrl"
-              >Approve on phone</a
-            ><a class="mt-1 text-center font-semibold text-violet" attr-href="recoveryUrl"
-              >Use a recovery code</a
             ></template
           >
+          <details class="mt-1 border-t border-slate-100 pt-3">
+            <summary class="w-fit cursor-pointer list-none text-sm font-semibold text-violet hover:text-violet/80">
+              Try another way
+            </summary>
+            <div class="mt-3 grid gap-3">
+              <template if="testLoginEnabled"
+                ><p class="text-sm text-slate-500">Use the test API key for this environment:</p>
+                <form class="grid gap-3" on-submit.prevent="testLogin()">
+                  <label class="grid gap-1 text-sm font-semibold" for="test-key">Test API key</label>
+                  <input
+                    id="test-key"
+                    type="password"
+                    autocomplete="off"
+                    required
+                    attr-value="testKey"
+                    on-input="setTestKey($event.target.value)"
+                    class="min-h-12 rounded-2xl border border-slate-200 px-4 outline-none focus:border-violet"
+                  />
+                  <button
+                    type="submit"
+                    class="flex min-h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-violet to-purple-500 px-4 font-bold text-white shadow-lg shadow-violet/20"
+                  >
+                    Sign in
+                  </button>
+                  <p template if="message" class="text-sm" attr-class="error ? 'text-rose-600' : 'text-emerald-700'">
+                    {{ message }}
+                  </p>
+                </form></template
+              ><template if="!testLoginEnabled"
+                ><a
+                  class="flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 px-4 text-sm font-semibold"
+                  attr-href="qrUrl"
+                  >Approve on phone</a
+                ><a class="text-center text-sm font-semibold text-violet" attr-href="recoveryUrl"
+                  >Use a recovery code</a
+                ></template
+              >
+            </div>
+          </details>
         </section>
       </main>
       <script setup src="/ui/app.mjs"></script

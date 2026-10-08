@@ -13,14 +13,25 @@ test('landing page is available', async ({ page }) => {
 
 test('login page exposes the configured sign-in method', async ({ page }) => {
   await page.goto('/login');
+  const alternatives = page.getByText('Try another way', { exact: true });
+  await expect(alternatives).toBeVisible();
   if (testKey) {
-    await expect(page.getByLabel('Test API key')).toBeVisible();
+    await expect(page.getByLabel('Test API key')).toBeHidden();
     await expect(page.getByText('Continue with Google')).toHaveCount(0);
     await expect(page.getByText('Use a passkey')).toHaveCount(0);
+    await alternatives.click();
+    await expect(page.getByLabel('Test API key')).toBeVisible();
+    await page.getByLabel('Test API key').fill(testKey);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL(/\/me$/);
   } else {
     await expect(page.getByText('Continue with Google')).toBeVisible();
     await expect(page.getByText('Use a passkey')).toBeVisible();
+    await expect(page.getByText('Approve on phone')).toBeHidden();
+    await expect(page.getByText('Use a recovery code')).toBeHidden();
+    await alternatives.click();
     await expect(page.getByText('Approve on phone')).toBeVisible();
+    await expect(page.getByText('Use a recovery code')).toBeVisible();
   }
 });
 
