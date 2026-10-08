@@ -176,6 +176,7 @@ test('admin Users page lists accounts and protects the current administrator', a
   }, testKey);
   await page.goto('/me#users');
   await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
+  await expect(page.locator('auth-nav lucide-icon[icon="users"]')).toBeAttached();
   const user = await page.evaluate(async () => (await fetch('/api/v1/admin/users')).json());
   expect(user.length).toBeGreaterThan(0);
   expect(user[0]).toHaveProperty('id');
@@ -183,9 +184,27 @@ test('admin Users page lists accounts and protects the current administrator', a
   expect(user[0]).toHaveProperty('role');
   const self = user.find((entry) => entry.id.startsWith('test-'));
   expect(self).toBeDefined();
+  if (!self.preferredUsername) {
+    const username = `admin_${Date.now()}`;
+    const status = await page.evaluate(
+      async ({ id, preferred_username }) => {
+        const response = await fetch(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ preferred_username }),
+        });
+        return response.status;
+      },
+      { id: self.id, preferred_username: username },
+    );
+    expect(status).toBe(200);
+    self.preferredUsername = username;
+    await page.reload();
+  }
   const details = page.locator('details').filter({ hasText: self.email });
   await details.locator('summary').click();
   await expect(details.getByText('Name: John Doe', { exact: true })).toBeVisible();
+  await expect(details.locator('input[name="preferred_username"]')).toHaveValue(self.preferredUsername || '');
   const response = await page.evaluate(async (id) => {
     const result = await fetch(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
       method: 'PATCH',

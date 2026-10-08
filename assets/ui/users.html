@@ -22,7 +22,7 @@
               class="rounded border px-2"
               name="preferred_username"
               placeholder="Preferred username"
-              value="{{ user.preferredUsername || '' }}"
+              bind-value="user.preferredUsername"
             /><button class="text-violet">Save username</button>
           </form>
           <div class="flex flex-wrap gap-2">
