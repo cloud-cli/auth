@@ -13,6 +13,96 @@
     <script type="importmap">
       { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
     </script>
+    <style>
+      .profile-card {
+        width: fit-content;
+        max-width: 70%;
+        overflow: hidden;
+        transition:
+          width 240ms ease,
+          max-width 240ms ease,
+          border-color 180ms ease,
+          box-shadow 180ms ease;
+      }
+      .profile-card-expanded {
+        width: min(100%, 36rem);
+        max-width: 100%;
+      }
+      .profile-avatar {
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 0.875rem;
+        transition:
+          width 240ms ease,
+          height 240ms ease,
+          font-size 240ms ease;
+      }
+      .profile-card-expanded .profile-avatar {
+        width: 3.5rem;
+        height: 3.5rem;
+        font-size: 1.25rem;
+      }
+      .profile-card-name {
+        transition: font-size 240ms ease;
+      }
+      .profile-card-expanded .profile-card-name {
+        font-size: 1.25rem;
+        overflow: visible;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+        white-space: normal;
+      }
+      .profile-card-expanded .profile-card-email {
+        display: block;
+        overflow: visible;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+        white-space: normal;
+      }
+      .profile-admin-badge {
+        display: none;
+      }
+      .profile-card-expanded .profile-admin-badge {
+        display: inline-flex;
+      }
+      .profile-details {
+        display: grid;
+        grid-template-rows: 0fr;
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          grid-template-rows 240ms ease,
+          opacity 180ms ease,
+          visibility 0s linear 240ms;
+      }
+      .profile-card-expanded .profile-details {
+        grid-template-rows: 1fr;
+        opacity: 1;
+        visibility: visible;
+        transition:
+          grid-template-rows 240ms ease,
+          opacity 180ms ease;
+      }
+      .profile-details-inner {
+        min-height: 0;
+        overflow: hidden;
+      }
+      .profile-chevron {
+        transition: transform 180ms ease;
+      }
+      .profile-card-expanded .profile-chevron {
+        transform: rotate(180deg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .profile-card,
+        .profile-avatar,
+        .profile-card-name,
+        .profile-details,
+        .profile-chevron {
+          transition: none;
+        }
+      }
+    </style>
     <link rel="component" href="/ui/auth-nav.html" />
     <link rel="component" href="/ui/security.html" />
     <link rel="component" href="/ui/properties.html" />
@@ -31,7 +121,7 @@
   <body data-page="profile" class="min-h-dvh bg-violet/5 p-3 text-ink sm:p-4">
     <template app
       ><main class="mx-auto w-full max-w-4xl">
-        <header class="mb-3 flex min-h-11 items-center justify-between gap-3">
+        <header class="mb-3 flex min-h-11 flex-wrap items-center justify-between gap-3">
           <a class="flex items-center gap-2 text-lg font-black" href="/me"
             ><svg
               aria-hidden="true"
@@ -47,26 +137,98 @@
               <path d="m9 12 2 2 4-4" /></svg
             >auth</a
           >
-          <a
-            href="/account"
-            aria-label="Open account profile"
-            title="Open account profile"
-            class="ml-auto flex max-w-[70%] min-w-0 items-center gap-2 rounded-xl border border-violet/10 bg-white p-2 shadow-sm transition hover:border-violet/30"
+          <div
+            class="profile-card ml-auto rounded-xl border border-violet/10 bg-white shadow-sm"
+            attr-class="profileExpanded ? 'profile-card profile-card-expanded ml-auto rounded-xl border border-violet/20 bg-white shadow-md' : 'profile-card ml-auto rounded-xl border border-violet/10 bg-white shadow-sm'"
           >
-            <span
-              class="relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-violet/10 text-sm font-bold text-violet"
+            <button
+              id="profile-summary"
+              type="button"
+              aria-label="Toggle profile details"
+              aria-controls="profile-details"
+              attr-aria-expanded="profileExpanded"
+              class="flex w-full min-w-0 items-center gap-3 p-2 text-left"
+              on-click="toggleProfile()"
             >
-              {{ user.name.slice(0, 1).toUpperCase() }}<template if="user.photo"
-                ><img
-                  attr-src="user.photo"
-                  alt=""
-                  class="absolute inset-0 h-full w-full object-cover"
-                  on-error="$event.target.hidden = true"
-              /></template>
-            </span>
-            <span class="min-w-0 truncate text-xs font-semibold sm:text-sm">{{ user.name }}</span>
-            <span class="hidden min-w-0 truncate text-xs text-slate-500 md:block">{{ user.email }}</span>
-          </a>
+              <span
+                class="profile-avatar relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-violet/10 font-bold text-violet"
+              >
+                {{ user.name.slice(0, 1).toUpperCase() }}<template if="user.photo"
+                  ><img
+                    attr-src="user.photo"
+                    alt=""
+                    class="absolute inset-0 h-full w-full object-cover"
+                    on-error="$event.target.hidden = true"
+                /></template>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="profile-card-name block truncate text-xs font-semibold sm:text-sm">{{ user.name }}</span>
+                <span class="profile-card-email hidden truncate text-xs text-slate-500 md:block">{{ user.email }}</span>
+              </span>
+              <template if="user.role === 'admin'"
+                ><span
+                  aria-label="Administrator"
+                  class="profile-admin-badge inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100"
+                  ><svg
+                    aria-hidden="true"
+                    class="h-4 w-4 text-amber-600"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="m2 7 5 5 5-7 5 7 5-5-2 12H4L2 7Z" />
+                    <path d="M4 19h16" /></svg></span
+              ></template>
+              <svg
+                aria-hidden="true"
+                class="profile-chevron h-4 w-4 shrink-0 text-slate-500"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            <div
+              id="profile-details"
+              class="profile-details"
+              role="region"
+              aria-labelledby="profile-summary"
+              attr-aria-hidden="!profileExpanded"
+            >
+              <div class="profile-details-inner">
+                <div class="mx-4 border-t border-slate-100 py-4">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs font-semibold text-slate-500">OIDC subject</span>
+                    <button
+                      class="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-violet hover:bg-violet/5"
+                      type="button"
+                      aria-label="Copy OIDC subject"
+                      title="Copy OIDC subject"
+                      on-click="copyUserId()"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <code class="mt-1 block w-full whitespace-normal break-all font-mono text-xs text-slate-600"
+                    >{{ user.id }}</code
+                  >
+                  <button
+                    class="mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-violet px-4 py-2 text-sm font-bold text-white sm:w-auto"
+                    on-click="signOut()"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </header>
         <auth-nav></auth-nav><template if="section === 'security'"><dashboard-security></dashboard-security></template
         ><template if="section === 'properties'"><dashboard-properties></dashboard-properties></template

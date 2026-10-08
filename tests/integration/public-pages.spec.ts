@@ -77,7 +77,7 @@ test('profile API remains protected', async ({ request }) => {
   expect(response.status()).toBe(401);
 });
 
-test('account profile page redirects unauthenticated visitors to sign in', async ({ request }) => {
+test('legacy account route redirects unauthenticated visitors to sign in', async ({ request }) => {
   const response = await request.get('/account', { maxRedirects: 0 });
   expect(response.status()).toBe(302);
   expect(response.headers().location).toBe('/login?url=%2Faccount');
@@ -141,8 +141,8 @@ test('profile identity and passkeys stay compact at mobile widths', async ({ pag
 
   await page.goto('/me#security');
   await expect(page.getByText('Passkeys')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open account profile' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Toggle profile details' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
 
   await page.setViewportSize({ width: 360, height: 800 });
   const narrowPageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
@@ -150,7 +150,7 @@ test('profile identity and passkeys stay compact at mobile widths', async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
 
   const layout = await page.evaluate(() => {
-    const profileCard = document.querySelector('a[aria-label="Open account profile"]').getBoundingClientRect();
+    const profileCard = document.querySelector('button[aria-label="Toggle profile details"]').getBoundingClientRect();
     const passkeys = [...document.querySelectorAll('h2')].find((item) => item.textContent.trim() === 'Passkeys');
     const section = passkeys.closest('section');
     return {
@@ -166,7 +166,7 @@ test('profile identity and passkeys stay compact at mobile widths', async ({ pag
   expect(layout.passkeyPadding).toBeLessThanOrEqual(20);
 });
 
-test('header profile card opens a dedicated profile page with sign out', async ({ page }) => {
+test('header profile card expands to show account details and sign out', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -182,11 +182,21 @@ test('header profile card opens a dedicated profile page with sign out', async (
   );
 
   await page.goto('/me');
-  await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
-  await page.getByRole('link', { name: 'Open account profile' }).click();
-  await expect(page).toHaveURL(/\/account$/);
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
+  const legacyAccount = await page.request.get('/account', { maxRedirects: 0 });
+  expect(legacyAccount.status()).toBe(302);
+  expect(legacyAccount.headers().location).toBe('/me');
   await page.setViewportSize({ width: 360, height: 800 });
-  await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
+  const profileToggle = page.getByRole('button', { name: 'Toggle profile details' });
+  await expect(profileToggle).toHaveAttribute('aria-expanded', 'false');
+  await profileToggle.click();
+  await expect(profileToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.profile-card')).toHaveClass(/profile-card-expanded/);
+  const transitionSeconds = await page
+    .locator('.profile-card')
+    .evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration.split(',')[0]));
+  expect(transitionSeconds).toBeGreaterThan(0);
+  await expect(page.locator('.profile-card-name')).toHaveText('John Doe');
   await expect(page.getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
   await expect(page.getByLabel('Administrator')).toBeVisible();
   await expect(page.getByText('Account', { exact: true })).toHaveCount(0);
@@ -197,6 +207,10 @@ test('header profile card opens a dedicated profile page with sign out', async (
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
   await page.getByRole('button', { name: 'Copy OIDC subject' }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(subject);
+  await profileToggle.click();
+  await expect(profileToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
+  await profileToggle.click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(pageErrors).toEqual([]);

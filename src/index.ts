@@ -84,7 +84,6 @@ const uiAssets = Object.fromEntries(
     'passkey.html',
     'recovery.html',
     'profile.html',
-    'account.html',
     'qr-login.html',
     'pwa.html',
     'app.mjs',
@@ -747,7 +746,7 @@ app.get('/userinfo', tokenUser, async (req, res) => {
   res.json(userAsJSON(user));
 });
 app.get('/me', serveAppEntry);
-app.get('/account', protectedPage, serveUi('account.html'));
+app.get('/account', protectedPage, (_req, res) => res.redirect(302, '/me'));
 app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 

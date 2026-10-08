@@ -64,6 +64,7 @@ export default function () {
   const createdSecret = ref('');
   const audit = ref([]);
   const section = ref(location.hash.slice(1) || 'security');
+  const profileExpanded = ref(false);
   const propertyKey = templateRef('propertyKey');
   const propertyValue = templateRef('propertyValue');
 
@@ -226,6 +227,10 @@ export default function () {
     setTimeout(() => setMessage(''), 1800);
   }
 
+  function toggleProfile() {
+    profileExpanded.value = !profileExpanded.value;
+  }
+
   async function loadQr() {
     const response = await fetch('/api/v1/qr-login/start?url=' + encodeURIComponent(value('url')), {
       credentials: 'include',
@@ -277,7 +282,6 @@ export default function () {
       .then((value) => (audit.value = value))
       .catch(() => {});
   }
-  if (page === 'account') loadProfile().catch((reason) => setMessage(reason.message, true));
   if (page === 'passkey') setTimeout(signIn, 0);
   // The profile document declares the navigation component directly.
   if (page === 'oidc')
@@ -299,6 +303,7 @@ export default function () {
     createdSecret,
     audit,
     section,
+    profileExpanded,
     busy,
     message,
     error,
@@ -328,6 +333,7 @@ export default function () {
     removeOidcClient,
     copyCreatedSecret,
     copyUserId,
+    toggleProfile,
     signOut,
   };
 }

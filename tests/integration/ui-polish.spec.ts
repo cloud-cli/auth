@@ -2,9 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
 
-test('account and dashboard brand marks are violet; OIDC application spacing and borders are correct', async ({
-  page,
-}) => {
+test('profile panel styling and OIDC application spacing and borders are correct', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
 
   await page.goto('/');
@@ -17,19 +15,11 @@ test('account and dashboard brand marks are violet; OIDC application spacing and
   }, testKey);
 
   const appId = `e2e-ui-${Date.now()}`;
-  await page.goto('/account');
-  const accountHeader = page.locator('main > header');
-  await expect(accountHeader).toHaveCSS('border-bottom-width', '0px');
-  await expect(accountHeader).toHaveCSS('padding-bottom', '0px');
-  const accountBrand = page.locator('header a[href="/me"] svg');
-  await expect(accountBrand).toBeVisible();
-  await expect(accountBrand).toHaveCSS('color', 'rgb(114, 87, 245)');
-  await expect(accountBrand.locator('xpath=..')).toHaveCSS('font-size', '18px');
   await page.goto('/me');
   const header = page.locator('main > header');
   await expect(header).toHaveCSS('border-bottom-width', '0px');
   await expect(header).toHaveCSS('padding-bottom', '0px');
-  await expect(page.locator('header a[href="/account"]')).toHaveCSS('padding', '8px');
+  await expect(page.locator('header button[aria-label="Toggle profile details"]')).toHaveCSS('padding', '8px');
   const dashboardBrand = page.locator('header a[href="/me"] svg');
   await expect(dashboardBrand).toBeVisible();
   await expect(dashboardBrand).toHaveCSS('color', 'rgb(114, 87, 245)');
