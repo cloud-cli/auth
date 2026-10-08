@@ -21,18 +21,21 @@
               >
                 <lucide-icon icon="trash" size="16"></lucide-icon>
               </button>
-              <button
-                class="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-violet/30 hover:bg-violet/5 hover:text-violet"
-                type="button"
-                aria-label="Regenerate secret"
-                title="Regenerate secret"
-                on-click="regenAppSecret(app.id)"
-              >
-                <lucide-icon icon="key-round" size="16"></lucide-icon>
-              </button>
+              <template if="!app.isPublic"
+                ><button
+                  class="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-violet/30 hover:bg-violet/5 hover:text-violet"
+                  type="button"
+                  aria-label="Regenerate secret"
+                  title="Regenerate secret"
+                  on-click="regenAppSecret(app.id)"
+                >
+                  <lucide-icon icon="key-round" size="16"></lucide-icon></button
+              ></template>
             </div>
             <details on-toggle="loadTokens(app)">
-              <summary class="cursor-pointer pr-20 text-sm font-bold">{{ app.id }}</summary>
+              <summary class="cursor-pointer pr-20 text-sm font-bold">
+                {{ app.id }} · {{ app.isPublic ? 'Public client' : 'Confidential client' }}
+              </summary>
               <app-editor bind-app="app" bind-admin="admin"></app-editor>
             </details>
             <template if="app.secret">
@@ -120,6 +123,10 @@
         on-input="setNewId($event.target.value)"
         required
       />
+      <label class="flex items-center gap-2 text-sm sm:col-span-2">
+        <input type="checkbox" bind-checked="isPublic" on-change="setIsPublic($event.target.checked)" />
+        Public/native app (mobile or desktop; no client secret)
+      </label>
       <div class="grid gap-2 sm:col-span-2">
         <strong class="text-sm">Callback URLs</strong>
         <template for="uri of newCallbacks"
@@ -138,6 +145,29 @@
             class="rounded-lg border border-violet px-3 py-2 text-sm font-semibold text-violet"
             type="button"
             on-click="addNewCallback()"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+      <div class="grid gap-2 sm:col-span-2">
+        <strong class="text-sm">Post-logout return URLs (optional)</strong>
+        <template for="uri of newLogoutRedirects"
+          ><div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+            <span class="min-w-0 flex-1 break-all">{{ uri }}</span>
+            <button class="text-rose-600" type="button" on-click="removeNewLogoutRedirect(uri)">Remove</button>
+          </div></template
+        >
+        <div class="flex gap-2">
+          <input
+            class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2"
+            placeholder="https://app.example/signed-out"
+            bind-value="newLogoutRedirectInput"
+            on-input="setNewLogoutRedirectInput($event.target.value)"
+          /><button
+            class="rounded-lg border border-violet px-3 py-2 text-sm font-semibold text-violet"
+            type="button"
+            on-click="addNewLogoutRedirect()"
           >
             Add
           </button>
@@ -190,20 +220,32 @@
         formError = ref(''),
         createdSecret = ref(''),
         newCallbacks = ref([]),
+        newLogoutRedirects = ref([]),
         newScopes = ref([]),
         [newId, setNewId] = hook(''),
         [newCallbackInput, setNewCallbackInput] = hook(''),
-        [newScopeInput, setNewScopeInput] = hook('');
+        [newLogoutRedirectInput, setNewLogoutRedirectInput] = hook(''),
+        [newScopeInput, setNewScopeInput] = hook(''),
+        [isPublic, setIsPublic] = hook(false);
       const onCreated = defineEvent('created');
       const createApp = async () => {
-        formError.value = newCallbacks.value.length ? '' : 'Add at least one HTTPS callback URL.';
+        formError.value = newCallbacks.value.length ? '' : 'Add at least one secure callback URL.';
         if (formError.value) return;
         try {
-          const result = await createOidcClient(newId.value.trim(), newCallbacks.value, newScopes.value);
-          createdSecret.value = result.secret;
+          const result = await createOidcClient(
+            newId.value.trim(),
+            newCallbacks.value,
+            newScopes.value,
+            isPublic.value,
+            newLogoutRedirects.value,
+          );
+          createdSecret.value = result.secret || '';
           formOpen.value = false;
           newCallbacks.value = [];
+          newLogoutRedirects.value = [];
           newScopes.value = [];
+          setIsPublic(false);
+          setNewLogoutRedirectInput('');
           onCreated();
         } catch (error) {
           formError.value = error.message;
@@ -211,13 +253,38 @@
       };
       const addNewCallback = () => {
         const callback = newCallbackInput.value.trim();
-        if (!callback.startsWith('https://')) return (formError.value = 'Callbacks must use HTTPS.');
+        if (!validCallback(callback, isPublic.value)) {
+          return (formError.value = 'Use HTTPS, a loopback HTTP URL, or a custom scheme for a public app.');
+        }
         newCallbacks.value = [...new Set([...newCallbacks.value, callback])];
         setNewCallbackInput('');
         formError.value = '';
       };
       const removeNewCallback = (callback) =>
         (newCallbacks.value = newCallbacks.value.filter((value) => value !== callback));
+      const addNewLogoutRedirect = () => {
+        const uri = newLogoutRedirectInput.value.trim();
+        if (!validCallback(uri, isPublic.value)) {
+          return (formError.value = 'Use HTTPS, a loopback HTTP URL, or a custom scheme for a public app.');
+        }
+        newLogoutRedirects.value = [...new Set([...newLogoutRedirects.value, uri])];
+        setNewLogoutRedirectInput('');
+        formError.value = '';
+      };
+      const removeNewLogoutRedirect = (uri) =>
+        (newLogoutRedirects.value = newLogoutRedirects.value.filter((value) => value !== uri));
+      const validCallback = (callback, publicClient) => {
+        try {
+          const url = new URL(callback);
+          return (
+            url.protocol === 'https:' ||
+            (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) ||
+            (publicClient && /^[a-z][a-z0-9+.-]*\.[a-z0-9+.-]+:$/i.test(url.protocol))
+          );
+        } catch {
+          return false;
+        }
+      };
       const addNewScope = () => {
         const scope = newScopeInput.value.trim();
         if (!/^[a-zA-Z0-9:._-]{1,80}$/.test(scope)) return;
@@ -233,14 +300,22 @@
         newId,
         setNewId,
         newCallbacks,
+        newLogoutRedirects,
         newScopes,
         newCallbackInput,
         setNewCallbackInput,
+        newLogoutRedirectInput,
+        setNewLogoutRedirectInput,
         newScopeInput,
         setNewScopeInput,
+        isPublic,
+        setIsPublic,
         createApp,
         addNewCallback,
         removeNewCallback,
+        addNewLogoutRedirect,
+        removeNewLogoutRedirect,
+        validCallback,
         addNewScope,
         removeNewScope,
       };
@@ -250,6 +325,7 @@
 
 <template component="app-editor"
   ><callback-editor bind-app="app" bind-admin="admin"></callback-editor>
+  <logout-redirect-editor bind-app="app" bind-admin="admin"></logout-redirect-editor>
   <div class="mt-3 grid gap-4">
     <scope-editor bind-app="app" bind-admin="admin"></scope-editor>
     <token-editor bind-app="app"></token-editor>
@@ -306,13 +382,96 @@
       };
       const addCallback = async () => {
         const callback = callbackInput.value.trim();
-        if (!callback.startsWith('https://')) return (callbackError.value = 'Callbacks must use HTTPS.');
+        if (!validCallback(callback, app.value.isPublic)) {
+          return (callbackError.value = 'Use HTTPS, a loopback HTTP URL, or a custom scheme for a public app.');
+        }
         await updateCallbacks([...app.value.redirectUris, callback]);
         if (!callbackError.value) setCallbackInput('');
       };
       const removeCallback = (callback) =>
         updateCallbacks(app.value.redirectUris.filter((value) => value !== callback));
-      return { app, admin, callbackError, callbackInput, setCallbackInput, addCallback, removeCallback };
+      const validCallback = (callback, publicClient) => {
+        try {
+          const url = new URL(callback);
+          return (
+            url.protocol === 'https:' ||
+            (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) ||
+            (publicClient && /^[a-z][a-z0-9+.-]*\.[a-z0-9+.-]+:$/i.test(url.protocol))
+          );
+        } catch {
+          return false;
+        }
+      };
+      return { app, admin, callbackError, callbackInput, setCallbackInput, addCallback, removeCallback, validCallback };
+    }
+  </script></template
+>
+
+<template component="logout-redirect-editor"
+  ><div class="mt-4 rounded-xl bg-violet/5 p-3 text-sm">
+    <strong>Post-logout return URLs</strong>
+    <template for="uri of app.postLogoutRedirectUris || []"
+      ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2">
+        <span class="min-w-0 flex-1 break-all text-slate-600">{{ uri }}</span
+        ><template if="admin"
+          ><button class="text-rose-600" type="button" on-click="removeRedirect(uri)">Remove</button></template
+        >
+      </div></template
+    >
+    <template if="admin"
+      ><form class="mt-4 flex gap-2 border-t border-violet/10 pt-3" on-submit.prevent="addRedirect()">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2"
+          bind-value="redirectInput"
+          on-input="setRedirectInput($event.target.value)"
+          placeholder="https://app.example/signed-out"
+          required
+        /><button class="rounded-lg border border-violet px-3 py-2 font-semibold text-violet">Add</button>
+      </form>
+      <p class="mt-2 text-xs text-rose-600">{{ redirectError }}</p></template
+    >
+  </div>
+  <script setup>
+    import { defineProp, hook, ref } from '@li3/web';
+    import { updateOidcLogoutRedirects } from '/ui/dashboard.mjs';
+    export default function () {
+      const app = defineProp('app'),
+        admin = defineProp('admin', { default: false }),
+        redirectError = ref('');
+      const [redirectInput, setRedirectInput] = hook('');
+      const values = () => app.value.postLogoutRedirectUris || [];
+      const save = async (uris) => {
+        try {
+          app.value.postLogoutRedirectUris = (
+            await updateOidcLogoutRedirects(app.value.id, uris)
+          ).postLogoutRedirectUris;
+          redirectError.value = '';
+        } catch (error) {
+          redirectError.value = error.message || 'Could not save post-logout URLs.';
+        }
+      };
+      const addRedirect = async () => {
+        const uri = redirectInput.value.trim();
+        if (!validCallback(uri, app.value.isPublic)) {
+          return (redirectError.value = 'Use HTTPS, a loopback HTTP URL, or a custom scheme for a public app.');
+        }
+        await save([...new Set([...values(), uri])]);
+        if (!redirectError.value) setRedirectInput('');
+      };
+      const removeRedirect = (uri) => save(values().filter((value) => value !== uri));
+      const validCallback = (value, publicClient) => {
+        try {
+          const url = new URL(value);
+          return (
+            url.protocol === 'https:' ||
+            (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) ||
+            (publicClient && /^[a-z][a-z0-9+.-]*\.[a-z0-9+.-]+:$/i.test(url.protocol))
+          );
+        } catch {
+          return false;
+        }
+      };
+      return { app, admin, redirectError, redirectInput, setRedirectInput, addRedirect, removeRedirect };
     }
   </script></template
 >

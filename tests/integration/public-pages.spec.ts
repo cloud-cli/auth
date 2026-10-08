@@ -70,11 +70,161 @@ test('public modules and OpenAPI are served', async ({ request }) => {
   expect(discoveryResponse.ok()).toBeTruthy();
   const discovery = await discoveryResponse.json();
   expect(new URL(discovery.jwks_uri).pathname).toBe('/.well-known/jwks.json');
+  expect(new URL(discovery.end_session_endpoint).pathname).toBe('/logout');
+  expect(discovery.code_challenge_methods_supported).toEqual(['S256']);
+  expect(discovery.claims_supported).toContain('sub');
+  expect(discovery.token_endpoint_auth_methods_supported).toEqual(['client_secret_post', 'none']);
 });
 
 test('profile API remains protected', async ({ request }) => {
   const response = await request.get('/api/v1/profile');
   expect(response.status()).toBe(401);
+});
+
+test('preferred username can be set once and cannot be changed through the API', async ({ page }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  await page.goto('/');
+  await page.evaluate(async (secret) => {
+    await fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } });
+  }, testKey);
+
+  const profile = await page.evaluate(async () => (await fetch('/api/v1/profile')).json());
+  let preferredUsername = profile.preferred_username;
+  await page.goto('/me');
+  await page.getByRole('button', { name: 'Toggle profile details' }).click();
+  if (!preferredUsername) {
+    await expect(page.getByLabel('Preferred username')).toBeVisible();
+    preferredUsername = `test_${Math.random().toString(36).slice(2, 10)}`;
+    const setResponse = await page.evaluate(
+      async (username) =>
+        fetch('/api/v1/profile/preferred-username', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ preferred_username: username }),
+        }).then((response) => response.status),
+      preferredUsername,
+    );
+    expect(setResponse).toBe(201);
+  } else {
+    await expect(page.getByText(preferredUsername, { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Preferred username')).toHaveCount(0);
+  }
+
+  const changeResponse = await page.evaluate(async () =>
+    fetch('/api/v1/profile/preferred-username', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ preferred_username: `changed_${Math.random().toString(36).slice(2, 10)}` }),
+    }).then((response) => response.status),
+  );
+  expect(changeResponse).toBe(409);
+  const updatedProfile = await page.evaluate(async () => (await fetch('/api/v1/profile')).json());
+  expect(updatedProfile.preferred_username).toBe(preferredUsername);
+});
+
+test('native public OIDC clients register private-use redirects and authorize with S256 PKCE', async ({ page }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  test.skip(process.env.OIDC_INTEGRATION_ENABLED !== 'true', 'Requires a signing-enabled OIDC test instance');
+  await page.goto('/');
+  await page.evaluate(async (secret) => {
+    await fetch('/__test__/login', { method: 'POST', headers: { 'x-test-secret': secret } });
+  }, testKey);
+
+  const clientId = `native_${Math.random().toString(36).slice(2, 10)}`;
+  const redirectUri = 'com.example.auth:/oauth2redirect';
+  const logoutRedirectUri = 'com.example.auth:/signed-out';
+  const createResult = await page.evaluate(
+    async ({ clientId, redirectUri, logoutRedirectUri }) =>
+      fetch('/api/v1/oidc/clients', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id: clientId,
+          redirectUris: [redirectUri],
+          postLogoutRedirectUris: [logoutRedirectUri],
+          scopes: ['profile', 'email'],
+          isPublic: true,
+        }),
+      }).then(async (response) => ({ status: response.status, body: await response.text() })),
+    { clientId, redirectUri, logoutRedirectUri },
+  );
+  expect(createResult.status, createResult.body).toBe(201);
+
+  try {
+    const { authorizationUrl, verifier } = await page.evaluate(
+      async ({ clientId, redirectUri }) => {
+        const verifier = crypto.randomUUID().replaceAll('-', '').padEnd(43, 'a');
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+        const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+        const url = new URL('/authorize', location.origin);
+        url.search = new URLSearchParams({
+          response_type: 'code',
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          state: 'native_state',
+          scope: 'openid profile email',
+          nonce: 'native_nonce',
+          code_challenge: challenge,
+          code_challenge_method: 'S256',
+        });
+        return { authorizationUrl: String(url), verifier };
+      },
+      { clientId, redirectUri },
+    );
+    const authorization = await page.request.get(authorizationUrl, { maxRedirects: 0 });
+    expect(authorization.status()).toBe(302);
+    const callback = new URL(authorization.headers().location);
+    expect(callback.protocol).toBe('com.example.auth:');
+    expect(callback.searchParams.get('state')).toBe('native_state');
+    const code = callback.searchParams.get('code');
+    expect(code).toBeTruthy();
+
+    const tokenResponse = await page.request.post('/token', {
+      form: {
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        code: code!,
+        redirect_uri: redirectUri,
+        code_verifier: verifier,
+      },
+    });
+    expect(tokenResponse.status()).toBe(200);
+    const tokens = await tokenResponse.json();
+    expect(tokens.scope).toBe('openid profile email');
+    const idClaims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString());
+    expect(idClaims.sub).toBeTruthy();
+    expect(idClaims.nonce).toBe('native_nonce');
+    expect(idClaims.preferred_username).toBeTruthy();
+
+    const userInfoResponse = await page.request.get('/userinfo', {
+      headers: { authorization: `Bearer ${tokens.access_token}` },
+    });
+    expect(userInfoResponse.status()).toBe(200);
+    const userInfo = await userInfoResponse.json();
+    expect(userInfo.sub).toBe(idClaims.sub);
+    expect(userInfo.preferred_username).toBe(idClaims.preferred_username);
+
+    const logoutUrl = new URL('/logout', 'http://127.0.0.1:3100');
+    logoutUrl.search = new URLSearchParams({
+      client_id: clientId,
+      id_token_hint: tokens.id_token,
+      post_logout_redirect_uri: logoutRedirectUri,
+      state: 'logout_state',
+    });
+    const logoutResponse = await page.request.get(String(logoutUrl), { maxRedirects: 0 });
+    expect(logoutResponse.status()).toBe(302);
+    const logoutCallback = new URL(logoutResponse.headers().location);
+    expect(logoutCallback.href.startsWith(logoutRedirectUri)).toBe(true);
+    expect(logoutCallback.searchParams.get('state')).toBe('logout_state');
+    expect((await page.request.get('/api/v1/profile')).status()).toBe(401);
+  } finally {
+    await page.evaluate(async (id) => {
+      await fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    }, clientId);
+  }
 });
 
 test('removed account route returns not found', async ({ request }) => {
@@ -198,7 +348,7 @@ test('header profile card expands to show account details and sign out', async (
   await expect(page.getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
   await expect(page.getByLabel('Administrator')).toBeVisible();
   await expect(page.getByText('Account', { exact: true })).toHaveCount(0);
-  const subject = await page.locator('code').innerText();
+  const subject = await page.locator('#profile-subject').innerText();
   const profile = await page.evaluate(() => fetch('/api/v1/profile').then((response) => response.json()));
   expect(subject).toBe(profile.id);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
@@ -293,7 +443,7 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await page.getByPlaceholder('https://app.example/callback').first().fill(`https://${appId}.example/callback`);
   await page.getByRole('button', { name: 'Add', exact: true }).first().click();
   await page.getByPlaceholder('new:scope').first().fill('read:profile');
-  await page.getByRole('button', { name: 'Add', exact: true }).nth(1).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).nth(2).click();
   await page.getByRole('button', { name: 'Create app' }).click();
 
   const app = page.locator('details').filter({ hasText: appId });

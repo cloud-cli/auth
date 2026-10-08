@@ -3,6 +3,7 @@ declare global {
     interface Request {
       tokenUserId?: string;
       tokenAudience?: string;
+      tokenScopes?: string[];
     }
   }
 }

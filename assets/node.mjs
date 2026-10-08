@@ -150,7 +150,11 @@ export function createAuthClient({
     return null;
   }
 
-  function createAuthorizationRequest({ redirectUri }) {
+  function createAuthorizationRequest({
+    redirectUri,
+    scope = 'openid profile email',
+    nonce = randomBytes(32).toString('base64url'),
+  }) {
     if (!redirectUri) throw new Error('A redirect URI is required');
 
     const state = randomBytes(32).toString('base64url');
@@ -160,9 +164,11 @@ export function createAuthClient({
     url.searchParams.set('client_id', clientId);
     url.searchParams.set('redirect_uri', redirectUri);
     url.searchParams.set('state', state);
+    url.searchParams.set('scope', scope);
+    url.searchParams.set('nonce', nonce);
     url.searchParams.set('code_challenge', createHash('sha256').update(codeVerifier).digest('base64url'));
     url.searchParams.set('code_challenge_method', 'S256');
-    return { url: String(url), state, codeVerifier };
+    return { url: String(url), state, codeVerifier, nonce };
   }
 
   async function exchangeCode({ code, codeVerifier, redirectUri, clientSecret }) {

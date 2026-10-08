@@ -91,6 +91,18 @@ export async function getProfile() {
   return profileRequest;
 }
 
+export async function setPreferredUsername(preferredUsername) {
+  const response = await fetch(new URL('/api/v1/profile/preferred-username', authDomain), {
+    credentials: 'include',
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ preferred_username: preferredUsername }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not set preferred username.');
+  return result;
+}
+
 export async function revokePasskey(credentialId) {
   const response = await fetch(
     new URL('/api/v1/webauthn/credentials/' + encodeURIComponent(credentialId), authDomain),
@@ -143,12 +155,12 @@ export async function getOidcClients() {
   return response.json();
 }
 
-export async function createOidcClient(id, redirectUris, scopes) {
+export async function createOidcClient(id, redirectUris, scopes, isPublic = false, postLogoutRedirectUris = []) {
   const response = await fetch(new URL('/api/v1/oidc/clients', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ id, redirectUris, scopes }),
+    body: JSON.stringify({ id, redirectUris, scopes, isPublic, postLogoutRedirectUris }),
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Could not create OIDC client');
@@ -204,6 +216,20 @@ export async function updateOidcCallbacks(id, redirectUris) {
     body: JSON.stringify({ redirectUris }),
   });
   if (!response.ok) throw new Error('Could not update callback URLs');
+  return response.json();
+}
+
+export async function updateOidcLogoutRedirects(id, postLogoutRedirectUris) {
+  const response = await fetch(
+    new URL('/api/v1/oidc/clients/' + encodeURIComponent(id) + '/logout-redirects', authDomain),
+    {
+      credentials: 'include',
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ postLogoutRedirectUris }),
+    },
+  );
+  if (!response.ok) throw new Error('Could not update post-logout redirect URLs');
   return response.json();
 }
 

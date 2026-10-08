@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "test:unit": "node --test tests/*.test.mjs",
     "test:integration": "playwright test",
-    "migrate": "pnpm build && node ./dist/db/migrations/003_add_user_roles.js",
+    "migrate": "pnpm build && node ./dist/db/migrations/006_add_oidc_logout_uris.js",
     "start": "node ./dist/index.js"
   },
   "prettier": "@cloud-cli/prettier-config",

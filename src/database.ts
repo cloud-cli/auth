@@ -12,6 +12,7 @@ export type User = {
   lastSeen: string;
   recoveryCodes?: string[];
   role: 'user' | 'admin';
+  preferredUsername?: string | null;
 };
 
 export type UserProperty = { uid: string; userId: string; key: string; value: unknown };
@@ -37,9 +38,11 @@ export type QrLoginTransaction = {
 };
 export type OidcClient = {
   id: string;
-  secretHash: string;
+  secretHash: string | null;
   redirectUris: string[];
+  postLogoutRedirectUris: string[];
   scopes: string[];
+  isPublic: boolean;
   createdAt: string;
 };
 export type ApiToken = {
@@ -70,7 +73,15 @@ export type SigningKey = {
   createdAt: string;
 };
 
-const jsonColumns = new Set(['profile', 'recovery_codes', 'session', 'transports', 'redirect_uris', 'scopes']);
+const jsonColumns = new Set([
+  'profile',
+  'recovery_codes',
+  'session',
+  'transports',
+  'redirect_uris',
+  'post_logout_redirect_uris',
+  'scopes',
+]);
 const tableColumns: Record<string, Record<string, string>> = {
   auth_user: {
     userId: 'user_id',
@@ -79,6 +90,7 @@ const tableColumns: Record<string, Record<string, string>> = {
     refreshToken: 'refresh_token',
     lastSeen: 'last_seen',
     recoveryCodes: 'recovery_codes',
+    preferredUsername: 'preferred_username',
   },
   auth_property: { uid: 'uid', userId: 'user_id', key: 'key', value: 'value' },
   auth_session: { sid: 'sid', session: 'session' },
@@ -102,7 +114,9 @@ const tableColumns: Record<string, Record<string, string>> = {
     id: 'id',
     secretHash: 'secret_hash',
     redirectUris: 'redirect_uris',
+    postLogoutRedirectUris: 'post_logout_redirect_uris',
     scopes: 'scopes',
+    isPublic: 'is_public',
     createdAt: 'created_at',
   },
   auth_api_token: {
@@ -140,6 +154,13 @@ function decode(value: unknown) {
   } catch {
     return value;
   }
+}
+
+export async function setPreferredUsername(userId: string, username: string) {
+  return run(
+    "UPDATE auth_user SET preferred_username = ? WHERE user_id = ? AND (preferred_username IS NULL OR preferred_username = '')",
+    [username, userId],
+  );
 }
 
 function mapRow(table: string, row: Record<string, any>) {
@@ -189,7 +210,7 @@ export async function initDatabase() {
 
 export async function saveUser(user: User) {
   await run(
-    'INSERT OR REPLACE INTO auth_user (user_id, profile_id, profile, access_token, refresh_token, name, email, photo, last_seen, recovery_codes, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT OR REPLACE INTO auth_user (user_id, profile_id, profile, access_token, refresh_token, name, email, photo, last_seen, recovery_codes, role, preferred_username) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       user.userId,
       user.profileId || '',
@@ -202,6 +223,7 @@ export async function saveUser(user: User) {
       user.lastSeen || '',
       json(user.recoveryCodes),
       user.role || 'user',
+      user.preferredUsername || null,
     ],
   );
 }

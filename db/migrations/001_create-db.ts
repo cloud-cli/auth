@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS auth_user (
   photo TEXT NOT NULL DEFAULT '',
   last_seen TEXT NOT NULL DEFAULT '',
   recovery_codes TEXT,
-  role TEXT NOT NULL DEFAULT 'user'
+  role TEXT NOT NULL DEFAULT 'user',
+  preferred_username TEXT
 );
 
 CREATE TABLE IF NOT EXISTS auth_property (
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS auth_oidc_client (
   id TEXT PRIMARY KEY,
   secret_hash TEXT NOT NULL,
   redirect_uris TEXT NOT NULL,
+  post_logout_redirect_uris TEXT NOT NULL DEFAULT '[]',
   scopes TEXT NOT NULL,
   created_at TEXT NOT NULL
 );

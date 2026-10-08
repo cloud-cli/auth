@@ -93,6 +93,42 @@
         }
       }
     },
+    "/api/v1/profile/preferred-username": {
+      "put": {
+        "tags": ["Profile"],
+        "summary": "Set the user's preferred username once",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["preferred_username"],
+                "properties": {
+                  "preferred_username": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,28}[A-Za-z0-9]?$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Username set"
+          },
+          "400": {
+            "description": "Invalid username"
+          },
+          "409": {
+            "description": "Username already set or taken"
+          }
+        }
+      }
+    },
     "/api/v1/properties": {
       "get": {
         "tags": ["Properties"],
@@ -292,6 +328,18 @@
                       "type": "string",
                       "format": "uri"
                     }
+                  },
+                  "postLogoutRedirectUris": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "uri" }
+                  },
+                  "scopes": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "isPublic": {
+                    "type": "boolean",
+                    "description": "Public/native applications omit client_secret and authenticate using PKCE."
                   }
                 }
               }
@@ -299,9 +347,7 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Client and one-time secret"
-          },
+          "201": { "description": "Client; confidential clients also receive a one-time secret" },
           "400": {
             "description": "Invalid client"
           },
@@ -354,6 +400,36 @@
           "404": {
             "description": "Not found"
           }
+        }
+      }
+    },
+    "/api/v1/oidc/clients/{id}/logout-redirects": {
+      "put": {
+        "tags": ["Admin-only APIs"],
+        "summary": "Set post-logout redirect URLs for an OIDC client",
+        "security": [{ "apiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["postLogoutRedirectUris"],
+                "properties": {
+                  "postLogoutRedirectUris": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "uri" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Saved post-logout redirect URLs" },
+          "403": { "description": "Administrator access required" },
+          "400": { "description": "Invalid client or redirect URI" }
         }
       }
     },
@@ -803,6 +879,24 @@
             }
           },
           {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "description": "Space-delimited; must contain openid. Only openid, profile, and email are supported.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nonce",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
             "name": "code_challenge",
             "in": "query",
             "required": true,
@@ -830,6 +924,27 @@
         }
       }
     },
+    "/logout": {
+      "get": {
+        "tags": ["JWT APIs"],
+        "summary": "End the Auth browser session for an OIDC relying party",
+        "parameters": [
+          { "name": "client_id", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "id_token_hint", "in": "query", "required": false, "schema": { "type": "string" } },
+          {
+            "name": "post_logout_redirect_uri",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uri" }
+          },
+          { "name": "state", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "302": { "description": "Redirect to the registered post-logout URI or Auth home" },
+          "400": { "description": "Invalid ID Token hint or unregistered post-logout URI" }
+        }
+      }
+    },
     "/token": {
       "post": {
         "tags": ["JWT APIs"],
@@ -840,7 +955,7 @@
             "application/x-www-form-urlencoded": {
               "schema": {
                 "type": "object",
-                "required": ["grant_type", "code", "client_id", "client_secret", "redirect_uri", "code_verifier"],
+                "required": ["grant_type", "code", "client_id", "redirect_uri", "code_verifier"],
                 "properties": {
                   "grant_type": {
                     "type": "string",
@@ -933,7 +1048,8 @@
           {
             "name": "X-Auth-Audience",
             "in": "header",
-            "required": true,
+            "required": false,
+            "description": "Optional compatibility header; the audience is normally read from the verified access token.",
             "schema": {
               "type": "string"
             }
@@ -950,7 +1066,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/User"
+                  "$ref": "#/components/schemas/OidcUserInfo"
                 }
               }
             }
@@ -1386,7 +1502,7 @@
     "schemas": {
       "User": {
         "type": "object",
-        "required": ["id", "name", "email", "photo", "role"],
+        "required": ["id", "name", "email", "photo", "role", "preferred_username"],
         "properties": {
           "id": {
             "type": "string"
@@ -1404,7 +1520,22 @@
           "role": {
             "type": "string",
             "enum": ["user", "admin"]
+          },
+          "preferred_username": {
+            "type": ["string", "null"]
           }
+        }
+      },
+      "OidcUserInfo": {
+        "type": "object",
+        "required": ["sub"],
+        "properties": {
+          "sub": { "type": "string" },
+          "name": { "type": "string" },
+          "preferred_username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "picture": { "type": "string", "format": "uri" },
+          "photo": { "type": "string", "format": "uri", "description": "Compatibility alias for picture." }
         }
       },
       "PropertyInput": {

@@ -2,6 +2,19 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createAuthClient } from '../assets/node.mjs';
 
+test('OIDC authorization requests include state, nonce, openid scopes, and S256 PKCE', () => {
+  const auth = createAuthClient({ issuer: 'https://auth.example', clientId: 'storage' });
+  const request = auth.createAuthorizationRequest({ redirectUri: 'https://app.example/callback' });
+  const url = new URL(request.url);
+  assert.equal(url.searchParams.get('response_type'), 'code');
+  assert.equal(url.searchParams.get('scope'), 'openid profile email');
+  assert.equal(url.searchParams.get('state'), request.state);
+  assert.equal(url.searchParams.get('nonce'), request.nonce);
+  assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
+  assert.equal(url.searchParams.get('code_challenge').length, 43);
+  assert.equal(request.codeVerifier.length, 43);
+});
+
 test('mintApiToken sends the client-bound Auth API token and downstream scopes', async () => {
   const originalFetch = globalThis.fetch;
   let call;

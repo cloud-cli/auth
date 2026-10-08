@@ -1,8 +1,8 @@
 import express from 'express';
 import { createHash, timingSafeEqual } from 'crypto';
 import { readFileSync } from 'fs';
-import migrate from '../db/migrations/003_add_user_roles.js';
-import { findByEmail, findByUserId, userAsJSON } from './user.js';
+import migrate from '../db/migrations/006_add_oidc_logout_uris.js';
+import { findByEmail, findByUserId, setPreferredUsername, userAsJSON } from './user.js';
 import { initDatabase } from './database.js';
 import session from './session.js';
 import log from './log.js';
@@ -17,6 +17,7 @@ import {
   isTokenServiceConfigured,
   listSigningKeys,
   rotateSigningKey,
+  verifyIdentityToken,
   verifyAccessToken,
 } from './token.js';
 import {
@@ -27,11 +28,14 @@ import {
   getClient,
   isOidcClient,
   listManagedClients,
+  oidcUserInfo,
   removeManagedClient,
   regenerateManagedClientSecret,
   tokenResponse,
   updateManagedClientRedirectUris,
+  updateManagedClientPostLogoutRedirectUris,
   updateManagedClientScopes,
+  validateAuthorizationScopes,
   verifyClientSecret,
 } from './oidc.js';
 import {
@@ -115,7 +119,14 @@ function protectedRouteWithRedirect(req, res, next) {
 }
 
 function logout(req, res) {
-  req.logout((err) => (err ? res.status(500).send('') : res.status(202).send('OK')));
+  req.logout((logoutError) => {
+    if (logoutError) return res.status(500).send('');
+    req.session.destroy((sessionError) => {
+      if (sessionError) return res.status(500).send('');
+      res.clearCookie('connect.sid', { domain: process.env.SESSION_DOMAIN || undefined, path: '/' });
+      res.status(202).send('OK');
+    });
+  });
 }
 
 function bearerToken(req) {
@@ -125,7 +136,16 @@ function bearerToken(req) {
 
 async function tokenUser(req, res, next) {
   const token = bearerToken(req);
-  const audience = req.get('x-auth-audience') || '';
+  let audience = req.get('x-auth-audience') || '';
+
+  if (!audience && token) {
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+      audience = typeof payload.aud === 'string' ? payload.aud : '';
+    } catch {
+      return res.status(401).send('');
+    }
+  }
 
   if (!token || !audience || (!isAllowedAudience(audience) && !(await isOidcClient(audience)))) {
     return res.status(401).send('');
@@ -137,6 +157,7 @@ async function tokenUser(req, res, next) {
 
     req.tokenUserId = payload.sub;
     req.tokenAudience = audience;
+    req.tokenScopes = typeof payload.scope === 'string' ? payload.scope.split(/\s+/).filter(Boolean) : [];
     next();
   } catch {
     res.status(401).send('');
@@ -266,6 +287,16 @@ app.get('/api/v1/profile', browserCors, protectedRouteWithRedirect, async (req, 
   }
 
   res.status(404).send('{}');
+});
+app.put('/api/v1/profile/preferred-username', express.json(), protectedRoute, async (req, res) => {
+  try {
+    const preferredUsername = await setPreferredUsername(req.user!.id, req.body?.preferred_username);
+    res.status(201).json({ preferred_username: preferredUsername });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not set preferred username.';
+    const status = /already been set|already taken/i.test(message) ? 409 : 400;
+    res.status(status).json({ error: message });
+  }
 });
 app.post('/__test__/login', express.json(), async (req, res) => {
   if (!testLoginEnabled) return res.sendStatus(404);
@@ -479,6 +510,10 @@ app.post('/api/v1/oidc/clients', express.json(), adminRoute, async (req, res) =>
       String(req.body?.id || ''),
       Array.isArray(req.body?.redirectUris) ? req.body.redirectUris.filter((value) => typeof value === 'string') : [],
       Array.isArray(req.body?.scopes) ? req.body.scopes.filter((value) => typeof value === 'string') : [],
+      req.body?.isPublic === true,
+      Array.isArray(req.body?.postLogoutRedirectUris)
+        ? req.body.postLogoutRedirectUris.filter((value) => typeof value === 'string')
+        : [],
     );
     res.status(201).json(result);
   } catch (error) {
@@ -604,6 +639,18 @@ app.put('/api/v1/oidc/clients/:id/callbacks', express.json(), adminRoute, async 
     res.status(400).json({ error: String(error) });
   }
 });
+app.put('/api/v1/oidc/clients/:id/logout-redirects', express.json(), adminRoute, async (req, res) => {
+  try {
+    res.json({
+      postLogoutRedirectUris: await updateManagedClientPostLogoutRedirectUris(
+        req.params.id,
+        Array.isArray(req.body?.postLogoutRedirectUris) ? req.body.postLogoutRedirectUris : [],
+      ),
+    });
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
+});
 app.options('/api/v1/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
 app.post('/api/v1/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
   const audience = typeof req.body?.audience === 'string' ? req.body.audience : '';
@@ -617,9 +664,11 @@ app.post('/api/v1/session/token', express.json(), sessionTokenCors, protectedRou
   });
 });
 app.get('/authorize', async (req, res) => {
-  const { response_type, client_id, redirect_uri, state, code_challenge, code_challenge_method } = req.query;
+  const { response_type, client_id, redirect_uri, state, code_challenge, code_challenge_method, scope, nonce } =
+    req.query;
   const clientId = typeof client_id === 'string' ? client_id : '';
   const redirectUri = typeof redirect_uri === 'string' ? redirect_uri : '';
+  const requestedScopes = typeof scope === 'string' ? scope.split(/\s+/).filter(Boolean) : [];
   const client = await getClient(clientId);
 
   const validationErrors = [
@@ -627,8 +676,13 @@ app.get('/authorize', async (req, res) => {
     !client && 'unknown_client',
     client && !client.redirectUris.includes(redirectUri) && 'redirect_uri_not_allowed',
     typeof state !== 'string' && 'missing_state',
-    typeof code_challenge !== 'string' && 'missing_code_challenge',
+    typeof state === 'string' && state.length === 0 && 'missing_state',
+    (typeof code_challenge !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(code_challenge)) && 'invalid_code_challenge',
     code_challenge_method !== 'S256' && 'invalid_code_challenge_method',
+    typeof scope !== 'string' && 'missing_scope',
+    requestedScopes.length === 0 && 'missing_scope',
+    typeof nonce === 'string' && (nonce.length === 0 || nonce.length > 512) && 'invalid_nonce',
+    client && !validateAuthorizationScopes(requestedScopes) && 'invalid_scope',
   ].filter(Boolean);
   if (validationErrors.length) {
     console.warn('OIDC authorization rejected', {
@@ -643,7 +697,19 @@ app.get('/authorize', async (req, res) => {
     return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
   }
 
-  const code = createAuthorizationCode(client!, redirectUri, req.user.id, code_challenge as string);
+  let code: string;
+  try {
+    code = createAuthorizationCode(
+      client!,
+      redirectUri,
+      req.user.id,
+      code_challenge as string,
+      requestedScopes,
+      typeof nonce === 'string' ? nonce : undefined,
+    );
+  } catch {
+    return res.status(400).send('Invalid authorization scope');
+  }
   await recordAudit({
     userId: req.user.id,
     event: 'oidc-authorization',
@@ -657,10 +723,14 @@ app.get('/authorize', async (req, res) => {
   res.redirect(String(callback));
 });
 app.post('/token', express.urlencoded({ extended: false }), async (req, res) => {
-  const { grant_type, code, client_id, client_secret, redirect_uri, code_verifier } = req.body || {};
+  const body = req.body || {};
+  const clientId = body.client_id;
+  const clientSecret = body.client_secret;
+  const { grant_type, code, redirect_uri, code_verifier } = body;
   if (
     grant_type !== 'authorization_code' ||
-    [code, client_id, client_secret, redirect_uri, code_verifier].some((value) => typeof value !== 'string')
+    [code, clientId, redirect_uri, code_verifier].some((value) => typeof value !== 'string') ||
+    (typeof clientSecret !== 'string' && (await getClient(String(clientId || '')))?.isPublic !== true)
   ) {
     return res.status(400).json({ error: 'invalid_request' });
   }
@@ -668,31 +738,72 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
 
   const authorizationCode = await exchangeAuthorizationCode({
     code,
-    clientId: client_id,
-    clientSecret: client_secret,
+    clientId,
+    clientSecret: typeof clientSecret === 'string' ? clientSecret : '',
     redirectUri: redirect_uri,
     codeVerifier: code_verifier,
   });
   if (!authorizationCode) {
-    await recordAudit({ event: 'oidc-token-exchange', app: client_id, result: 'failure', redirectUri: redirect_uri });
+    await recordAudit({ event: 'oidc-token-exchange', app: clientId, result: 'failure', redirectUri: redirect_uri });
     return res.status(400).json({ error: 'invalid_grant' });
   }
 
   const user = await findByUserId(authorizationCode.userId);
   if (!user) {
-    await recordAudit({ event: 'oidc-token-exchange', app: client_id, result: 'failure', redirectUri: redirect_uri });
+    await recordAudit({ event: 'oidc-token-exchange', app: clientId, result: 'failure', redirectUri: redirect_uri });
     return res.status(400).json({ error: 'invalid_grant' });
   }
 
   await recordAudit({
     userId: user.userId,
     event: 'oidc-token-exchange',
-    app: client_id,
+    app: clientId,
     result: 'success',
     redirectUri: redirect_uri,
   });
 
-  res.json(await tokenResponse(user, client_id));
+  res.json(await tokenResponse(user, clientId, authorizationCode.scopes, authorizationCode.nonce));
+});
+app.get('/logout', async (req, res) => {
+  const idTokenHint = typeof req.query.id_token_hint === 'string' ? req.query.id_token_hint : '';
+  const clientId = typeof req.query.client_id === 'string' ? req.query.client_id : '';
+  const postLogoutRedirectUri =
+    typeof req.query.post_logout_redirect_uri === 'string' ? req.query.post_logout_redirect_uri : '';
+  const state = typeof req.query.state === 'string' ? req.query.state : '';
+  let redirect: URL | undefined;
+
+  if (postLogoutRedirectUri) {
+    if (!idTokenHint || !clientId) return res.status(400).send('Invalid logout request');
+    const client = await getClient(clientId);
+    if (!client || !client.postLogoutRedirectUris.includes(postLogoutRedirectUri)) {
+      return res.status(400).send('Unregistered post-logout redirect URI');
+    }
+    try {
+      const { payload } = await verifyIdentityToken(idTokenHint, clientId);
+      if (!payload.sub || (req.user?.id && req.user.id !== payload.sub)) {
+        return res.status(400).send('Invalid ID Token hint');
+      }
+    } catch {
+      return res.status(400).send('Invalid ID Token hint');
+    }
+    redirect = new URL(postLogoutRedirectUri);
+    if (state) redirect.searchParams.set('state', state);
+  } else if (idTokenHint && clientId) {
+    try {
+      await verifyIdentityToken(idTokenHint, clientId);
+    } catch {
+      return res.status(400).send('Invalid ID Token hint');
+    }
+  }
+
+  req.logout((logoutError) => {
+    if (logoutError) return res.status(500).send('Could not end session');
+    req.session.destroy((sessionError) => {
+      if (sessionError) return res.status(500).send('Could not end session');
+      res.clearCookie('connect.sid', { domain: process.env.SESSION_DOMAIN || undefined, path: '/' });
+      res.redirect(redirect ? String(redirect) : '/');
+    });
+  });
 });
 app.post('/api/v1/revoke', express.urlencoded({ extended: false }), async (req, res) => {
   const authHeader = req.get('authorization') || '';
@@ -722,20 +833,23 @@ app.get('/.well-known/openid-configuration', async (_req, res) => {
     issuer: iss,
     authorization_endpoint: `${iss}/authorize`,
     token_endpoint: `${iss}/token`,
+    end_session_endpoint: `${iss}/logout`,
     userinfo_endpoint: `${iss}/userinfo`,
     jwks_uri: `${iss}/.well-known/jwks.json`,
     response_types_supported: ['code'],
     subject_types_supported: ['public'],
     id_token_signing_alg_values_supported: ['RS256'],
     scopes_supported: ['openid', 'profile', 'email'],
-    token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post'],
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+    code_challenge_methods_supported: ['S256'],
+    claims_supported: ['sub', 'name', 'preferred_username', 'email', 'picture', 'photo'],
   });
 });
 app.get('/userinfo', tokenUser, async (req, res) => {
   const user = await findByUserId(req.tokenUserId);
   if (!user) return res.status(404).send('{}');
 
-  res.json(userAsJSON(user));
+  res.json(oidcUserInfo(user, req.tokenScopes || []));
 });
 app.get('/me', serveAppEntry);
 app.get('/auth/google', passport.authenticate('google', googleScopes));

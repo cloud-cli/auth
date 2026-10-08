@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createPublicKey, generateKeyPairSync, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
-import { exportJWK, importPKCS8, importSPKI, jwtVerify, SignJWT } from 'jose';
+import { compactVerify, exportJWK, importPKCS8, importSPKI, jwtVerify, SignJWT } from 'jose';
 import { rows, run, SigningKey, User } from './database.js';
 
 const issuer = (process.env.AUTH_DOMAIN || '').replace(/\/$/, '');
@@ -134,10 +134,10 @@ export function accessTokenTtl() {
   return ttl;
 }
 
-export async function createAccessToken(userId: string, audience: string) {
+export async function createAccessToken(userId: string, audience: string, scopes?: string[]) {
   if (!signingKey) throw new Error('JWT signing is not configured');
 
-  return new SignJWT()
+  return new SignJWT(scopes ? { scope: scopes.join(' ') } : {})
     .setProtectedHeader({ alg: 'RS256', kid: signingKeyId, typ: 'JWT' })
     .setSubject(userId)
     .setIssuer(issuer)
@@ -148,10 +148,15 @@ export async function createAccessToken(userId: string, audience: string) {
     .sign(signingKey);
 }
 
-export async function createIdentityToken(user: User, audience: string) {
+export async function createIdentityToken(
+  user: User,
+  audience: string,
+  claims: Record<string, unknown> = { name: user.name, email: user.email, picture: user.photo },
+  nonce?: string,
+) {
   if (!signingKey) throw new Error('JWT signing is not configured');
 
-  return new SignJWT({ name: user.name, email: user.email, picture: user.photo })
+  return new SignJWT({ ...claims, ...(nonce === undefined ? {} : { nonce }) })
     .setProtectedHeader({ alg: 'RS256', kid: signingKeyId, typ: 'JWT' })
     .setSubject(user.userId)
     .setIssuer(issuer)
@@ -180,4 +185,24 @@ export async function verifyAccessToken(token: string, audience: string) {
   const key = verificationKeys.get(header.kid) || verificationKey;
   if (!key) throw new Error('JWT verification is not configured');
   return jwtVerify(token, key, { issuer, audience, algorithms: ['RS256'] });
+}
+
+export async function verifyIdentityToken(token: string, audience: string) {
+  const header = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+  const key = verificationKeys.get(header.kid) || verificationKey;
+  if (!key) throw new Error('JWT verification is not configured');
+  const { payload: bytes, protectedHeader } = await compactVerify(token, key, { algorithms: ['RS256'] });
+  if (protectedHeader.kid !== header.kid || protectedHeader.alg !== 'RS256') throw new Error('Invalid ID Token');
+  const payload = JSON.parse(Buffer.from(bytes).toString());
+  const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  if (
+    payload.iss !== issuer ||
+    !audiences.includes(audience) ||
+    typeof payload.sub !== 'string' ||
+    typeof payload.exp !== 'number' ||
+    typeof payload.iat !== 'number'
+  ) {
+    throw new Error('Invalid ID Token claims');
+  }
+  return { payload, protectedHeader };
 }
