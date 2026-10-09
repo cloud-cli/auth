@@ -351,7 +351,7 @@ function serveUi(name: string) {
     if (name === 'login.html') {
       source = source.replace('__TEST_LOGIN_ENABLED__', testLoginEnabled ? 'true' : 'false');
     }
-    res.type('html').send(source);
+    res.status(200).set('Cache-Control', 'no-store').vary('Cookie').type('html').end(source);
   };
 }
 
@@ -391,6 +391,16 @@ function testUserId(key: string) {
 
 function serveAppEntry(req, res) {
   const authenticated = Boolean(req.isAuthenticated?.() && req.user?.id);
+  const sessionCookie = String(req.get('cookie') || '')
+    .split(';')
+    .some((cookie) => cookie.trim().startsWith('connect.sid='));
+  console.info('App entry session check', {
+    path: req.path,
+    authenticated,
+    hasUserId: Boolean(req.user?.id),
+    hasSession: Boolean(req.session),
+    hasSessionCookie: sessionCookie,
+  });
   return serveUi(authenticated ? 'profile.html' : 'landing.html')(req, res);
 }
 
@@ -442,10 +452,14 @@ app.post('/__test__/login', express.json(), async (req, res) => {
   const authorization = req.get('authorization') || '';
   const bearerKey = authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length).trim() : '';
   const key = bearerKey || req.get('x-test-secret') || String(req.body?.key || '');
-  if (!isConfiguredTestKey(key)) return res.status(401).json({ error: 'Invalid test key' });
+  if (!isConfiguredTestKey(key)) {
+    console.warn('Test login rejected: invalid key');
+    return res.status(401).json({ error: 'Invalid test key' });
+  }
 
   const userId = testUserId(key);
   const role = 'admin';
+  console.info('Test login accepted; creating session');
   let user = await findByUserId(userId);
   if (user && (await isUserSuspended(user.userId))) return res.status(403).json({ error: 'This account is disabled.' });
   if (!user) {
@@ -471,10 +485,22 @@ app.post('/__test__/login', express.json(), async (req, res) => {
 
   await recordAudit({ userId, event: 'test-authentication', app: 'Test login', result: 'success' });
   req.login(userAsJSON(user), (error) => {
-    if (error) return res.status(500).send('Could not create test session');
-    req.session.save((saveError) =>
-      saveError ? res.status(500).send('Could not persist test session') : res.status(204).send(''),
-    );
+    if (error) {
+      console.error('Test login session creation failed', { errorName: error.name });
+      return res.status(500).send('Could not create test session');
+    }
+    req.session.save((saveError) => {
+      if (saveError) {
+        console.error('Test login session persistence failed', { errorName: saveError.name });
+        return res.status(500).send('Could not persist test session');
+      }
+      console.info('Test login session persisted', {
+        authenticated: Boolean(req.isAuthenticated?.()),
+        hasUserId: Boolean(req.user?.id),
+        hasSession: Boolean(req.session),
+      });
+      return res.status(204).send('');
+    });
   });
 });
 app.head('/api/v1/profile', browserCors, protectedRoute, (_req, res) => {

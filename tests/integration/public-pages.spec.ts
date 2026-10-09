@@ -11,6 +11,13 @@ test('landing page is available', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 });
 
+test('session-dependent app entry is not cached or conditionally revalidated', async ({ request }) => {
+  const response = await request.get('/me', { headers: { 'if-none-match': '*' } });
+  expect(response.status()).toBe(200);
+  expect(response.headers()['cache-control']).toBe('no-store');
+  expect(response.headers().vary).toContain('Cookie');
+});
+
 test('login page exposes the configured sign-in method', async ({ page }) => {
   await page.goto('/login');
   const alternatives = page.getByText('Try another way', { exact: true });
