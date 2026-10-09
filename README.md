@@ -65,6 +65,40 @@ The OpenAPI 3.1 document is served at `GET /api`. All non-standard API endpoints
 
 `POST /api/v1/session/token` exchanges an authenticated browser session for a short-lived RS256 JWT. Its JSON body must include an audience configured in `JWT_AUDIENCES`; browser callers must originate from `AUTH_ALLOWED_ORIGINS`. Public signing keys are available at `GET /.well-known/jwks.json`.
 
+### Browser session module
+
+`/oidc.mjs` is a dependency-free ES module for browser apps. Configure the exact relying-party origins in `AUTH_ALLOWED_ORIGINS` to allow credentialed CORS requests, then load the module from the Auth provider:
+
+```js
+import { createOidcClient } from 'https://auth.example/oidc.mjs';
+
+const auth = createOidcClient({
+  issuer: 'https://auth.example',
+  allowedOrigins: ['https://editor.example'],
+  heartbeatInterval: 60_000,
+  // This checks the editor's own session, not the Auth-provider session.
+  rpSessionCheck: '/api/session',
+});
+auth.addEventListener('statechange', ({ detail }) => {
+  // detail includes status, authenticated, relyingPartySession, and reason.
+  // Preserve unsaved work; let the user choose when to reauthenticate.
+});
+auth.addEventListener('error', ({ detail }) => console.error(detail.operation, detail.error));
+auth.start();
+
+// Call directly from a user gesture. /auth/login and /auth/callback remain RP-owned.
+button.addEventListener('click', () => {
+  void auth.signInWithPopup({
+    loginUrl: 'https://editor.example/auth/login?popup=1',
+    completionUrl: 'https://editor.example/auth/callback',
+  });
+});
+```
+
+`getState()` reports Auth-provider status separately from `relyingPartySession`; `isAuthenticated()` only describes the Auth session. Configure `rpSessionCheck` when using popup sign-in; popup completion is not accepted without confirming the app's own session. `getAccessToken(audience)` returns an in-memory-cached short-lived token and never starts login. Stop monitoring with `stop()`.
+
+After the normal OIDC callback has established/renewed the app's own session, the RP callback should notify the opener and close the popup. The expected message is `{ type: 'oidc:login-complete', nonce, status: 'complete' }`; the RP must use the nonce supplied as `oidc_popup_nonce` (or its configured parameter), target the exact opener origin, and send no tokens. A failure may use the same message type/nonce with a non-`complete` status. The module accepts messages only from that popup and the configured completion origin, then confirms both the RP session and Auth session before resolving. The RP's callback should implement this contract only for a popup-initiated flow.
+
 OIDC clients can discover provider metadata at `/.well-known/openid-configuration`.
 
 OIDC `POST /token` also requires JWT signing configuration. Generate an RSA key once and store it as a deployment secret:

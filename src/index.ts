@@ -77,6 +77,7 @@ import {
 const esLibrary = readFileSync('./assets/index.mjs', 'utf8');
 const dashboardLibrary = readFileSync('./assets/dashboard.mjs', 'utf8');
 const esHelper = readFileSync('./assets/lib.mjs', 'utf8');
+const oidcBrowserLibrary = readFileSync('./assets/oidc.mjs', 'utf8');
 const nodeLibrary = readFileSync('./assets/node.mjs', 'utf8');
 const openApiSpec = readFileSync('./assets/openapi.json', 'utf8');
 const pwaServiceWorker = readFileSync('./assets/pwa-sw.js', 'utf8');
@@ -1020,6 +1021,7 @@ const serveEsModule = (source) => (req, res) => {
 };
 
 app.get('/index.mjs', serveEsModule(esLibrary));
+app.get('/oidc.mjs', serveEsModule(oidcBrowserLibrary));
 app.get('/node.mjs', serveEsModule(nodeLibrary));
 app.get('/ui/dashboard.mjs', serveEsModule(dashboardLibrary));
 app.get('/ui/lib.mjs', serveEsModule(esHelper));
