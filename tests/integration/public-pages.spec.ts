@@ -32,7 +32,7 @@ test('a stale duplicate session cookie cannot shadow a newly authenticated sessi
     {
       name: 'connect.sid',
       value: 'stale-session',
-      url: origin.origin,
+      domain: origin.hostname,
       path: '/me',
       httpOnly: true,
       secure: origin.protocol === 'https:',
