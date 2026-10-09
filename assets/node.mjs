@@ -84,7 +84,7 @@ export function createAuthClient({
     return payload;
   }
 
-  async function getProfile(token) {
+  async function getUserInfo(token) {
     await verifyToken(token);
     const response = await fetch(new URL('/userinfo', issuer), {
       headers: { Authorization: `Bearer ${token}`, 'X-Auth-Audience': clientId },
@@ -129,7 +129,7 @@ export function createAuthClient({
     return response.json();
   }
 
-  async function getSessionProfile(request) {
+  async function getProfile(request) {
     const cookie = getSessionCookie(request, sessionCookieName);
     if (!cookie) return null;
 
@@ -137,12 +137,43 @@ export function createAuthClient({
     return response.ok ? response.json() : null;
   }
 
+  async function getProperty(request, key) {
+    const cookie = getSessionCookie(request, sessionCookieName);
+    if (!cookie) return null;
+    const response = await fetch(new URL(`/api/v1/properties/${encodeURIComponent(key)}`, issuer), {
+      headers: { Cookie: cookie },
+    });
+    return response.ok ? response.json() : null;
+  }
+
+  async function setProperty(request, key, value) {
+    const cookie = getSessionCookie(request, sessionCookieName);
+    if (!cookie) throw new Error('Authentication required');
+    const response = await fetch(new URL('/api/v1/properties', issuer), {
+      method: 'PUT',
+      headers: { Cookie: cookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ key, value }),
+    });
+    if (!response.ok) throw new Error(`Could not set property: ${response.status}`);
+    return response.json();
+  }
+
+  async function deleteProperty(request, key) {
+    const cookie = getSessionCookie(request, sessionCookieName);
+    if (!cookie) throw new Error('Authentication required');
+    const response = await fetch(new URL(`/api/v1/properties/${encodeURIComponent(key)}`, issuer), {
+      method: 'DELETE',
+      headers: { Cookie: cookie },
+    });
+    if (!response.ok) throw new Error(`Could not delete property: ${response.status}`);
+  }
+
   async function isSessionAuthenticated(request) {
-    return Boolean(await getSessionProfile(request));
+    return Boolean(await getProfile(request));
   }
 
   async function requireSession(request, response) {
-    const profile = await getSessionProfile(request);
+    const profile = await getProfile(request);
     if (profile) return profile;
 
     response.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' });
@@ -196,11 +227,16 @@ export function createAuthClient({
     createAuthorizationRequest,
     exchangeCode,
     verifyToken,
+    getUserInfo,
     getProfile,
+    getSessionProfile: getProfile,
+    getProperty,
+    setProperty,
+    deleteProperty,
+    removeProperty: deleteProperty,
     introspectToken,
     mintApiToken,
     revokeApiToken,
-    getSessionProfile,
     isSessionAuthenticated,
     requireSession,
   };

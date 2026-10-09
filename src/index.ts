@@ -225,7 +225,21 @@ function registerUserAdminRoutes() {
     const { all } = await import('./database.js');
     res.json(
       await all(
-        'SELECT user_id AS id, profile_id AS profileId, email, name, photo, last_seen AS lastSeen, role, preferred_username AS preferredUsername, disabled, EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = auth_user.profile_id) AS blocked FROM auth_user ORDER BY email COLLATE NOCASE',
+        `SELECT auth_user.user_id AS id, auth_user.profile_id AS profileId, auth_user.email, auth_user.name,
+                auth_user.photo, COALESCE(auth_activity.last_authenticated, auth_user.last_seen) AS lastSeen,
+                auth_user.role, auth_user.preferred_username AS preferredUsername, auth_user.disabled,
+                EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = auth_user.profile_id) AS blocked
+         FROM auth_user
+         LEFT JOIN (
+           SELECT user_id, MAX(timestamp) AS last_authenticated
+           FROM auth_audit_event
+           WHERE result = 'success' AND event IN (
+             'google-authentication', 'test-authentication', 'recovery-authentication',
+             'passkey-authentication', 'qr-approval', 'oidc-authorization', 'oidc-token-exchange'
+           )
+           GROUP BY user_id
+         ) auth_activity ON auth_activity.user_id = auth_user.user_id
+         ORDER BY auth_user.email COLLATE NOCASE`,
       ),
     );
   });

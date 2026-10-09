@@ -184,6 +184,7 @@ test('admin Users page lists accounts and protects the current administrator', a
   expect(user[0]).toHaveProperty('role');
   const self = user.find((entry) => entry.id.startsWith('test-'));
   expect(self).toBeDefined();
+  expect(Date.parse(self.lastSeen)).toBeGreaterThan(Date.now() - 60_000);
   if (!self.preferredUsername) {
     const username = `admin_${Date.now()}`;
     const status = await page.evaluate(
@@ -204,6 +205,7 @@ test('admin Users page lists accounts and protects the current administrator', a
   const details = page.locator('details').filter({ hasText: self.email });
   await details.locator('summary').click();
   await expect(details.getByText('Name: John Doe', { exact: true })).toBeVisible();
+  await expect(details.getByText(/Last authenticated:/)).toBeVisible();
   await expect(details.locator('input[name="preferred_username"]')).toHaveValue(self.preferredUsername || '');
   const response = await page.evaluate(async (id) => {
     const result = await fetch(`/api/v1/admin/users/${encodeURIComponent(id)}`, {

@@ -14,7 +14,7 @@
           <p>Name: {{ user.name }}</p>
           <p>UUID: <code>{{ user.id }}</code></p>
           <p>Google identity: <code>{{ user.profileId }}</code></p>
-          <p>Last seen: {{ user.lastSeen || 'Never' }}</p>
+          <p>Last authenticated: {{ user.lastSeen || 'Never' }}</p>
           <p>Role: {{ user.role }}</p>
           <p>Identity: {{ user.blocked ? 'Blocked' : 'Allowed' }}</p>
           <form on-submit="saveUsername(user, $event)" class="flex gap-2">

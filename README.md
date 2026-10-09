@@ -123,7 +123,9 @@ Node resource APIs can call `auth.introspectToken(token)` with `clientId` and `c
 
 `GET /index.mjs` is the consumer browser client: sign-in state, profile, user properties, and temporary API tokens. WebAuthn credential management is intentionally isolated in `GET /ui/dashboard.mjs` for the Auth dashboard UI.
 
-For sibling domains that receive the shared auth cookie, it also provides `getSessionProfile(request)`, `isSessionAuthenticated(request)`, and `requireSession(request, response)`. These forward only the configured session cookie to the auth API. They do not work across unrelated domains; use the OIDC authorization-code flow there.
+For sibling domains that receive the shared auth cookie, it also provides `getProfile(request)`, `isSessionAuthenticated(request)`, and `requireSession(request, response)`. These forward only the configured session cookie to the auth API. `getUserInfo(token)` retrieves the OIDC UserInfo document for an access token. The old `getSessionProfile(request)` name remains an alias for `getProfile`. Session helpers do not work across unrelated domains; use the OIDC authorization-code flow there.
+
+The Node client also provides `getProperty(request, key)`, `setProperty(request, key, value)`, and `deleteProperty(request, key)` (also available as `removeProperty`). These forward the shared session cookie to the corresponding `/api/v1/properties` endpoints and return `null` from `getProperty` if no session/property is available.
 
 ### Node.js HTTP server
 
@@ -185,7 +187,7 @@ createServer(async (request, response) => {
         clientSecret: process.env.TODO_CLIENT_SECRET || '',
       });
       await auth.verifyToken(tokens.id_token);
-      const user = await auth.getProfile(tokens.access_token);
+      const user = await auth.getUserInfo(tokens.access_token);
       const sessionId = randomBytes(32).toString('base64url');
       sessions.set(sessionId, user);
       setCookie(response, 'todo.sid', sessionId, 60 * 60 * 24 * 7);
@@ -208,7 +210,7 @@ createServer(async (request, response) => {
     // These three helpers are alternatives to requireSession when custom handling is needed.
     const centralCookie = auth.getSessionCookie(request);
     const authenticated = centralCookie && (await auth.isSessionAuthenticated(request));
-    const user = authenticated ? await auth.getSessionProfile(request) : null;
+    const user = authenticated ? await auth.getProfile(request) : null;
     if (!user) {
       response.writeHead(401).end('Authentication required');
       return;
@@ -228,7 +230,7 @@ createServer(async (request, response) => {
 }).listen(3000);
 ```
 
-`auth.getSessionCookie(request)` returns the central `connect.sid` cookie value that `getSessionProfile`, `isSessionAuthenticated`, and `requireSession` forward to the auth API. These helpers are only useful when the incoming request already contains the shared auth cookie. The example's `todo.sid` is an application-owned session cookie and cannot be forwarded to the auth API.
+`auth.getSessionCookie(request)` returns the central `connect.sid` cookie value that `getProfile`, the property helpers, `isSessionAuthenticated`, and `requireSession` forward to the auth API. These helpers are only useful when the incoming request already contains the shared auth cookie. The example's `todo.sid` is an application-owned session cookie and cannot be forwarded to the auth API.
 
 _GET /api/v1/profile_:
 
