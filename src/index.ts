@@ -11,7 +11,7 @@ import {
   normalizePreferredUsername,
 } from './user.js';
 import { initDatabase } from './database.js';
-import session from './session.js';
+import session, { normalizeSessionCookieHeader } from './session.js';
 import log from './log.js';
 import passport, { googleCallback } from './passport.js';
 import { getProperties, removeProperty, getProperty, setProperty } from './properties.js';
@@ -132,10 +132,18 @@ function logout(req, res) {
     if (logoutError) return res.status(500).send('');
     req.session.destroy((sessionError) => {
       if (sessionError) return res.status(500).send('');
-      res.clearCookie('connect.sid', { domain: process.env.SESSION_DOMAIN || undefined, path: '/' });
+      clearSessionCookies(res);
       res.status(202).send('OK');
     });
   });
+}
+
+function clearSessionCookies(res) {
+  const cookieOptions = { path: '/' };
+  res.clearCookie('connect.sid', cookieOptions);
+  if (process.env.SESSION_DOMAIN) {
+    res.clearCookie('connect.sid', { ...cookieOptions, domain: process.env.SESSION_DOMAIN });
+  }
 }
 
 function bearerToken(req) {
@@ -414,6 +422,16 @@ const googleScopes = {
 const app = express();
 
 app.set('trust proxy', 1);
+app.use((req, _res, next) => {
+  const normalized = normalizeSessionCookieHeader(req.headers.cookie);
+  if (normalized.duplicateCount > 1) {
+    console.warn('Duplicate session cookies received; using the last cookie', {
+      count: normalized.duplicateCount,
+    });
+    req.headers.cookie = normalized.cookieHeader;
+  }
+  next();
+});
 app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
@@ -983,7 +1001,7 @@ app.get('/logout', async (req, res) => {
     req.session.destroy((sessionError) => {
       if (sessionError)
         return res.status(500).type('html').send(renderAuthError('Could not complete sign-out. Please try again.'));
-      res.clearCookie('connect.sid', { domain: process.env.SESSION_DOMAIN || undefined, path: '/' });
+      clearSessionCookies(res);
       res.redirect(redirect ? String(redirect) : '/');
     });
   });

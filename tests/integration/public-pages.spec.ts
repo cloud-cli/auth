@@ -18,6 +18,32 @@ test('session-dependent app entry is not cached or conditionally revalidated', a
   expect(response.headers().vary).toContain('Cookie');
 });
 
+test('a stale duplicate session cookie cannot shadow a newly authenticated session', async ({ page, context }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  await page.goto('/login');
+  await page.getByLabel('Test API key').fill(testKey!);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/me$/);
+
+  const sessionCookie = (await context.cookies()).find((cookie) => cookie.name === 'connect.sid');
+  expect(sessionCookie).toBeDefined();
+  const origin = new URL(page.url());
+  await context.addCookies([
+    {
+      name: 'connect.sid',
+      value: 'stale-session',
+      url: origin.origin,
+      path: '/me',
+      httpOnly: true,
+      secure: origin.protocol === 'https:',
+      sameSite: 'Lax',
+    },
+  ]);
+
+  await page.goto('/me');
+  await expect(page.getByRole('button', { name: 'Toggle profile details' })).toBeVisible();
+});
+
 test('login page exposes the configured sign-in method', async ({ page }) => {
   await page.goto('/login');
   const alternatives = page.getByText('Try another way', { exact: true });
