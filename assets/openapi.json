@@ -1543,6 +1543,17 @@
         }
       }
     },
+    "/oidc.mjs": {
+      "get": {
+        "tags": ["Browser client"],
+        "summary": "Serve the browser OIDC session and popup integration module",
+        "responses": {
+          "200": {
+            "description": "JavaScript ES module with session monitoring, token access, and popup sign-in"
+          }
+        }
+      }
+    },
     "/node.mjs": {
       "get": {
         "tags": ["Node client"],

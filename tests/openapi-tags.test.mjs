@@ -21,6 +21,9 @@ test('OpenAPI splits authentication operations into readable sections', () => {
   assert.equal(spec.paths['/authorize'].get.tags[0], 'JWT APIs');
   assert.equal(spec.paths['/api/v1/oidc/clients'].get.tags[0], 'Admin-only APIs');
   assert.equal(spec.paths['/api/v1/webauthn/credentials'].get.tags[0], 'UI-only APIs');
+  assert.equal(spec.paths['/index.mjs'].get.tags[0], 'Browser client');
+  assert.equal(spec.paths['/oidc.mjs'].get.tags[0], 'Browser client');
+  assert.equal(spec.paths['/node.mjs'].get.tags[0], 'Node client');
 });
 
 test('every documented operation uses a declared section', () => {
