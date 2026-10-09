@@ -43,7 +43,6 @@ test('popup sign-in returns the profile to an allowed consumer and closes itself
     throw new Error(`Popup did not open (moduleLoaded=${loaded}); ${runtimeErrors.join(' | ')}`);
   });
   await expect(popup).toHaveURL(/\/login\?/);
-  await popup.getByText('Try another way', { exact: true }).click();
   await popup.getByLabel('Test API key').fill(testKey!);
   await popup.getByRole('button', { name: 'Sign in' }).click();
 
