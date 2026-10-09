@@ -391,15 +391,16 @@ function testUserId(key: string) {
 
 function serveAppEntry(req, res) {
   const authenticated = Boolean(req.isAuthenticated?.() && req.user?.id);
-  const sessionCookie = String(req.get('cookie') || '')
+  const sessionCookieCount = String(req.get('cookie') || '')
     .split(';')
-    .some((cookie) => cookie.trim().startsWith('connect.sid='));
+    .filter((cookie) => cookie.trim().startsWith('connect.sid=')).length;
   console.info('App entry session check', {
     path: req.path,
     authenticated,
     hasUserId: Boolean(req.user?.id),
     hasSession: Boolean(req.session),
-    hasSessionCookie: sessionCookie,
+    hasPassportUser: Boolean(req.session?.passport?.user),
+    sessionCookieCount,
   });
   return serveUi(authenticated ? 'profile.html' : 'landing.html')(req, res);
 }

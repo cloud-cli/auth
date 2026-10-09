@@ -1,6 +1,12 @@
 import session from 'express-session';
 import { UserSession, json, rows, run } from './database.js';
 
+function hasPassportUser(value: unknown) {
+  if (!value || typeof value !== 'object') return false;
+  const passport = (value as { passport?: unknown }).passport;
+  return Boolean(passport && typeof passport === 'object' && (passport as { user?: unknown }).user);
+}
+
 class SessionStoreImpl extends session.Store {
   protected async findAll() {
     return rows<UserSession>('auth_session');
@@ -44,8 +50,13 @@ class SessionStoreImpl extends session.Store {
   async get(sid, callback) {
     try {
       const s = (await rows<UserSession>('auth_session', 'sid = ?', [sid]))[0];
+      console.info('Session store lookup', {
+        found: Boolean(s),
+        hasPassportUser: hasPassportUser(s?.session),
+      });
       callback(null, s ? s.session : null);
     } catch (error) {
+      console.error('Session store lookup failed', { errorName: error instanceof Error ? error.name : 'UnknownError' });
       callback(null);
     }
   }
@@ -53,8 +64,12 @@ class SessionStoreImpl extends session.Store {
   async set(sid, session, callback) {
     try {
       await run('INSERT OR REPLACE INTO auth_session (sid, session) VALUES (?, ?)', [sid, json(session)]);
+      if (hasPassportUser(session)) {
+        console.info('Session store saved Passport login');
+      }
       callback(null);
     } catch (error) {
+      console.error('Session store write failed', { errorName: error instanceof Error ? error.name : 'UnknownError' });
       callback(error);
     }
   }

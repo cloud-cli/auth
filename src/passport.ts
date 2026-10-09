@@ -67,13 +67,21 @@ passport.serializeUser((user: any, done) => done(null, user.id));
 passport.deserializeUser(async (id: string, done: any) => {
   try {
     const user = await findByUserId(id);
-
-    if (user && !(await isUserSuspended(user.userId))) {
-      return done(null, userAsJSON(user));
+    if (!user) {
+      console.warn('Passport session restore failed: account not found');
+      return done(new Error('Not found'));
     }
 
-    return done(new Error('Not found'));
+    if (await isUserSuspended(user.userId)) {
+      console.warn('Passport session restore failed: account unavailable');
+      return done(new Error('Not found'));
+    }
+
+    return done(null, userAsJSON(user));
   } catch (error) {
+    console.error('Passport session restore failed', {
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    });
     done(new Error(String(error)));
   }
 });
