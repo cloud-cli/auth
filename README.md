@@ -1,190 +1,213 @@
 # Auth
 
-Node.js authentication server with Google, passkey, OIDC, JWT, and QR-approved phone login.
+## Introduction
 
-## Env
+Auth is a self-hosted authentication and OpenID Connect (OIDC) provider for browser, native, and server-side applications. It provides Google sign-in, WebAuthn passkeys/security keys, recovery codes, QR-approved phone sign-in, sessions, OIDC, and scoped API tokens.
 
-| name                 | description                                                  | required         |
-| -------------------- | ------------------------------------------------------------ | ---------------- |
-| PORT                 | http server port                                             | true             |
-| GOOGLE_CLIENT_ID     | OAuth client id                                              | true             |
-| GOOGLE_CLIENT_SECRET | OAuth client secret                                          | true             |
-| AUTH_DOMAIN          | Authentication host, e.g. https://auth.foo.com               | true             |
-| SESSION_DOMAIN       | Domain to use for session cookie, e.g foo.com                | false            |
-| SESSION_SECRET       | Session secret, used to store the user session               | true             |
-| DATABASE_URL         | ES module URL for the application database API               | true             |
-| JWT_PRIVATE_KEY      | PEM-encoded RSA private key used for JWT signing             | for JWTs         |
-| JWT_AUDIENCES        | Comma-separated allowed JWT audiences                        | for JWTs         |
-| JWT_KEY_ID           | Signing key ID, defaults to `auth-1`                         | false            |
-| JWT_TTL_SECONDS      | JWT lifetime from 60 to 900 seconds, defaults to 300         | false            |
-| AUTH_ALLOWED_ORIGINS | Comma-separated browser origins allowed to request JWTs      | for browser JWTs |
-| AUTH_NAME            | Relying-party name shown during passkey registration         | false            |
-| QR_LOGIN_TTL_SECONDS | QR approval lifetime from 60 to 600 seconds, defaults to 300 | false            |
-| AUTH_TEST_KEYS       | Comma-separated API keys enabling the test login environment | false            |
+The project includes three integration modules for different application architectures:
 
-`AUTH_DOMAIN` must use HTTPS in production. WebAuthn, camera access, and the installable PWA require a secure context.
+- [`/index.mjs`](#integrate-a-browser-app-with-indexmjs): the browser client for applications that can navigate to Auth for sign-in.
+- [`/oidc.mjs`](#integrate-a-single-page-app-with-oidcmjs): a browser OIDC session client for SPA popup sign-in without navigating the current page.
+- [`/node.mjs`](#integrate-a-nodejs-service-with-nodemjs): a dependency-free Node.js client for server-side OIDC and shared-session helpers.
 
-For an isolated integration-test deployment, set `AUTH_TEST_KEYS` to one or more test API keys. This replaces the
-normal login methods with a test-key form. Each key creates its own stable administrator `John Doe` profile, so parallel
-test suites can use different keys without sharing data. `AUTH_TEST_SECRET` is also accepted as a backwards-compatible
-single-key alias. This mode is intentionally an authentication bypass and must never be enabled on a production
-deployment.
+The built-in dashboard and login pages are served by Auth. The OpenAPI 3.1 reference is served at [`/api`](#http-api-and-oidc-reference).
 
-Get the client ID and secret from [Google API console](https://console.cloud.google.com/apis/credentials)
+## On this page
 
-- Authorized origin: `AUTH_DOMAIN`.
-- Authorized redirect URI's: `AUTH_DOMAIN` + "/auth/google/callback".
+- [Tutorials](#tutorials): deploy Auth and choose an integration module.
+- [How-to guides](#how-to-guides): configure OIDC, tokens, sessions, passkeys, and operations.
+- [Concepts and operational guidance](#concepts-and-operational-guidance): understand sessions, authentication, and scaling constraints.
+- [Reference](#reference): environment variables, HTTP APIs, and OIDC behavior.
+- [Troubleshooting](#troubleshooting): diagnose common configuration and sign-in failures.
 
-Set SESSION_DOMAIN to the domain root in which authentication will be used. For example, "foo.com" will
-set authentication for any \*.foo.com domain, using a common cookie.
+## Tutorials
 
-For `fetch` requests, add `{ credentials: 'include' }` to the request options to include the session.
+### Getting started with Docker
 
-## Usage
+This walkthrough assumes you have:
 
-Just run the Docker image:
+1. A public HTTPS hostname, such as `auth.example.com`, routed through a TLS-terminating reverse proxy to the container.
+2. A database module URL for `DATABASE_URL`. The module must be reachable by the Auth container, export `getDb()`, and return an adapter with `all(sql, params)`, `get(sql, params)`, `run(sql, params)`, and `exec(sql)` methods. Auth runs its schema migrations at startup.
+3. Google OAuth credentials for normal first-user onboarding. Google can be omitted only when accounts and another initial sign-in method are provisioned separately.
 
-```bash
-docker run --name 'auth' --detach \
-  -e GOOGLE_CLIENT_ID='xxx' \
-  -e GOOGLE_CLIENT_SECRET='xxx' \
-  -e AUTH_DOMAIN='https://auth.foo.com/' \
-  -e SESSION_DOMAIN='foo.com' \
-  -e SESSION_SECRET='xxx' \
-  -e PORT=3000 \
+#### Generate secrets
+
+Generate a strong, unique session secret:
+
+```sh
+openssl rand -hex 32
+```
+
+For OIDC signing and browser-issued access tokens, generate an RSA private key:
+
+```sh
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
+```
+
+To enable persistent signing-key storage and dashboard rotation, also generate a 32-byte encryption key as 64 hexadecimal characters:
+
+```sh
+openssl rand -hex 32 > jwt-key-encryption.key
+chmod 600 jwt-private.pem jwt-key-encryption.key
+```
+
+Keep these values in your deployment's secret manager. Do not commit them or paste them into a public issue. Mount the two JWT files read-only in production rather than putting private-key material in the Docker command line.
+
+#### Configure Google sign-in
+
+In the [Google API Console](https://console.cloud.google.com/apis/credentials), create an OAuth client for a web application and register:
+
+- Authorized JavaScript origin: `https://auth.example.com`
+- Authorized redirect URI: `https://auth.example.com/auth/google/callback`
+
+Set the resulting client ID and secret as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+#### Start the container
+
+Set `DATABASE_URL` to your database module URL and provide the generated session secret. The image listens on `PORT`:
+
+```sh
+export DATABASE_URL='https://db.example.com/auth-module.mjs'
+export SESSION_SECRET="$(openssl rand -hex 32)"
+
+# Supply these through your secret manager in production.
+export GOOGLE_CLIENT_ID='your-google-client-id'
+export GOOGLE_CLIENT_SECRET='your-google-client-secret'
+
+docker run --name auth --detach \
+  --publish 3000:3000 \
+  --env PORT=3000 \
+  --env AUTH_DOMAIN=https://auth.example.com \
+  --env SESSION_DOMAIN=example.com \
+  --env SESSION_COOKIE_SECURE=true \
+  --env SESSION_SECRET \
+  --env DATABASE_URL \
+  --env GOOGLE_CLIENT_ID \
+  --env GOOGLE_CLIENT_SECRET \
+  --mount type=bind,src="$PWD/jwt-private.pem",dst=/run/secrets/jwt-private.pem,readonly \
+  --mount type=bind,src="$PWD/jwt-key-encryption.key",dst=/run/secrets/jwt-key-encryption.key,readonly \
+  --env JWT_PRIVATE_KEY_FILE=/run/secrets/jwt-private.pem \
+  --env JWT_KEY_ENCRYPTION_KEY_FILE=/run/secrets/jwt-key-encryption.key \
+  --env JWT_KEY_ID=auth-1 \
   ghcr.io/cloud-cli/auth:latest
 ```
 
-## RESTful API
+`SESSION_DOMAIN=example.com` shares the Auth session cookie across `auth.example.com` and sibling subdomains. Omit `SESSION_DOMAIN` when the cookie should only be sent to the Auth hostname. Do not include a scheme or port in this value.
 
-## Integration tests
+The container must be reachable only through HTTPS in production. Configure your reverse proxy to forward the original host and protocol and to route the Google callback path unchanged. The app applies database migrations during startup; ensure the database adapter and schema permissions allow that.
 
-Install Playwright browsers once with `pnpm exec playwright install chromium`. Run `pnpm test:integration` with the application environment configured; the tests start `pnpm start` automatically. To test an already-running deployment, set `INTEGRATION_BASE_URL` instead.
+#### Configure JWT signing (optional)
 
-The OpenAPI 3.1 document is served at `GET /api`. All non-standard API endpoints use the `/api/v1/` prefix; standard OIDC protocol and discovery endpoints remain at their standard paths. UI pages and UI-only assets are omitted from OpenAPI, while the browser and Node integration modules remain documented.
+The private-key mount above enables signed OIDC tokens and browser-issued access tokens. The encryption-key mount enables the dashboard to persist and rotate signing keys. `JWT_KEY_ID` is optional and defaults to `auth-1`; `JWT_TTL_SECONDS` defaults to 300 seconds and accepts values from 60 to 900.
 
-`POST /api/v1/session/token` exchanges an authenticated browser session for a short-lived RS256 JWT. Its JSON body must include an audience configured in `JWT_AUDIENCES`; browser callers must originate from `AUTH_ALLOWED_ORIGINS`. Public signing keys are available at `GET /.well-known/jwks.json`.
+For browser-issued tokens, also set `JWT_AUDIENCES` to the exact audience identifiers your resource APIs accept, and set `AUTH_ALLOWED_ORIGINS` to the browser application origins that may request them. OIDC clients managed through `/oidc` use their client IDs as token audiences and do not need to be listed in `JWT_AUDIENCES`.
 
-### Browser session module
+#### Verify the deployment
 
-`/oidc.mjs` is a dependency-free ES module for browser apps. Configure the exact relying-party origins in `AUTH_ALLOWED_ORIGINS` to allow credentialed CORS requests, then load the module from the Auth provider:
+- `GET https://auth.example.com/` should show the Auth landing page.
+- `GET https://auth.example.com/.well-known/openid-configuration` should return OIDC metadata whose `issuer` is exactly `AUTH_DOMAIN` without a trailing slash.
+- `GET https://auth.example.com/api` should return the API specification.
+- Sign in, then visit `/me`; it should show the authenticated profile.
+
+The first administrator account must be provisioned through your trusted deployment/database bootstrap process. Ordinary Google sign-ins create regular users; the service does not promote the first user automatically. A typical bootstrap is: sign in as the intended administrator, read that account's `user_id` from its authenticated profile, then use your database administrator tooling to run `UPDATE auth_user SET role = 'admin' WHERE user_id = ?` with that exact ID. Do not expose a public endpoint for this promotion.
+
+### Integrate a browser app with `/index.mjs`
+
+Use this module when a full-page navigation to Auth is acceptable. Auth serves the module from your Auth origin and the module uses the current Auth provider URL automatically.
+
+```html
+<script type="module">
+  import * as auth from 'https://auth.example.com/index.mjs';
+
+  document.querySelector('#sign-in').addEventListener('click', () => auth.signIn(false));
+  document.querySelector('#sign-out').addEventListener('click', () => auth.signOut());
+
+  auth.events.addEventListener('state', ({ detail: profile }) => {
+    document.querySelector('#user').textContent = profile?.displayName ?? 'Signed out';
+  });
+
+  const profile = await auth.getProfile();
+  console.log(profile);
+</script>
+```
+
+`signIn(false)` navigates the current page to Auth and returns to the app after sign-in. `signIn(true)` opens a popup instead. For popup completion, Auth must be able to communicate with the opener; configure the exact relying-party origin in `EMBED_ALLOWED_ORIGINS`.
+
+The module exports `signIn`, `signOut`, `getProfile`, `isAuthenticated`, `getAccessToken`, `authFetch`, property helpers (`getProperties`, `getProperty`, `setProperty`, `deleteProperty`), namespace variants, and an `events` event target. `getAccessToken(audience)` obtains and caches a short-lived JWT in memory. Use `authFetch(url, init, { audience })` to attach it to a resource request.
+
+For cross-origin credentialed requests, configure the app origin in `AUTH_ALLOWED_ORIGINS`. For the module's embedded compatibility channel, configure it in `EMBED_ALLOWED_ORIGINS` as well. These are comma-separated origins, not paths. Do not forward Auth cookies to unrelated domains; use OIDC there.
+
+### Integrate a single-page app with `/oidc.mjs`
+
+Use this framework-independent module when the SPA must remain on its current page during sign-in. Your relying party (RP) still owns the OIDC login and callback routes: the popup navigates through those routes, while the SPA stays open.
 
 ```js
-import { createOidcClient } from 'https://auth.example/oidc.mjs';
+import { createOidcClient } from 'https://auth.example.com/oidc.mjs';
 
 const auth = createOidcClient({
-  issuer: 'https://auth.example',
-  allowedOrigins: ['https://editor.example'],
+  issuer: 'https://auth.example.com',
+  allowedOrigins: ['https://editor.example.com'],
   heartbeatInterval: 60_000,
-  // This checks the editor's own session, not the Auth-provider session.
+  // Check the editor's own session separately from the Auth session.
   rpSessionCheck: '/api/session',
 });
+
 auth.addEventListener('statechange', ({ detail }) => {
-  // detail includes status, authenticated, relyingPartySession, and reason.
-  // Preserve unsaved work; let the user choose when to reauthenticate.
+  // detail: status, authenticated, relyingPartySession, reason.
+  // Preserve unsaved work and let the user choose whether to reauthenticate.
+  renderAuthState(detail);
 });
-auth.addEventListener('error', ({ detail }) => console.error(detail.operation, detail.error));
+auth.addEventListener('error', ({ detail }) => {
+  console.error(detail.operation, detail.error);
+});
 auth.start();
 
-// Call directly from a user gesture. /auth/login and /auth/callback remain RP-owned.
-button.addEventListener('click', () => {
+document.querySelector('#sign-in').addEventListener('click', () => {
   void auth.signInWithPopup({
-    loginUrl: 'https://editor.example/auth/login?popup=1',
-    completionUrl: 'https://editor.example/auth/callback',
+    loginUrl: 'https://editor.example.com/auth/login?popup=1',
+    completionUrl: 'https://editor.example.com/auth/callback',
   });
 });
 ```
 
-`getState()` reports Auth-provider status separately from `relyingPartySession`; `isAuthenticated()` only describes the Auth session. Configure `rpSessionCheck` when using popup sign-in; popup completion is not accepted without confirming the app's own session. `getAccessToken(audience)` returns an in-memory-cached short-lived token and never starts login. Stop monitoring with `stop()`.
+The login URL and completion URL must use HTTPS (except localhost during development) and their origins must appear in `allowedOrigins`. Call `signInWithPopup` directly from a user gesture so browsers do not block the popup. Configure `AUTH_ALLOWED_ORIGINS` on Auth for the SPA's exact origin.
 
-After the normal OIDC callback has established/renewed the app's own session, the RP callback should notify the opener and close the popup. The expected message is `{ type: 'oidc:login-complete', nonce, status: 'complete' }`; the RP must use the nonce supplied as `oidc_popup_nonce` (or its configured parameter), target the exact opener origin, and send no tokens. A failure may use the same message type/nonce with a non-`complete` status. The module accepts messages only from that popup and the configured completion origin, then confirms both the RP session and Auth session before resolving. The RP's callback should implement this contract only for a popup-initiated flow.
+After the normal OIDC callback establishes the RP's own session, the callback page must notify the opener and close the popup. Send `{ type: 'oidc:login-complete', nonce, status: 'complete' }` to the exact opener origin. Use the `oidc_popup_nonce` query parameter supplied to the login URL; do not send tokens in the message. For failure, send the same type and nonce with a non-`complete` status. The RP should implement this message only for a popup-initiated flow.
 
-OIDC clients can discover provider metadata at `/.well-known/openid-configuration`.
+The client accepts a completion message only from the popup and configured completion origin. `rpSessionCheck` is required for popup sign-in: the client confirms both the Auth session and RP session before resolving. Without it, popup completion cannot be confirmed and sign-in rejects. The check can be a same-origin URL, a function returning a boolean or `Response`, or an async function. `getState()` and `isAuthenticated()` describe the Auth session; `relyingPartySession` is separate. `getAccessToken(audience)` returns an in-memory-cached token and never starts login. Call `stop()` to stop heartbeats and clear cached tokens.
 
-OIDC `POST /token` also requires JWT signing configuration. Generate an RSA key once and store it as a deployment secret:
+The client checks the Auth session at startup, on focus/visibility/online changes, and at `heartbeatInterval` (minimum 5 seconds; default 60 seconds). It also accepts `hiddenInterval` for a slower hidden-tab heartbeat and a popup `timeout` (default 5 minutes). `signInWithPopup` supports `nonceParam` and `messageType` overrides; the defaults are `oidc_popup_nonce` and `oidc:login-complete`.
 
-```bash
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
-  | awk '{ printf "%s\\n", $0 }' | tr -d '\n'
-```
+### Integrate a Node.js service with `/node.mjs`
 
-Set the resulting PEM value as `JWT_PRIVATE_KEY` (literal `\n` sequences are accepted). `AUTH_DOMAIN` must match the issuer URL used by clients. `JWT_KEY_ID` is optional and defaults to `auth-1`; `JWT_TTL_SECONDS` defaults to 300. `JWT_AUDIENCES` is only required for browser-issued `/api/v1/session/token` audiences, not for database-managed OIDC clients.
+Use `/node.mjs` from a backend or a Node.js HTTP server. It has no npm dependency on Auth: the example below fetches the published module and imports it from a `data:` URL.
 
-OIDC clients are managed at `/oidc`. Authorization uses the authorization-code flow with PKCE S256. For compatibility with existing clients, an omitted or blank `scope` defaults to `openid`; when provided, only `openid`, `profile`, and `email` are accepted. The provider returns requested profile/email claims only when those scopes are requested. The ID Token's `sub` and UserInfo's `sub` are the same stable account ID; `preferred_username` is an optional, user-chosen claim. Confidential clients authenticate at the token endpoint with form-encoded credentials; public clients use no client authentication and rely on PKCE. The app's separately configured custom scopes apply to downstream API tokens.
+Register a confidential OIDC client in `/oidc` for a server-side application. Its callback URI must exactly match the URI registered with Auth. Keep its client secret on the server.
 
-The discovery document also advertises RP-Initiated Logout at `/logout`. Register post-logout return URLs for each app in the OIDC client settings. To sign out and return to an app, send `client_id`, the current `id_token_hint`, the exact registered `post_logout_redirect_uri`, and an unpredictable `state`; Auth validates the ID Token and redirect before ending its browser session. Client registration remains administrator-controlled; public Dynamic Client Registration is intentionally not enabled.
+#### Complete minimal HTTP server example
 
-New OIDC clients can be managed at `/oidc` by users with the persisted `admin` role. Choose a confidential client for server-side applications (its secret is generated by the server and shown only once) or a public/native client for mobile and desktop applications (no client secret). Public clients may register a custom application callback scheme; callback URIs are still matched exactly and PKCE is mandatory. Native apps should use the system browser / Android Custom Tabs, not an embedded web view, and use an established OIDC library such as AppAuth for Android. Register the exact callback URI in both the app and the provider, send a cryptographically random `state` and `nonce`, and validate both on return.
-
-OIDC clients define allowed API scopes when registered. Authenticated users can create opaque, scoped API tokens for an app from the dashboard. Tokens are shown only once, stored hashed, expire after one year, and can be revoked.
-
-Backend integrations can mint downstream API tokens without a browser session or OIDC sign-in. An administrator first creates a fixed-purpose Auth API token for the registered client in **Keys & tokens**. Then call `POST /api/v1/api-tokens/{clientId}/issue` with that token as a Bearer credential and JSON `{ "label": "storage limits", "scopes": ["scope:name"] }`. This credential has one fixed permission: minting tokens for its own client; it does not use the client's downstream API scopes. The issuance request's scopes must be configured for that client. The resulting downstream opaque token has the client ID as its subject and can be introspected using the registered OIDC client credentials. Store the Auth API token securely and revoke it from the dashboard if compromised. Registered OAuth clients can revoke downstream opaque API tokens with `POST /api/v1/revoke`, using HTTP Basic client credentials and a form-encoded `token`; the endpoint follows RFC 7009 and returns success for unknown tokens.
-
-Administrators can manage these fixed-permission client-subject tokens in **Keys & tokens** on the dashboard (`/auth-api-tokens`); signing keys appear above Auth API tokens. They can also be managed through the admin-only `GET`, `POST`, and `DELETE /api/v1/auth-api-tokens/{clientId}[/{tokenId}]` endpoints. This is separate from **API tokens**, which remain user-subject tokens created for an OIDC application's downstream API. Auth API tokens cannot manage users, passkeys, OIDC applications, or other account features.
-
-Resource APIs validate these tokens through `POST /oauth/introspect` using the app's OIDC client credentials. The response follows OAuth 2.0 Token Introspection and includes `active`, `client_id`, `sub`, `scope`, `iat`, and `exp`. Responses advertise a 30-second private cache; resource APIs must not trust client-supplied validity headers.
-
-Authenticated activity is available at `/api/v1/audit` and records authentication results plus OIDC authorization/token exchanges. It stores no tokens, cookies, authorization codes, or client secrets.
-
-Authorization codes are held in this server's memory for one minute. Run a single auth-server instance or use session affinity until the backing store supports atomic one-time code consumption.
-
-### Passkeys and security keys
-
-Each account can have multiple WebAuthn credentials. Sign in with Google first, then use **Add passkey** on `/me` to register an Android fingerprint passkey, Mac Touch ID passkey, synced passkey, or external security key. The server stores each credential's public key, counter, device label, and revocation state; it never receives fingerprint data.
-
-Passkey login is available at `/webauthn/login`. Discoverable passkeys can be used without entering an account identifier. Legacy non-discoverable U2F devices, including compatible Flipper Zero firmware, can be used by entering the account email first. The browser's standard WebAuthn cross-device flow can show a QR code so a phone can approve a login on another device.
-
-Keep at least one recovery method, such as Google sign-in, offline recovery codes, or a separately stored security key. WebAuthn challenges are currently held in memory for two minutes, so use one auth-server instance or session affinity until challenge storage is made shared and atomic.
-
-The `/me` page can generate ten one-time recovery codes. They are stored hashed and shown only once; generating a new set invalidates the previous set. Store them offline and do not put them in source control.
-
-The login page also offers **Approve on phone with QR**. The laptop creates a five-minute, single-use transaction and polls for approval. Open `/pwa/` on the phone, tap **Install Auth QR app** when the browser offers it, then tap **Scan QR code**, scan the laptop's code, and approve the displayed login. The PWA does not use push notifications and does not copy the phone's session cookie; the laptop receives its own session.
-
-QR login transactions are currently held in memory, so use one auth-server instance or session affinity. Before running multiple replicas, move transactions to a shared store with atomic single-use consumption.
-
-## Frontend
-
-The API server contains no HTML. Pages are static Li3 apps under `assets/ui/` and are served through `/login`, `/me`, `/webauthn/login`, `/recovery`, `/qr-login`, and `/pwa/`. The frontend uses the existing browser client at `/index.mjs`; UI-only static modules and assets are served under `/ui/`.
-
-`GET /node.mjs` provides `createAuthClient({ clientId })` for Node.js services. It creates PKCE authorization requests, exchanges callbacks, verifies JWTs locally through the JWKS endpoint, obtains the user's public profile, and introspects opaque tokens. Provide `authApiToken` to enable `auth.mintApiToken({ label, scopes })`; this sends the fixed-purpose Auth API credential to mint a downstream token for the configured client. The requested downstream scopes must already be configured for that client. Keep `authApiToken` in a server-side secret store; it is distinct from `clientSecret`, which is used for OIDC and token introspection.
-
-```js
-const auth = createAuthClient({ clientId: 'storage', authApiToken: process.env.AUTH_API_TOKEN });
-const token = await auth.mintApiToken({ label: 'storage limits', scopes: ['limits:write'] });
-```
-
-Node resource APIs can call `auth.introspectToken(token)` with `clientId` and `clientSecret` to validate scoped opaque tokens through the auth server.
-
-`GET /index.mjs` is the consumer browser client: sign-in state, profile, user properties, and temporary API tokens. WebAuthn credential management is intentionally isolated in `GET /ui/dashboard.mjs` for the Auth dashboard UI.
-
-For sibling domains that receive the shared auth cookie, it also provides `getProfile(request)`, `isSessionAuthenticated(request)`, and `requireSession(request, response)`. These forward only the configured session cookie to the auth API. `getUserInfo(token)` retrieves the OIDC UserInfo document for an access token. The old `getSessionProfile(request)` name remains an alias for `getProfile`. Session helpers do not work across unrelated domains; use the OIDC authorization-code flow there.
-
-The Node client also provides `getProperty(request, key)`, `setProperty(request, key, value)`, and `deleteProperty(request, key)` (also available as `removeProperty`). These forward the shared session cookie to the corresponding `/api/v1/properties` endpoints and return `null` from `getProperty` if no session/property is available.
-
-### Node.js HTTP server
-
-This minimal server works on an unrelated domain such as `todo.example.com`. It imports the hosted module without an npm dependency, redirects users through OIDC, and creates its own host-only session cookie. Set `TODO_CLIENT_SECRET` to the secret generated for the `todo` client in `/oidc`.
+This standalone example shows the complete redirect/callback/session flow using only Node.js built-ins and `/node.mjs`. The `Map` stores are for a single-process demonstration only; replace them with a persistent, expiring store in production.
 
 ```js
 import { createServer } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
-const authSource = await (await fetch('https://auth.example.com/node.mjs')).text();
-const { createAuthClient } = await import(`data:text/javascript,${encodeURIComponent(authSource)}`);
+const issuer = 'https://auth.example.com';
+const appOrigin = 'https://inventory.example.com';
+const redirectUri = `${appOrigin}/auth/callback`;
+const source = await (await fetch(`${issuer}/node.mjs`)).text();
+const { createAuthClient } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
+const auth = createAuthClient({
+  issuer,
+  clientId: 'inventory',
+  clientSecret: process.env.AUTH_CLIENT_SECRET,
+});
 
-const redirectUri = 'https://todo.example.com/auth/callback';
-const auth = createAuthClient({ clientId: 'todo' });
-const sessions = new Map(); // Use a persistent session store in production.
+const loginTransactions = new Map(); // Use a shared store with a short TTL in production.
+const appSessions = new Map(); // Use a persistent session store in production.
 
-function setCookie(response, name, value, maxAge) {
-  response.setHeader(
-    'Set-Cookie',
-    `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`,
-  );
-}
-
-function redirect(response, url) {
-  response.writeHead(302, { Location: url }).end();
+function setCookie(name, value, maxAge) {
+  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
 function sameValue(left, right) {
@@ -193,23 +216,29 @@ function sameValue(left, right) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function redirect(response, location) {
+  response.writeHead(302, { Location: location }).end();
+}
+
 createServer(async (request, response) => {
-  const url = new URL(request.url, `https://${request.headers.host}`);
+  const url = new URL(request.url, appOrigin);
   const cookies = auth.getCookies(request);
 
   if (url.pathname === '/login') {
     const loginId = randomBytes(32).toString('base64url');
-    const authorization = auth.createAuthorizationRequest({ redirectUri });
-    sessions.set(loginId, authorization);
-    setCookie(response, 'todo.login', loginId, 600);
-    return redirect(response, authorization.url);
+    const login = auth.createAuthorizationRequest({ redirectUri });
+    loginTransactions.set(loginId, { ...login, expiresAt: Date.now() + 5 * 60_000 });
+    response.setHeader('Set-Cookie', setCookie('inventory.login', loginId, 300));
+    return redirect(response, login.url);
   }
 
   if (url.pathname === '/auth/callback') {
-    const login = sessions.get(cookies['todo.login']);
-    sessions.delete(cookies['todo.login']);
-    if (!login || !sameValue(url.searchParams.get('state'), login.state)) {
-      response.writeHead(400).end('Invalid login state');
+    const loginId = cookies['inventory.login'];
+    const login = loginTransactions.get(loginId);
+    loginTransactions.delete(loginId);
+    const clearLoginCookie = 'inventory.login=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
+    if (!login || login.expiresAt < Date.now() || !sameValue(url.searchParams.get('state'), login.state)) {
+      response.writeHead(400, { 'Set-Cookie': clearLoginCookie }).end('Invalid or expired login state');
       return;
     }
 
@@ -218,43 +247,23 @@ createServer(async (request, response) => {
         code: url.searchParams.get('code') || '',
         codeVerifier: login.codeVerifier,
         redirectUri,
-        clientSecret: process.env.TODO_CLIENT_SECRET || '',
+        clientSecret: process.env.AUTH_CLIENT_SECRET,
       });
-      await auth.verifyToken(tokens.id_token);
+      const claims = await auth.verifyToken(tokens.id_token);
+      if (!sameValue(claims.nonce, login.nonce)) throw new Error('Invalid OIDC nonce');
       const user = await auth.getUserInfo(tokens.access_token);
       const sessionId = randomBytes(32).toString('base64url');
-      sessions.set(sessionId, user);
-      setCookie(response, 'todo.sid', sessionId, 60 * 60 * 24 * 7);
+      appSessions.set(sessionId, user);
+      response.setHeader('Set-Cookie', [clearLoginCookie, setCookie('inventory.sid', sessionId, 7 * 86400)]);
       return redirect(response, '/');
     } catch {
-      response.writeHead(401).end('Sign-in failed');
+      response.writeHead(401, { 'Set-Cookie': clearLoginCookie }).end('Sign-in failed');
       return;
     }
-  }
-
-  if (url.pathname === '/shared-only') {
-    // For *.example.com only: validates the central connect.sid session cookie.
-    const user = await auth.requireSession(request, response);
-    if (!user) return;
-    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(user));
-    return;
-  }
-
-  if (url.pathname === '/central-session') {
-    // These three helpers are alternatives to requireSession when custom handling is needed.
-    const centralCookie = auth.getSessionCookie(request);
-    const authenticated = centralCookie && (await auth.isSessionAuthenticated(request));
-    const user = authenticated ? await auth.getProfile(request) : null;
-    if (!user) {
-      response.writeHead(401).end('Authentication required');
-      return;
-    }
-    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(user));
-    return;
   }
 
   if (url.pathname === '/') {
-    const user = sessions.get(cookies['todo.sid']);
+    const user = appSessions.get(cookies['inventory.sid']);
     if (!user) return redirect(response, '/login');
     response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' }).end(`Hello, ${user.name}`);
     return;
@@ -264,54 +273,260 @@ createServer(async (request, response) => {
 }).listen(3000);
 ```
 
-`auth.getSessionCookie(request)` returns the central `connect.sid` cookie value that `getProfile`, the property helpers, `isSessionAuthenticated`, and `requireSession` forward to the auth API. These helpers are only useful when the incoming request already contains the shared auth cookie. The example's `todo.sid` is an application-owned session cookie and cannot be forwarded to the auth API.
+Persist login transactions and relying-party sessions in production; do not use in-memory maps across restarts or replicas. The callback binds `state` to the browser with a short-lived HTTP-only cookie and validates both `state` and the ID Token `nonce`. Keep the OIDC client secret in a server-side secret manager.
 
-_GET /api/v1/profile_:
+The module also exports `getProfile` (`getSessionProfile` is an alias), `getProperty`, `setProperty`, `deleteProperty` (`removeProperty` is an alias), `isSessionAuthenticated`, and `requireSession`. These helpers forward the Auth `connect.sid` cookie from the incoming request and are intended only for sibling subdomains that share `SESSION_DOMAIN`. They cannot authenticate a request from an unrelated domain. `getUserInfo(token)` fetches the OIDC UserInfo document, `introspectToken(token)` validates an opaque API token, `mintApiToken(...)` issues a downstream token with a fixed-purpose Auth API token, and `revokeApiToken(token)` uses the registered OIDC client credentials.
 
-Returns a JSON with `{ id, displayName, photo, properties }`
+See [Share a session across sibling subdomains](#share-a-session-across-sibling-subdomains), [Store user properties](#store-user-properties), and [Issue and validate API tokens](#issue-and-validate-api-tokens) for these workflows.
 
-_DELETE /api/v1/profile_:
+## How-to guides
 
-Deletes the current session
+### Register an OIDC client
 
-_HEAD /api/v1/profile_:
+1. Sign in with an administrator account and open `/me#oidc` (or `/oidc`).
+2. Choose a **confidential client** for a server-side app. Auth generates a secret and shows it once. Choose a **public client** for a native/mobile app; public clients have no secret and must use PKCE.
+3. Register every callback URI exactly as the app will send it. Web redirects must use HTTPS, except loopback development URLs. Public native clients may use a reverse-domain private-use callback scheme.
+4. Add the app's allowed downstream API scopes. These are separate from OIDC `openid`, `profile`, and `email` scopes.
+5. If the app uses RP-initiated logout, register its exact post-logout redirect URI too.
 
-Returns 204 if authenticated, 401 if not
+Authorization uses the authorization-code flow with PKCE S256. The `state` and `nonce` values must be unpredictable and validated by the client. For compatibility, an omitted or blank OIDC `scope` defaults to `openid`; otherwise only `openid`, `profile`, and `email` are accepted. Profile and email claims are returned only when their scopes are requested. The ID Token and UserInfo `sub` values are the same stable account ID; `preferred_username` is optional and user-chosen.
 
-_GET /login?url=xxx_:
+Public dynamic client registration is not enabled. Client creation and management require an administrator. Confidential client secrets are stored hashed and cannot be retrieved after creation; regenerate a secret if it is lost.
 
-Browser login page. Optionally, redirects after login
+For native applications, use the system browser or Android Custom Tabs—not an embedded web view—and a maintained OIDC library such as AppAuth for Android. Register the exact callback scheme in both the app and Auth. Use a cryptographically random `state` and `nonce` and validate both on return.
 
-_GET /_:
+### Configure OIDC logout
 
-Auth landing page
+Auth advertises RP-initiated logout at `/logout`. Redirect to it with `client_id`, the current `id_token_hint`, the exact registered `post_logout_redirect_uri`, and an unpredictable `state`. Auth validates the token and redirect before ending its browser session and returning the browser to the RP. The RP should validate the returned `state`.
 
-_GET /me_:
+### Issue and validate API tokens
 
-Profile page of currently logged in user
+Auth supports two different opaque token types. Do not confuse them:
 
-_PUT /api/v1/properties_:
+- **API tokens** are user-subject tokens issued for an OIDC application's configured downstream scopes. An authenticated user can create/revoke them from `/me#oidc`. Tokens are shown once, stored hashed, expire after one year, and can be revoked.
+- **Auth API tokens** are fixed-purpose, client-subject credentials for backend automation. An administrator creates them under **Keys & tokens** (`/me#auth-api-tokens`). They carry only the `auth:tokens:write` permission and can mint downstream API tokens for their own registered client; they cannot administer users, passkeys, or OIDC clients.
 
-Add a property to current user.
-Request body is a JSON with `{ key, value }`
+To mint a downstream token from a backend, create an Auth API token for the registered client and call:
 
-_DELETE /api/v1/properties/:key_:
+```http
+POST /api/v1/api-tokens/{clientId}/issue
+Authorization: Bearer <auth-api-token>
+Content-Type: application/json
 
-Delete user property
-
-_GET /api/v1/properties_:
-
-Get all user properties
-
-## Javascript API
-
-Consider this app is running at `https://auth.foo.com`:
-
-```js
-import { getProfile, getProperties, getProperty, setProperty, deleteProperty } from 'https://auth.foo.com/index.mjs';
-
-await setProperty('foo', 'yes');
-const foo = await getProperty('foo'); // yes
-await deleteProperty('foo');
-console.log(await getProperties(), await getProfile());
+{"label":"storage limits","scopes":["storage:limits"]}
 ```
+
+The requested scopes must be configured for that client. Store the Auth API token in a server-side secret manager and revoke it from the dashboard if compromised. The Node module's `mintApiToken({ label, scopes })` performs this operation when `authApiToken` is provided to `createAuthClient`.
+
+Resource APIs validate downstream opaque tokens with `POST /oauth/introspect`, using the registered OIDC client's HTTP Basic credentials. Active responses follow OAuth 2.0 Token Introspection and include `active`, `client_id`, `sub`, `scope`, `iat`, and `exp`; responses are marked `Cache-Control: no-store` and include `X-Token-Expires-At` metadata.
+
+Registered OAuth clients may revoke opaque tokens with `POST /api/v1/revoke`, HTTP Basic client credentials, and a form-encoded `token`. The endpoint follows RFC 7009 and returns success for unknown tokens.
+
+#### Configure downstream scopes
+
+Add only the downstream API scopes a client needs in its OIDC client settings. Scope names are application-defined. A user's API token can contain only scopes configured for that client; adding or removing a client scope does not turn an Auth API token into a general-purpose credential.
+
+#### Rotate JWT signing keys
+
+Administrators can rotate signing keys from **Keys & tokens** on the dashboard. Rotation requires `JWT_KEY_ENCRYPTION_KEY_FILE` to point to a file containing a valid 32-byte key encoded as 64 hexadecimal characters. Auth retains retiring public keys long enough to validate tokens signed with them. The current key set is published at `/.well-known/jwks.json` and managed keys are listed at `GET /api/v1/keys`.
+
+### Request a browser access token
+
+`POST /api/v1/session/token` exchanges the user's Auth browser session for a short-lived RS256 JWT. The JSON body must include an audience listed in `JWT_AUDIENCES`, and browser requests must originate from an origin in `AUTH_ALLOWED_ORIGINS`. The endpoint requires JWT signing configuration. Public verification keys are served at `/.well-known/jwks.json`.
+
+The browser modules cache short-lived access tokens in memory. Resource APIs should validate them against Auth's JWKS and check issuer, audience, expiry, and signature. OIDC access tokens use the OIDC client ID as their audience and do not require that ID in `JWT_AUDIENCES`.
+
+### Share a session across sibling subdomains
+
+Set `SESSION_DOMAIN` to a parent domain such as `example.com` when Auth and a relying party run on sibling subdomains. The browser will send the Auth `connect.sid` cookie to both hosts. Set `AUTH_ALLOWED_ORIGINS` to relying-party origins that make credentialed browser calls to Auth.
+
+Do not forward the Auth cookie to an unrelated domain. For unrelated sites, use OIDC authorization-code flow and let the RP create its own session. Cookie helpers in `/node.mjs` only work when the incoming request already contains the shared Auth cookie.
+
+### Store user properties
+
+Use the dashboard or `/index.mjs` helpers to get, set, and delete per-user properties. The Node module exposes `getProperty(request, key)`, `setProperty(request, key, value)`, and `deleteProperty(request, key)` (also `removeProperty`). They forward the shared Auth session cookie to `/api/v1/properties`; `getProperty` returns `null` when there is no session or property.
+
+### Set up passkeys and recovery
+
+Users first sign in with Google or another available method, then register one or more passkeys/security keys from `/me` → **Passkeys**. Auth stores the credential public key, counter, device label, and revocation state; it never receives fingerprint data. Discoverable passkeys can sign in without an account identifier. Legacy non-discoverable U2F devices can sign in after entering the account email.
+
+Users can remove a lost or retired credential from the same dashboard. To sign in with a recovery code, open `/recovery`, enter the account email and one unused code, and submit; the code is consumed on success.
+
+Users can generate ten one-time recovery codes from `/me`. Codes are stored hashed, shown only once, and replaced (invalidating the old set) when regenerated. Keep at least one recovery method available, such as a separate security key, Google sign-in, or offline recovery codes. Store recovery codes offline, not in source control.
+
+### Use QR phone approval
+
+The login page offers **Approve on phone with QR**. The computer creates a short-lived, single-use login transaction and polls for approval. On the phone, open `/pwa/`, tap **Install Auth QR app** if offered, choose **Scan QR code**, scan the computer's code, and approve the displayed login. The phone does not copy its session cookie to the computer; the computer receives its own session. QR login does not use push notifications.
+
+### Manage users and audit activity
+
+Administrators can open **Users** from the dashboard to inspect accounts, set a preferred username, disable/enable accounts, block/unblock a sign-in identity, or delete an account. Auth prevents an administrator from disabling or deleting the final administrator. A disabled or blocked account's sessions are removed.
+
+The authenticated audit view at `/me#activity` and `GET /api/v1/audit` records authentication outcomes and OIDC authorization/token-exchange events. It does not store bearer tokens, cookies, authorization codes, or client secrets. Audit records can be filtered by app and event.
+
+Users may set a preferred username once. It is normalized to lowercase and must contain 1–30 letters, numbers, underscores, or hyphens; leading/trailing separators are not allowed. Administrators can update this value in the Users section.
+
+### Run tests
+
+Install dependencies and build:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm build
+pnpm test:unit
+pnpm lint
+```
+
+Integration tests use Playwright:
+
+```sh
+pnpm exec playwright install chromium
+pnpm test:integration
+```
+
+Without `INTEGRATION_BASE_URL`, Playwright starts `pnpm start` on `http://127.0.0.1:3000`; configure the required database and application environment first. To test a running deployment, set `INTEGRATION_BASE_URL`. Tests that exercise test-key login require `AUTH_TEST_SECRET` or `AUTH_TEST_KEYS` in the test process.
+
+## Concepts and operational guidance
+
+### Authentication methods
+
+Google OAuth, passkeys/security keys, recovery codes, and QR phone approval establish an Auth browser session. The OIDC provider then lets registered relying parties create their own sessions. An Auth session and an RP's application session are distinct: successful sign-in to one does not implicitly create the other.
+
+### Sessions, cookies, and browser security
+
+The server session is stored through the configured database adapter. `SESSION_SECRET` signs the session cookie. Use a stable secret across restarts and replicas; rotating it invalidates existing browser sessions. The default cookie name is `connect.sid`, path `/`, HTTP-only. `SESSION_DOMAIN` makes it available to sibling subdomains.
+
+`AUTH_DOMAIN` must be the public HTTPS origin used by clients. HTTPS is required in production for WebAuthn, camera access, secure cookies, and the installable PWA. Configure a trusted reverse proxy and preserve the original host and protocol headers.
+
+### Scaling and one-time state
+
+Sessions, users, QR transactions, OIDC clients, tokens, and audit events use the database adapter. WebAuthn challenges and OIDC authorization codes are currently held in process memory; codes expire after one minute and WebAuthn challenges after two minutes. Use one Auth instance or session affinity for these flows until challenge/code storage supports shared, atomic one-time consumption.
+
+### Built-in pages
+
+Auth serves its own static UI pages and assets. Main routes include `/` (landing page), `/login`, `/me` (authenticated profile/dashboard), `/webauthn/login`, `/recovery`, `/qr-login`, and `/pwa/`. The PWA's service worker is `/ui/sw.js`; browser-only UI assets are under `/ui/`.
+
+## Reference
+
+### Environment variables
+
+| Variable                      | Purpose                                                                                                                                         | Required / default                                      |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `PORT`                        | HTTP port inside the container.                                                                                                                 | Required                                                |
+| `DATABASE_URL`                | URL or importable module specifier for the database adapter. HTTP(S) URLs are fetched and imported as an ES module.                             | Required                                                |
+| `AUTH_DOMAIN`                 | Public Auth origin, for example `https://auth.example.com` (no path). Used as OIDC issuer and WebAuthn origin.                                  | Required in production                                  |
+| `SESSION_SECRET`              | Secret used to sign Express session cookies. Keep stable and private.                                                                           | Required                                                |
+| `GOOGLE_CLIENT_ID`            | Google OAuth web client ID.                                                                                                                     | Required for Google sign-in                             |
+| `GOOGLE_CLIENT_SECRET`        | Google OAuth web client secret.                                                                                                                 | Required for Google sign-in                             |
+| `SESSION_DOMAIN`              | Parent cookie domain for sharing sessions across sibling subdomains, e.g. `example.com`.                                                        | Optional; host-only if unset                            |
+| `SESSION_COOKIE_SAMESITE`     | Explicit session-cookie `SameSite` setting: `strict`, `lax`, or `none`. Leave unset for the default behavior.                                   | Optional                                                |
+| `SESSION_COOKIE_SECURE`       | Any non-empty value enables the cookie's `Secure` flag; use `true` or leave unset (the string `false` still enables it).                        | Optional; off if unset                                  |
+| `AUTH_NAME`                   | Human-readable WebAuthn relying-party name.                                                                                                     | Optional; `Auth`                                        |
+| `AUTH_ALLOWED_ORIGINS`        | Comma-separated browser origins allowed for credentialed CORS and browser-issued JWT requests.                                                  | Optional; required for cross-origin browser APIs/tokens |
+| `EMBED_ALLOWED_ORIGINS`       | Comma-separated relying-party origins/domains allowed to use the `/index.mjs` embedded message bridge.                                          | Optional; required for that bridge                      |
+| `JWT_PRIVATE_KEY`             | PKCS#8 PEM private key used for RS256 JWT signing. Literal `\\n` sequences are converted to newlines.                                           | Optional; required for token signing                    |
+| `JWT_PRIVATE_KEY_FILE`        | Path to a PEM private key. Takes precedence over `JWT_PRIVATE_KEY`.                                                                             | Optional                                                |
+| `JWT_KEY_ENCRYPTION_KEY_FILE` | Path to a file containing a 32-byte key encoded as 64 hex characters; encrypts signing keys persisted in the database and enables key rotation. | Optional; required for managed key rotation             |
+| `JWT_AUDIENCES`               | Comma-separated audiences allowed for `/api/v1/session/token`.                                                                                  | Optional; required for browser-issued JWTs              |
+| `JWT_KEY_ID`                  | Initial/configured JWT key ID.                                                                                                                  | Optional; `auth-1`                                      |
+| `JWT_TTL_SECONDS`             | JWT lifetime in seconds; valid range 60–900.                                                                                                    | Optional; `300`                                         |
+| `QR_LOGIN_TTL_SECONDS`        | QR login transaction lifetime in seconds; valid range 60–600. Invalid values fall back to `300`.                                                | Optional; `300`                                         |
+| `AUTH_TEST_KEYS`              | Comma-separated test keys that enable the test-login bypass. Test users are administrators.                                                     | Optional; test deployments only                         |
+| `AUTH_TEST_SECRET`            | Backwards-compatible single-key alias for test login.                                                                                           | Optional; test deployments only                         |
+| `DEBUG`                       | Enables the application's debug logger.                                                                                                         | Optional                                                |
+
+Treat all secret values as credentials. Do not enable test-login variables on a production deployment.
+
+### HTTP API and OIDC reference
+
+The complete OpenAPI 3.1 document, schemas, and authentication requirements are at `GET /api`. Non-standard application APIs use `/api/v1/`; standard OIDC endpoints retain their standard paths.
+
+Useful endpoints:
+
+| Endpoint                                                              | Purpose                                             |
+| --------------------------------------------------------------------- | --------------------------------------------------- |
+| `GET /.well-known/openid-configuration`                               | OIDC provider metadata                              |
+| `GET /.well-known/jwks.json`                                          | Public signing keys                                 |
+| `GET /authorize`                                                      | OIDC authorization-code request                     |
+| `POST /token`                                                         | Exchange an authorization code for tokens           |
+| `GET /userinfo`                                                       | OIDC UserInfo for a valid access token              |
+| `GET /logout`                                                         | RP-initiated logout                                 |
+| `POST /oauth/introspect`                                              | Validate opaque API tokens using client credentials |
+| `POST /api/v1/revoke`                                                 | Revoke opaque API tokens using client credentials   |
+| `GET`, `HEAD`, `DELETE /api/v1/profile`                               | Read, check, or delete the current browser session  |
+| `GET`, `PUT`, `DELETE /api/v1/properties...`                          | Read and manage user properties                     |
+| `POST /api/v1/session/token`                                          | Exchange a browser session for a short-lived JWT    |
+| `GET /api/v1/oidc/clients` and related routes                         | Administrator client management                     |
+| `/api/v1/api-tokens/...` and `/api/v1/auth-api-tokens/...`            | Manage downstream and fixed-purpose API tokens      |
+| `/api/v1/webauthn/...`, `/api/v1/recovery...`, `/api/v1/qr-login/...` | Passkey, recovery, and QR sign-in operations        |
+| `/api/v1/admin/users...`                                              | Administrator user management                       |
+| `/api/v1/audit`                                                       | Authenticated audit history                         |
+
+### OAuth and OIDC behavior
+
+- Authorization Code flow with PKCE S256 is supported.
+- Supported OIDC scopes are `openid`, `profile`, and `email`; `openid` is the default when scope is omitted or blank.
+- Confidential clients authenticate with client credentials at `/token`; public clients have no secret and rely on PKCE.
+- Redirect URI matching is exact. Web redirects require HTTPS, except loopback development URIs. Native private-use callback schemes are allowed for public clients.
+- Access tokens are signed with RS256. The provider metadata advertises only the supported response types, scopes, and authentication methods.
+- Client credentials, API tokens, and session cookies are secrets; never expose them in browser logs, URLs, or source control.
+
+### Integration module summary
+
+| Module       | Runtime     | Sign-in model                                           | Main uses                                                                                         |
+| ------------ | ----------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `/index.mjs` | Browser     | Full-page navigation or popup compatibility flow        | Profile, session checks, properties, cached JWTs, authenticated fetch                             |
+| `/oidc.mjs`  | Browser SPA | RP-owned OIDC popup flow without replacing the SPA page | Heartbeats, separate Auth/RP session state, cached audience tokens                                |
+| `/node.mjs`  | Node.js     | Backend-managed OIDC authorization-code flow            | PKCE, token exchange/verification, UserInfo, introspection, token issuance, shared-cookie helpers |
+
+All three modules are served directly by the Auth origin and can be imported without installing an Auth-specific npm package.
+
+## Troubleshooting
+
+### The container exits or does not listen
+
+- Confirm `PORT` is set to a valid number and the container port is published/routed correctly.
+- Confirm `DATABASE_URL` is set, reachable from the container, and returns a valid ES module. Startup runs migrations and fails if the adapter cannot be loaded or used.
+- If `AUTH_DOMAIN` is missing or malformed, Google callback URL construction, issuer metadata, WebAuthn, and QR login can fail. Set the exact public origin, including `https://`, without a path or trailing slash.
+- Check startup logs for migration/schema-permission errors and database adapter failures.
+
+### Google sign-in fails or returns to the login page
+
+- Verify both Google credentials are set and belong to the same OAuth web client.
+- The authorized origin must equal `AUTH_DOMAIN`; the redirect URI must exactly equal `${AUTH_DOMAIN}/auth/google/callback`.
+- Ensure the reverse proxy forwards HTTPS and the public host to Auth and does not rewrite the callback path.
+
+### The browser keeps showing the login page after a successful sign-in
+
+- Inspect the browser's cookie storage for duplicate `connect.sid` cookies and ensure the browser sends the session cookie to the Auth hostname. Clear site data if duplicate host-only/domain cookies predate a `SESSION_DOMAIN` change.
+- `SESSION_DOMAIN` must be only a domain name and should be the common parent for Auth and the relying party. A wrong domain prevents the browser from sending the cookie.
+- Keep `SESSION_SECRET` stable across replicas and restarts. Changing it invalidates existing cookies.
+- Check that the session database is reachable and shared by the Auth instance handling sign-in and the subsequent request.
+
+### Cross-origin browser calls fail
+
+- Put the exact origin (`scheme://host[:port]`, no path) in `AUTH_ALLOWED_ORIGINS`; include all relying-party origins as comma-separated values.
+- For `/index.mjs` popup compatibility messaging, also add the relying-party origin/domain to `EMBED_ALLOWED_ORIGINS`.
+- Use `credentials: 'include'` for browser fetches that rely on the Auth session. The browser will reject credentialed CORS responses with wildcard origins.
+- For truly cross-site browser requests, cookies need `SESSION_COOKIE_SAMESITE=none` and `SESSION_COOKIE_SECURE=true`; browsers may still block third-party cookies. For unrelated domains, use OIDC and an RP-owned session instead of sharing the Auth cookie.
+
+### JWT or token requests return configuration errors
+
+- `JWT signing is not configured` means the RSA private key is absent, unreadable, malformed, or `AUTH_DOMAIN` is missing.
+- `JWT_KEY_ENCRYPTION_KEY_FILE is not configured` means key persistence/rotation was requested without a readable 32-byte hex key file. Generate it with `openssl rand -hex 32`.
+- A browser `/api/v1/session/token` request must use an audience in `JWT_AUDIENCES` and originate from an allowed `AUTH_ALLOWED_ORIGINS` origin.
+- Check `JWT_TTL_SECONDS` is an integer from 60 through 900. OIDC managed-client audiences do not use `JWT_AUDIENCES`.
+
+### Passkey, camera, or QR features do not work
+
+- Use HTTPS in production. WebAuthn and camera permissions require a secure context (localhost is allowed for development).
+- Set `AUTH_DOMAIN` to the browser-visible origin; it determines the WebAuthn RP ID and expected origin.
+- Check `QR_LOGIN_TTL_SECONDS` is between 60 and 600. Invalid values use the 300-second default.
+- WebAuthn challenges and OIDC authorization codes are process-local; a request routed to another instance may fail. Use one instance or session affinity for these flows.
+
+### OIDC callback or logout is rejected
+
+- Register the exact callback and post-logout URIs, including scheme, host, path, and port.
+- Confirm `client_id`, client type, and confidential client secret match registration. Public clients must not send a client secret.
+- Use PKCE S256 and verify the `state` and `nonce` values in the RP callback. Ensure `redirect_uri` is byte-for-byte the registered value.
+- OIDC `/token` requires JWT signing configuration. Check provider metadata at `/.well-known/openid-configuration` and compare its issuer with the configured client issuer.
