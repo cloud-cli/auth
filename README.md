@@ -139,7 +139,7 @@ For cross-origin credentialed requests, configure the app origin in `AUTH_ALLOWE
 
 ### Integrate a single-page app with `/oidc.mjs`
 
-Use this framework-independent module when the SPA must remain on its current page during sign-in. Your relying party (RP) still owns the OIDC login and callback routes: the popup navigates through those routes, while the SPA stays open.
+Use this framework-independent module when the SPA must remain on its current page during sign-in. Your relying party (RP) still owns the OIDC login and callback routes: the popup performs a normal OIDC authorization-code/PKCE roundtrip through those routes while the SPA stays open. This is not silent renewal and does not avoid an OIDC authorization request.
 
 ```js
 import { createOidcClient } from 'https://auth.example.com/oidc.mjs';
@@ -153,8 +153,12 @@ const auth = createOidcClient({
 });
 
 auth.addEventListener('statechange', ({ detail }) => {
-  // detail: status, authenticated, relyingPartySession, reason.
-  // Preserve unsaved work and let the user choose whether to reauthenticate.
+  // Auth can remain signed in after the editor's own session expires.
+  if (detail.authenticated && detail.relyingPartySession === 'unauthenticated') {
+    showReconnectButton();
+  }
+  // For "unavailable", preserve state and report a temporary check failure;
+  // do not treat a network/server error as a confirmed sign-out.
   renderAuthState(detail);
 });
 auth.addEventListener('error', ({ detail }) => {
@@ -172,11 +176,56 @@ document.querySelector('#sign-in').addEventListener('click', () => {
 
 The login URL and completion URL must use HTTPS (except localhost during development) and their origins must appear in `allowedOrigins`. Call `signInWithPopup` directly from a user gesture so browsers do not block the popup. Configure `AUTH_ALLOWED_ORIGINS` on Auth for the SPA's exact origin.
 
-After the normal OIDC callback establishes the RP's own session, the callback page must notify the opener and close the popup. Send `{ type: 'oidc:login-complete', nonce, status: 'complete' }` to the exact opener origin. Use the `oidc_popup_nonce` query parameter supplied to the login URL; do not send tokens in the message. For failure, send the same type and nonce with a non-`complete` status. The RP should implement this message only for a popup-initiated flow.
+#### RP login and callback contract
 
-The client accepts a completion message only from the popup and configured completion origin. `rpSessionCheck` is required for popup sign-in: the client confirms both the Auth session and RP session before resolving. Without it, popup completion cannot be confirmed and sign-in rejects. The check can be a same-origin URL, a function returning a boolean or `Response`, or an async function. `getState()` and `isAuthenticated()` describe the Auth session; `relyingPartySession` is separate. `getAccessToken(audience)` returns an in-memory-cached token and never starts login. Call `stop()` to stop heartbeats and clear cached tokens.
+Implement `loginUrl` and `completionUrl` as RP-owned endpoints with this contract:
+
+1. The login endpoint reads `oidc_popup_nonce` from the query when present. Save it with the RP's short-lived OIDC transaction (alongside `state` and the PKCE verifier), then perform the normal authorization-code flow. Preserve the nonce through the callback using server-side transaction state; do not trust a callback query value as proof of the login attempt.
+2. The callback validates OIDC `state` and `nonce`, exchanges the code, and establishes or renews the RP's own secure session before reporting success.
+3. For a popup-initiated flow only, render a completion page that posts `{ type: 'oidc:login-complete', nonce, status: 'complete' }` to the exact SPA origin and closes the popup. The nonce must be the value saved with the validated RP transaction. Never put tokens in this message. On failure, send the same message type and nonce with any status other than `complete`, then close the popup.
+
+For example, the RP callback page can run this after the server has completed the flow and rendered the transaction's saved nonce:
+
+```js
+const popupNonce = document.querySelector('meta[name="oidc-popup-nonce"]')?.content;
+if (window.opener && popupNonce) {
+  window.opener.postMessage(
+    { type: 'oidc:login-complete', nonce: popupNonce, status: 'complete' },
+    'https://editor.example.com',
+  );
+  window.close();
+}
+```
+
+Use a fixed, configured target origin—not `*` or an origin copied from an untrusted request. The callback should send this message only when the server-side transaction records that the flow was popup-initiated. The client accepts a completion message only from the active popup, configured completion origin, expected message type, and matching nonce.
+
+`rpSessionCheck` is required for popup sign-in: the client confirms both the Auth session and RP session before resolving. Without it, popup completion cannot be confirmed and sign-in rejects. Prefer a same-origin RP endpoint that returns 2xx when the RP session is valid and 401 when it is missing or expired. It can be a URL, a function returning a boolean or `Response`, or an async function. Other HTTP failures and network errors produce `relyingPartySession: 'unavailable'` and an `error` event; they are not proof the user signed out.
+
+The two sessions are intentionally distinct:
+
+- `getState().status` and `getState().authenticated` describe the Auth-provider session.
+- `getState().relyingPartySession` describes the app's own session (`unknown`, `authenticated`, `unauthenticated`, or `unavailable`).
+- `statechange` fires when this state changes. In particular, `authenticated === true` with `relyingPartySession === 'unauthenticated'` means Auth is still signed in but the RP must establish its own session. Show a recovery action rather than discarding unsaved work.
+
+When the RP reports a 401, offer a user-initiated recovery action. Open the popup directly from that button's click handler, then retry a replayable request once after `signInWithPopup` resolves:
+
+```js
+retryButton.addEventListener('click', async () => {
+  try {
+    await auth.signInWithPopup(popupConfig); // Opens the popup within the user gesture.
+    const response = await makeOriginalRequest(); // Recreate and retry at most once.
+    renderResult(response);
+  } catch (error) {
+    renderRecoveryError(error);
+  }
+});
+```
+
+Do not automatically loop on 401s. Retry only when the request can safely be recreated; use an idempotency key or require user confirmation for mutations. The heartbeat and `getAccessToken(audience)` only check/cache Auth state and tokens—they do not renew the RP session or silently run OIDC. `isAuthenticated()` describes only Auth. Call `stop()` to stop heartbeats and clear cached tokens.
 
 The client checks the Auth session at startup, on focus/visibility/online changes, and at `heartbeatInterval` (minimum 5 seconds; default 60 seconds). It also accepts `hiddenInterval` for a slower hidden-tab heartbeat and a popup `timeout` (default 5 minutes). `signInWithPopup` supports `nonceParam` and `messageType` overrides; the defaults are `oidc_popup_nonce` and `oidc:login-complete`.
+
+The popup is a top-level browser context for Auth, but the SPA's credentialed checks still depend on the browser sending Auth cookies to the issuer. Cross-site/third-party cookie restrictions can block those checks or the token request even after popup sign-in. Prefer Auth and the RP on sibling subdomains when possible; otherwise configure secure cross-site cookies (`SESSION_COOKIE_SAMESITE=none`, `SESSION_COOKIE_SECURE=true`) and test in the target browsers. The RP callback should establish its own session independently of whether the SPA can read the Auth cookie.
 
 ### Integrate a Node.js service with `/node.mjs`
 

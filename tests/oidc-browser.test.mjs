@@ -59,9 +59,12 @@ test('successful Auth session does not imply a valid relying-party session', asy
       return new Response(null, { status: 204 });
     },
   });
+  const states = [];
+  client.addEventListener('statechange', ({ detail }) => states.push(detail));
   await client.start();
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(client.isAuthenticated(), true);
   assert.equal(client.getState().relyingPartySession, 'unauthenticated');
+  assert.ok(states.some((state) => state.authenticated && state.relyingPartySession === 'unauthenticated'));
   client.stop();
 });
