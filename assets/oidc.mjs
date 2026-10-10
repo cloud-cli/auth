@@ -1,395 +1,237 @@
-const DEFAULT_HEARTBEAT_INTERVAL = 60_000;
-const DEFAULT_HIDDEN_INTERVAL = 5 * 60_000;
-const DEFAULT_POPUP_TIMEOUT = 5 * 60_000;
+export const POPUP_NONCE_PARAM = 'oidc_popup_nonce';
+export const POPUP_MESSAGE_TYPE = 'oidc:login-complete';
+const POPUP_TIMEOUT = 5 * 60_000;
+const POPUP_CLOSE_POLL_INTERVAL = 250;
 
-function createError(message, code, status) {
+function popupError(code, message) {
   const error = new Error(message);
-  error.name = 'OidcClientError';
+  error.name = 'OidcPopupError';
   error.code = code;
-  if (status !== undefined) {
-    error.status = status;
-  }
   return error;
 }
 
 function randomNonce() {
+  if (!globalThis.crypto?.getRandomValues) {
+    throw popupError('CRYPTO_UNAVAILABLE', 'Cryptographic randomness is unavailable.');
+  }
   const bytes = new Uint8Array(32);
   globalThis.crypto.getRandomValues(bytes);
   return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
 }
 
-function resolveRpUrl(value, nonce) {
-  const result = typeof value === 'function' ? value({ nonce }) : value;
-  if (typeof result !== 'string' && !(result instanceof URL)) {
-    throw new TypeError('A relying-party URL or URL builder is required.');
+function parseUrl(value, name, base) {
+  if (typeof value !== 'string' && !(value instanceof URL)) {
+    throw new TypeError(`${name} must be a URL or URL string.`);
   }
-  return new URL(result, globalThis.location?.href);
+  return new URL(value, base);
 }
 
-/** Create a framework-independent browser OIDC session client. */
-export function createOidcClient(options) {
-  if (!options || typeof options.issuer !== 'string') {
-    throw new TypeError('An Auth issuer URL is required.');
+function originOf(value, name) {
+  const url = parseUrl(value, name);
+  if (url.pathname !== '/' || url.search || url.hash) {
+    throw new TypeError(`${name} must be an origin without a path, query, or fragment.`);
   }
+  return url.origin;
+}
 
-  const issuer = new URL(options.issuer);
-  const allowedOrigins = new Set((options.allowedOrigins || []).map((origin) => new URL(origin).origin));
-  const heartbeatInterval = Math.max(5_000, options.heartbeatInterval ?? DEFAULT_HEARTBEAT_INTERVAL);
-  const hiddenInterval = Math.max(heartbeatInterval, options.hiddenInterval ?? DEFAULT_HIDDEN_INTERVAL);
-  const fetcher = options.fetch || globalThis.fetch.bind(globalThis);
-  const listeners = new Map();
-  const tokens = new Map();
-  let state = { status: 'unknown', authenticated: false, relyingPartySession: 'unknown', reason: 'initial' };
-  let started = false;
-  let timer;
-  let checkPromise;
-  let popupAttempt;
-  const onOnline = () => recheck('online');
-  const onFocus = () => recheck('focus');
-
-  function emit(type, detail) {
-    for (const listener of listeners.get(type) || []) {
-      listener({ type, detail, target: api });
-    }
+function assertSecureOrigin(origin) {
+  const url = new URL(origin);
+  if (url.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+    throw popupError('INSECURE_ORIGIN', 'Popup sign-in origins must use HTTPS.');
   }
+}
 
-  function setState(patch, reason) {
-    const next = { ...state, ...patch, reason };
-    if (Object.keys(next).some((key) => next[key] !== state[key])) {
-      state = next;
-      emit('statechange', { ...state });
-    }
+function allowedOriginSet(origins = []) {
+  if (!Array.isArray(origins)) {
+    throw new TypeError('allowedOrigins must be an array of exact origins.');
   }
+  return new Set(origins.map((origin) => originOf(origin, 'allowed origin')));
+}
 
-  function reportError(error, operation) {
-    emit('error', { error, operation });
+function assertAllowed(origin, allowedOrigins) {
+  assertSecureOrigin(origin);
+  if (!allowedOrigins.has(origin)) {
+    throw popupError('ORIGIN_NOT_ALLOWED', `Origin is not allowed: ${origin}`);
   }
+}
 
-  function ensureAllowedUrl(url) {
-    if (!allowedOrigins.has(url.origin)) {
-      throw createError(`Relying-party origin is not allowed: ${url.origin}`, 'ORIGIN_NOT_ALLOWED');
-    }
-    if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
-      throw createError('Relying-party URLs must use HTTPS.', 'INSECURE_URL');
-    }
+function closeWindow(target) {
+  try {
+    target?.close();
+  } catch {
+    // The browser may have already closed or detached the popup.
   }
+}
 
-  async function checkRelyingPartySession() {
-    if (!options.rpSessionCheck) {
-      return 'unknown';
+/** Open an RP-owned OIDC login flow in a popup and resolve after its RP session is confirmed. */
+export function openLoginPopup({
+  loginUrl,
+  completionOrigin,
+  allowedOrigins,
+  timeout = POPUP_TIMEOUT,
+  name = 'oidc-login',
+  features = 'popup,width=520,height=720',
+} = {}) {
+  let popup;
+  let nonce;
+  let expectedCompletionOrigin;
+  try {
+    const allowed = allowedOriginSet(allowedOrigins);
+    if (!globalThis.location?.href) {
+      throw popupError('BROWSER_UNAVAILABLE', 'Popup sign-in requires a browser window.');
     }
-    try {
-      const response =
-        typeof options.rpSessionCheck === 'function'
-          ? await options.rpSessionCheck()
-          : await fetcher(new URL(options.rpSessionCheck, globalThis.location?.href), { credentials: 'include' });
-      if (typeof response === 'boolean') {
-        return response ? 'authenticated' : 'unauthenticated';
-      }
-      if (response && typeof response.ok === 'boolean') {
-        return response.ok ? 'authenticated' : response.status === 401 ? 'unauthenticated' : 'unavailable';
-      }
-      throw new TypeError('The relying-party session check must return a boolean or Response.');
-    } catch (error) {
-      reportError(error, 'relying-party-session-check');
-      return 'unavailable';
-    }
-  }
-
-  async function checkSession(reason = 'heartbeat') {
-    if (checkPromise) {
-      return checkPromise;
-    }
-    checkPromise = (async () => {
-      try {
-        const response = await fetcher(new URL('/api/v1/profile', issuer), {
-          method: 'HEAD',
-          credentials: 'include',
-          mode: 'cors',
-          cache: 'no-store',
-        });
-        if (response.status === 401) {
-          setState({ status: 'unauthenticated', authenticated: false }, reason);
-          return false;
-        }
-        if (!response.ok) {
-          if (response.status >= 500) {
-            reportError(
-              createError(
-                `Auth session check failed with HTTP ${response.status}.`,
-                'SESSION_CHECK_FAILED',
-                response.status,
-              ),
-              'session-check',
-            );
-            setState({ status: 'unavailable' }, reason);
-            return null;
-          }
-          const error = createError(
-            `Auth session check failed with HTTP ${response.status}.`,
-            'SESSION_CHECK_FAILED',
-            response.status,
-          );
-          reportError(error, 'session-check');
-          setState({ status: 'unavailable' }, reason);
-          return null;
-        }
-        const rpStatus = await checkRelyingPartySession();
-        setState({ status: 'authenticated', authenticated: true, relyingPartySession: rpStatus }, reason);
-        return true;
-      } catch (error) {
-        reportError(error, 'session-check');
-        setState({ status: 'unavailable' }, reason);
-        return null;
-      } finally {
-        checkPromise = undefined;
-      }
-    })();
-    return checkPromise;
-  }
-
-  function schedule() {
-    clearTimeout(timer);
-    if (!started) {
-      return;
-    }
-    const delay = globalThis.document?.visibilityState === 'hidden' ? hiddenInterval : heartbeatInterval;
-    timer = setTimeout(async () => {
-      if (globalThis.document?.visibilityState !== 'hidden') {
-        await checkSession('heartbeat');
-      }
-      schedule();
-    }, delay);
-  }
-
-  function recheck(reason) {
-    if (started) {
-      void checkSession(reason).finally(schedule);
-    }
-  }
-
-  function onVisibility() {
-    if (globalThis.document?.visibilityState === 'visible') {
-      recheck('visibility');
-    } else {
-      schedule();
-    }
-  }
-
-  function onMessage(event) {
-    const attempt = popupAttempt;
-    if (!attempt || event.origin !== attempt.origin || event.source !== attempt.popup) {
-      return;
-    }
-    const data = event.data;
-    if (!data || data.type !== attempt.messageType || data.nonce !== attempt.nonce) {
-      return;
-    }
-    if (data.status !== 'complete') {
-      finishPopup(createError('Relying-party login did not complete.', 'CALLBACK_FAILED'));
-      return;
-    }
-    void (async () => {
-      await checkSession('popup-sign-in');
-      if (state.status === 'authenticated' && state.relyingPartySession === 'authenticated') {
-        finishPopup(null, { ...state });
-      } else if (state.status === 'authenticated') {
-        finishPopup(createError('The relying-party session was not confirmed.', 'RP_SESSION_NOT_CONFIRMED'));
-      } else {
-        finishPopup(createError('The Auth session was not confirmed after sign-in.', 'AUTH_SESSION_NOT_CONFIRMED'));
-      }
-    })().catch((error) => finishPopup(error));
-  }
-
-  function finishPopup(error, result) {
-    const attempt = popupAttempt;
-    if (!attempt) {
-      return;
-    }
-    popupAttempt = undefined;
-    clearInterval(attempt.closePoll);
-    clearTimeout(attempt.timeout);
-    globalThis.removeEventListener('message', onMessage);
-    if (error) {
-      reportError(error, 'popup-sign-in');
-      attempt.reject(error);
-    } else {
-      attempt.resolve(result);
-    }
-  }
-
-  function start() {
-    if (started) {
-      return api;
-    }
-    started = true;
-    globalThis.addEventListener?.('online', onOnline);
-    globalThis.addEventListener?.('focus', onFocus);
-    globalThis.addEventListener?.('message', onMessage);
-    globalThis.document?.addEventListener('visibilitychange', onVisibility);
-    void checkSession('start').finally(schedule);
-    schedule();
-    return api;
-  }
-
-  function stop() {
-    started = false;
-    clearTimeout(timer);
-    if (popupAttempt) {
-      const popup = popupAttempt.popup;
-      finishPopup(createError('Client stopped during popup sign-in.', 'CLIENT_STOPPED'));
-      try {
-        popup.close();
-      } catch {
-        // Popup may already be closed.
-      }
-    }
-    tokens.clear();
-    globalThis.removeEventListener?.('online', onOnline);
-    globalThis.removeEventListener?.('focus', onFocus);
-    globalThis.removeEventListener?.('message', onMessage);
-    globalThis.document?.removeEventListener('visibilitychange', onVisibility);
-    return api;
-  }
-
-  async function getAccessToken(audience) {
-    if (typeof audience !== 'string' || audience.length === 0) {
-      throw new TypeError('A token audience is required.');
-    }
-    const cached = tokens.get(audience);
-    if (cached?.expiresAt > Date.now() + 30_000) {
-      return cached.token;
-    }
-    if (cached?.promise) {
-      return cached.promise;
-    }
-    const entry = {};
-    entry.promise = (async () => {
-      try {
-        const response = await fetcher(new URL('/api/v1/session/token', issuer), {
-          method: 'POST',
-          credentials: 'include',
-          mode: 'cors',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ audience }),
-        });
-        if (response.status === 401) {
-          tokens.delete(audience);
-          setState({ status: 'unauthenticated', authenticated: false }, 'token-unauthorized');
-          throw createError('The Auth session has expired.', 'UNAUTHENTICATED', 401);
-        }
-        if (response.status === 403 || response.status === 400 || response.status === 503) {
-          throw createError(
-            `Token request is not configured for this client or audience (HTTP ${response.status}).`,
-            'TOKEN_CONFIGURATION_ERROR',
-            response.status,
-          );
-        }
-        if (!response.ok) {
-          throw createError(
-            `Token request failed with HTTP ${response.status}.`,
-            'TOKEN_REQUEST_FAILED',
-            response.status,
-          );
-        }
-        const result = await response.json();
-        if (typeof result.access_token !== 'string' || !Number.isFinite(result.expires_in)) {
-          throw createError('Auth returned an invalid access-token response.', 'INVALID_TOKEN_RESPONSE');
-        }
-        entry.token = result.access_token;
-        entry.expiresAt = Date.now() + result.expires_in * 1000;
-        return entry.token;
-      } catch (error) {
-        if (error.code !== 'UNAUTHENTICATED') {
-          reportError(error, 'get-access-token');
-        }
-        throw error;
-      } finally {
-        if (tokens.get(audience) === entry) {
-          if (entry.token) {
-            delete entry.promise;
-          } else {
-            tokens.delete(audience);
-          }
-        }
-      }
-    })();
-    tokens.set(audience, entry);
-    return entry.promise;
-  }
-
-  function signInWithPopup(config) {
-    if (popupAttempt) {
-      return Promise.reject(createError('A popup sign-in is already active.', 'POPUP_ALREADY_ACTIVE'));
-    }
-    if (!config || !config.loginUrl) {
-      return Promise.reject(new TypeError('A relying-party login URL or builder is required.'));
-    }
-    const nonce = randomNonce();
-    let loginUrl;
-    try {
-      loginUrl = resolveRpUrl(config.loginUrl, nonce);
-      ensureAllowedUrl(loginUrl);
-    } catch (error) {
-      return Promise.reject(error);
-    }
-    loginUrl.searchParams.set(config.nonceParam || 'oidc_popup_nonce', nonce);
-    const popup = globalThis.open(
-      loginUrl.href,
-      config.name || 'oidc-sign-in',
-      config.features || 'popup,width=520,height=720',
+    nonce = randomNonce();
+    const resolvedLoginUrl = parseUrl(
+      typeof loginUrl === 'function' ? loginUrl({ nonce }) : loginUrl,
+      'loginUrl',
+      globalThis.location.href,
     );
+    expectedCompletionOrigin = originOf(completionOrigin, 'completionOrigin');
+    assertAllowed(resolvedLoginUrl.origin, allowed);
+    assertAllowed(expectedCompletionOrigin, allowed);
+    resolvedLoginUrl.searchParams.set(POPUP_NONCE_PARAM, nonce);
+    popup = globalThis.open?.(resolvedLoginUrl.href, name, features);
     if (!popup) {
-      return Promise.reject(createError('The sign-in popup was blocked.', 'POPUP_BLOCKED'));
+      return Promise.reject(popupError('POPUP_BLOCKED', 'The sign-in popup was blocked.'));
     }
-    let completionUrl;
-    try {
-      completionUrl = resolveRpUrl(config.completionUrl, nonce);
-      ensureAllowedUrl(completionUrl);
-    } catch (error) {
-      popup.close();
-      return Promise.reject(error);
-    }
-    const timeoutMs = config.timeout ?? DEFAULT_POPUP_TIMEOUT;
-    return new Promise((resolve, reject) => {
-      const attempt = {
-        popup,
-        origin: completionUrl.origin,
-        nonce,
-        messageType: config.messageType || 'oidc:login-complete',
-        resolve,
-        reject,
-      };
-      attempt.timeout = setTimeout(
-        () => finishPopup(createError('Popup sign-in timed out.', 'POPUP_TIMEOUT')),
-        timeoutMs,
-      );
-      attempt.closePoll = setInterval(() => {
-        if (popup.closed) {
-          finishPopup(createError('The sign-in popup was closed before completion.', 'POPUP_CLOSED'));
-        }
-      }, 500);
-      popupAttempt = attempt;
-      globalThis.addEventListener?.('message', onMessage);
-    });
+  } catch (error) {
+    closeWindow(popup);
+    return Promise.reject(error);
   }
 
-  const api = {
-    start,
-    stop,
-    getState: () => ({ ...state }),
-    isAuthenticated: () => state.status === 'authenticated' && state.authenticated,
-    getAccessToken,
-    signInWithPopup,
-    addEventListener(type, listener) {
-      if (!listeners.has(type)) {
-        listeners.set(type, new Set());
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timeoutTimer;
+    let closePoll;
+
+    const cleanup = () => {
+      clearTimeout(timeoutTimer);
+      clearInterval(closePoll);
+      globalThis.removeEventListener?.('message', onMessage);
+    };
+
+    const finish = (error) => {
+      if (settled) {
+        return;
       }
-      listeners.get(type).add(listener);
-    },
-    removeEventListener(type, listener) {
-      listeners.get(type)?.delete(listener);
-    },
+      settled = true;
+      cleanup();
+      closeWindow(popup);
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    };
+
+    const onMessage = (event) => {
+      if (event.origin !== expectedCompletionOrigin || event.source !== popup) {
+        return;
+      }
+      const message = event.data;
+      if (!message || message.type !== POPUP_MESSAGE_TYPE || message.nonce !== nonce) {
+        return;
+      }
+      if (message.status === 'complete') {
+        finish();
+      } else if (message.status === 'error') {
+        const code = message.reason === 'rp-session-not-established' ? 'RP_SESSION_NOT_ESTABLISHED' : 'RP_LOGIN_FAILED';
+        finish(popupError(code, 'The relying-party session was not established.'));
+      }
+    };
+
+    globalThis.addEventListener?.('message', onMessage);
+    timeoutTimer = setTimeout(
+      () => finish(popupError('POPUP_TIMEOUT', 'The sign-in popup timed out.')),
+      Math.max(1, timeout),
+    );
+    closePoll = setInterval(() => {
+      if (popup.closed) {
+        finish(popupError('POPUP_CLOSED', 'The sign-in popup closed before completing login.'));
+      }
+    }, POPUP_CLOSE_POLL_INTERVAL);
+  });
+}
+
+async function checkRelyingPartySession(rpSessionCheck, completionOrigin) {
+  if (typeof rpSessionCheck === 'function') {
+    const result = await rpSessionCheck();
+    if (typeof result === 'boolean') {
+      return result;
+    }
+    if (result && typeof result.ok === 'boolean') {
+      if (result.ok) {
+        return true;
+      }
+      if (result.status === 401) {
+        return false;
+      }
+      throw popupError('RP_SESSION_CHECK_FAILED', 'The relying-party session check failed.');
+    }
+    throw new TypeError('rpSessionCheck must return a boolean or Response.');
+  }
+
+  const url = parseUrl(rpSessionCheck, 'rpSessionCheck', `${completionOrigin}/`);
+  if (url.origin !== completionOrigin) {
+    throw popupError('INVALID_SESSION_CHECK_ORIGIN', 'rpSessionCheck must use the completion origin.');
+  }
+  const response = await fetch(url, { credentials: 'include', cache: 'no-store' });
+  if (response.ok) {
+    return true;
+  }
+  if (response.status === 401) {
+    return false;
+  }
+  throw popupError('RP_SESSION_CHECK_FAILED', 'The relying-party session check failed.');
+}
+
+/** Confirm the RP session from its callback page, notify the opener without credentials, and close. */
+export async function completePopupLogin({
+  nonce,
+  openerOrigin,
+  allowedOpenerOrigins,
+  completionOrigin = globalThis.location?.origin,
+  rpSessionCheck,
+} = {}) {
+  const actualOrigin = globalThis.location?.origin;
+  if (!nonce || typeof nonce !== 'string') {
+    throw popupError('INVALID_NONCE', 'A popup nonce from the validated RP login transaction is required.');
+  }
+  if (!actualOrigin || originOf(completionOrigin, 'completionOrigin') !== actualOrigin) {
+    throw popupError('INVALID_COMPLETION_ORIGIN', 'The popup completion page is not on the configured RP origin.');
+  }
+  assertSecureOrigin(actualOrigin);
+  const allowed = allowedOriginSet(allowedOpenerOrigins);
+  const targetOrigin = originOf(openerOrigin, 'openerOrigin');
+  assertAllowed(targetOrigin, allowed);
+  const opener = globalThis.opener;
+  if (!opener || opener.closed) {
+    closeWindow(globalThis);
+    throw popupError('OPENER_UNAVAILABLE', 'The popup opener is no longer available.');
+  }
+
+  const send = (status, reason) => {
+    opener.postMessage({ type: POPUP_MESSAGE_TYPE, nonce, status, ...(reason ? { reason } : {}) }, targetOrigin);
+    closeWindow(globalThis);
   };
-  return api;
+
+  try {
+    if (!rpSessionCheck) {
+      throw new TypeError('rpSessionCheck is required to confirm the relying-party session.');
+    }
+    if (await checkRelyingPartySession(rpSessionCheck, actualOrigin)) {
+      send('complete');
+      return true;
+    }
+    send('error', 'rp-session-not-established');
+    throw popupError('RP_SESSION_NOT_ESTABLISHED', 'The relying-party session was not established.');
+  } catch (error) {
+    if (error.code === 'RP_SESSION_NOT_ESTABLISHED') {
+      throw error;
+    }
+    send('error', 'rp-session-check-failed');
+    throw error.code
+      ? error
+      : popupError('RP_SESSION_CHECK_FAILED', 'The relying-party session could not be confirmed.');
+  }
 }

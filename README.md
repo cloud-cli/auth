@@ -7,7 +7,7 @@ Auth is a self-hosted authentication and OpenID Connect (OIDC) provider for brow
 The project includes three integration modules for different application architectures:
 
 - [`/index.mjs`](#integrate-a-browser-app-with-indexmjs): the browser client for applications that can navigate to Auth for sign-in.
-- [`/oidc.mjs`](#integrate-a-single-page-app-with-oidcmjs): a browser OIDC session client for SPA popup sign-in without navigating the current page.
+- [`/oidc.mjs`](#restore-an-rp-session-from-an-spa-with-oidcmjs): popup helpers for restoring an application's own session without navigating the opener.
 - [`/node.mjs`](#integrate-a-nodejs-service-with-nodemjs): a dependency-free Node.js client for server-side OIDC and shared-session helpers.
 
 The built-in dashboard and login pages are served by Auth. The OpenAPI 3.1 reference is served at [`/api`](#http-api-and-oidc-reference).
@@ -137,82 +137,24 @@ The module exports `signIn`, `signOut`, `getProfile`, `isAuthenticated`, `getAcc
 
 For cross-origin credentialed requests, configure the app origin in `AUTH_ALLOWED_ORIGINS`. For the module's embedded compatibility channel, configure it in `EMBED_ALLOWED_ORIGINS` as well. These are comma-separated origins, not paths. Do not forward Auth cookies to unrelated domains; use OIDC there.
 
-### Integrate a single-page app with `/oidc.mjs`
+### Restore an RP session from an SPA with `/oidc.mjs`
 
-Use this framework-independent module when the SPA must remain on its current page during sign-in. Your relying party (RP) still owns the OIDC login and callback routes: the popup performs a normal OIDC authorization-code/PKCE roundtrip through those routes while the SPA stays open. This is not silent renewal and does not avoid an OIDC authorization request.
+`/oidc.mjs` has one job: keep the SPA open while an RP-owned OIDC authorization flow runs in a popup and restores the RP's own session. It does not monitor Auth sessions, acquire tokens, or silently renew anything. The popup still performs the normal authorization-code/PKCE roundtrip.
 
-```js
-import { createOidcClient } from 'https://auth.example.com/oidc.mjs';
-
-const auth = createOidcClient({
-  issuer: 'https://auth.example.com',
-  allowedOrigins: ['https://editor.example.com'],
-  heartbeatInterval: 60_000,
-  // Check the editor's own session separately from the Auth session.
-  rpSessionCheck: '/api/session',
-});
-
-auth.addEventListener('statechange', ({ detail }) => {
-  // Auth can remain signed in after the editor's own session expires.
-  if (detail.authenticated && detail.relyingPartySession === 'unauthenticated') {
-    showReconnectButton();
-  }
-  // For "unavailable", preserve state and report a temporary check failure;
-  // do not treat a network/server error as a confirmed sign-out.
-  renderAuthState(detail);
-});
-auth.addEventListener('error', ({ detail }) => {
-  console.error(detail.operation, detail.error);
-});
-auth.start();
-
-document.querySelector('#sign-in').addEventListener('click', () => {
-  void auth.signInWithPopup({
-    loginUrl: 'https://editor.example.com/auth/login?popup=1',
-    completionUrl: 'https://editor.example.com/auth/callback',
-  });
-});
-```
-
-The login URL and completion URL must use HTTPS (except localhost during development) and their origins must appear in `allowedOrigins`. Call `signInWithPopup` directly from a user gesture so browsers do not block the popup. Configure `AUTH_ALLOWED_ORIGINS` on Auth for the SPA's exact origin.
-
-#### RP login and callback contract
-
-Implement `loginUrl` and `completionUrl` as RP-owned endpoints with this contract:
-
-1. The login endpoint reads `oidc_popup_nonce` from the query when present. Save it with the RP's short-lived OIDC transaction (alongside `state` and the PKCE verifier), then perform the normal authorization-code flow. Preserve the nonce through the callback using server-side transaction state; do not trust a callback query value as proof of the login attempt.
-2. The callback validates OIDC `state` and `nonce`, exchanges the code, and establishes or renews the RP's own secure session before reporting success.
-3. For a popup-initiated flow only, render a completion page that posts `{ type: 'oidc:login-complete', nonce, status: 'complete' }` to the exact SPA origin and closes the popup. The nonce must be the value saved with the validated RP transaction. Never put tokens in this message. On failure, send the same message type and nonce with any status other than `complete`, then close the popup.
-
-For example, the RP callback page can run this after the server has completed the flow and rendered the transaction's saved nonce:
+Open the popup directly from a user gesture:
 
 ```js
-const popupNonce = document.querySelector('meta[name="oidc-popup-nonce"]')?.content;
-if (window.opener && popupNonce) {
-  window.opener.postMessage(
-    { type: 'oidc:login-complete', nonce: popupNonce, status: 'complete' },
-    'https://editor.example.com',
-  );
-  window.close();
-}
-```
+import { openLoginPopup } from 'https://auth.example.com/oidc.mjs';
 
-Use a fixed, configured target origin—not `*` or an origin copied from an untrusted request. The callback should send this message only when the server-side transaction records that the flow was popup-initiated. The client accepts a completion message only from the active popup, configured completion origin, expected message type, and matching nonce.
+const popupLogin = {
+  loginUrl: 'https://app.example.com/auth/login',
+  completionOrigin: 'https://app.example.com',
+  allowedOrigins: ['https://app.example.com'],
+};
 
-`rpSessionCheck` is required for popup sign-in: the client confirms both the Auth session and RP session before resolving. Without it, popup completion cannot be confirmed and sign-in rejects. Prefer a same-origin RP endpoint that returns 2xx when the RP session is valid and 401 when it is missing or expired. It can be a URL, a function returning a boolean or `Response`, or an async function. Other HTTP failures and network errors produce `relyingPartySession: 'unavailable'` and an `error` event; they are not proof the user signed out.
-
-The two sessions are intentionally distinct:
-
-- `getState().status` and `getState().authenticated` describe the Auth-provider session.
-- `getState().relyingPartySession` describes the app's own session (`unknown`, `authenticated`, `unauthenticated`, or `unavailable`).
-- `statechange` fires when this state changes. In particular, `authenticated === true` with `relyingPartySession === 'unauthenticated'` means Auth is still signed in but the RP must establish its own session. Show a recovery action rather than discarding unsaved work.
-
-When the RP reports a 401, offer a user-initiated recovery action. Open the popup directly from that button's click handler, then retry a replayable request once after `signInWithPopup` resolves:
-
-```js
 retryButton.addEventListener('click', async () => {
   try {
-    await auth.signInWithPopup(popupConfig); // Opens the popup within the user gesture.
+    await openLoginPopup(popupLogin);
     const response = await makeOriginalRequest(); // Recreate and retry at most once.
     renderResult(response);
   } catch (error) {
@@ -221,11 +163,40 @@ retryButton.addEventListener('click', async () => {
 });
 ```
 
-Do not automatically loop on 401s. Retry only when the request can safely be recreated; use an idempotency key or require user confirmation for mutations. The heartbeat and `getAccessToken(audience)` only check/cache Auth state and tokens—they do not renew the RP session or silently run OIDC. `isAuthenticated()` describes only Auth. Call `stop()` to stop heartbeats and clear cached tokens.
+`openLoginPopup` creates a cryptographically random one-time nonce, appends it as the `oidc_popup_nonce` query parameter, opens the login URL, and returns a promise. It resolves only after the RP completion page confirms its session and sends a valid completion message. `loginUrl` may also be a builder function receiving `{ nonce }`. `allowedOrigins` must list the exact HTTPS origins for both the login URL and `completionOrigin` (localhost is allowed for development).
 
-The client checks the Auth session at startup, on focus/visibility/online changes, and at `heartbeatInterval` (minimum 5 seconds; default 60 seconds). It also accepts `hiddenInterval` for a slower hidden-tab heartbeat and a popup `timeout` (default 5 minutes). `signInWithPopup` supports `nonceParam` and `messageType` overrides; the defaults are `oidc_popup_nonce` and `oidc:login-complete`.
+#### Carry the popup nonce through the RP's OIDC flow
 
-The popup is a top-level browser context for Auth, but the SPA's credentialed checks still depend on the browser sending Auth cookies to the issuer. Cross-site/third-party cookie restrictions can block those checks or the token request even after popup sign-in. Prefer Auth and the RP on sibling subdomains when possible; otherwise configure secure cross-site cookies (`SESSION_COOKIE_SAMESITE=none`, `SESSION_COOKIE_SECURE=true`) and test in the target browsers. The RP callback should establish its own session independently of whether the SPA can read the Auth cookie.
+The identity provider will not automatically preserve query parameters from the RP's login URL. The RP login handler must:
+
+1. Read the `oidc_popup_nonce` parameter added by the helper.
+2. Store it in the same short-lived, server-side transaction as the RP's OIDC `state`, `nonce`, and PKCE verifier.
+3. On callback, look up that transaction by the returned `state`, validate `state` and the OIDC nonce, exchange the code, and establish the RP's session.
+4. Render the popup completion page with the saved popup nonce from that validated transaction. Do not trust a nonce copied from an arbitrary callback query parameter.
+
+This is the handoff contract between the opener helper and the RP. It binds the popup response to the active attempt without relying on the identity provider to echo RP-specific query parameters.
+
+#### Confirm the RP session and complete the popup
+
+On the RP-origin completion page, call `completePopupLogin` only after the server has established the RP session. Provide the popup nonce from the validated transaction, the fixed SPA opener origin, and an RP-owned endpoint that returns 2xx for an active session and 401 when no session exists:
+
+```js
+import { completePopupLogin } from 'https://auth.example.com/oidc.mjs';
+
+await completePopupLogin({
+  nonce: serverRenderedPopupNonce,
+  openerOrigin: 'https://spa.example.com',
+  allowedOpenerOrigins: ['https://spa.example.com'],
+  completionOrigin: 'https://app.example.com',
+  rpSessionCheck: '/api/session',
+});
+```
+
+The completion helper checks that the current page is on `completionOrigin`, verifies `openerOrigin` against the configured allowlist, and checks the RP session in the popup context. It then posts `{ type: 'oidc:login-complete', nonce, status: 'complete' }` to that exact origin and closes the popup. If the session is not established, it sends a failure status and closes instead. The message contains no cookies, tokens, or profile data. Exported `POPUP_NONCE_PARAM` and `POPUP_MESSAGE_TYPE` constants define the wire names.
+
+The opener accepts completion only when the message has the configured origin, comes from the popup it opened, and contains the expected type and nonce. Blocked popups, closed popups, timeout, RP login failure, and an unestablished RP session reject the promise with an error `code`; listeners and timers are cleaned up on every completion path. Do not automatically loop on 401s. Retry only once, after successful popup recovery, and only if the original request can be safely recreated; use an idempotency key or ask before replaying mutations.
+
+The RP session check happens in the popup at the RP origin. This avoids depending on the SPA being able to read Auth cookies as third-party cookies. The browser still has to allow the normal top-level OIDC redirects and the RP's own session cookie. Avoid opener-isolating policies that sever `window.opener` for this popup flow, or configure a compatible policy and test it in target browsers.
 
 ### Integrate a Node.js service with `/node.mjs`
 
@@ -522,11 +493,11 @@ Useful endpoints:
 
 ### Integration module summary
 
-| Module       | Runtime     | Sign-in model                                           | Main uses                                                                                         |
-| ------------ | ----------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `/index.mjs` | Browser     | Full-page navigation or popup compatibility flow        | Profile, session checks, properties, cached JWTs, authenticated fetch                             |
-| `/oidc.mjs`  | Browser SPA | RP-owned OIDC popup flow without replacing the SPA page | Heartbeats, separate Auth/RP session state, cached audience tokens                                |
-| `/node.mjs`  | Node.js     | Backend-managed OIDC authorization-code flow            | PKCE, token exchange/verification, UserInfo, introspection, token issuance, shared-cookie helpers |
+| Module       | Runtime     | Sign-in model                                         | Main uses                                                                                         |
+| ------------ | ----------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `/index.mjs` | Browser     | Full-page navigation or popup compatibility flow      | Profile, session checks, properties, cached JWTs, authenticated fetch                             |
+| `/oidc.mjs`  | Browser SPA | RP-owned OIDC popup flow without replacing the opener | Nonce-bound completion, RP session confirmation, bounded recovery                                 |
+| `/node.mjs`  | Node.js     | Backend-managed OIDC authorization-code flow          | PKCE, token exchange/verification, UserInfo, introspection, token issuance, shared-cookie helpers |
 
 All three modules are served directly by the Auth origin and can be imported without installing an Auth-specific npm package.
 

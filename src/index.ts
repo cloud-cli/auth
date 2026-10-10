@@ -573,7 +573,16 @@ app.post('/api/v1/recovery', express.urlencoded({ extended: false }), async (req
 });
 app.get('/api/v1/qr-login/start', async (req, res) => {
   const page = await qrLoginPage(req.sessionID, typeof req.query.url === 'string' ? req.query.url : '/me');
-  res.json(page);
+  req.session.qrLoginTransaction = page.token;
+  req.session.save((error) => {
+    if (error) {
+      console.error('Could not persist QR login session', {
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+      });
+      return res.status(500).json({ error: 'Could not start QR login' });
+    }
+    return res.json(page);
+  });
 });
 app.get('/qr-login', serveUi('qr-login.html'));
 app.get('/api/v1/qr-login/status', async (req, res) => {

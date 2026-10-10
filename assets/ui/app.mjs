@@ -241,18 +241,33 @@ export default function () {
     pwaUrl.value = transaction.pwaUrl;
     status.value = 'Waiting for approval on your phone...';
     const poll = async () => {
-      const result = await fetch('/api/v1/qr-login/status?transaction=' + encodeURIComponent(transaction.token), {
-        credentials: 'include',
-      });
-      if (!result.ok) return setMessage('This QR code expired. Start again.', true);
-      const current = await result.json();
-      if (current.status === 'approved') {
-        approved.value = true;
-        status.value = 'Approved. Completing your secure sign-in...';
-        return setTimeout(() => (location.href = current.returnUrl), 700);
+      try {
+        const result = await fetch('/api/v1/qr-login/status?transaction=' + encodeURIComponent(transaction.token), {
+          credentials: 'include',
+        });
+        const current = await result.json().catch(() => ({}));
+        if (!result.ok) {
+          status.value =
+            result.status === 410 ? 'This QR code expired. Start a new sign-in.' : 'Could not check approval.';
+          return;
+        }
+        if (current.status === 'approved') {
+          approved.value = true;
+          status.value = 'Approved. Completing your secure sign-in...';
+          return setTimeout(() => (location.href = current.returnUrl), 700);
+        }
+        if (current.status === 'denied') {
+          status.value = 'Approval was denied on your phone.';
+          return;
+        }
+        if (current.status === 'expired' || current.status === 'error') {
+          status.value = 'This QR sign-in could not be completed. Start again.';
+          return;
+        }
+        setTimeout(poll, 1000);
+      } catch {
+        status.value = 'Could not reach Auth to check approval. Reload to try again.';
       }
-      if (current.status === 'denied') return (status.value = 'Approval was denied on your phone.');
-      setTimeout(poll, 1000);
     };
     poll();
   }

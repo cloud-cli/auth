@@ -1546,10 +1546,10 @@
     "/oidc.mjs": {
       "get": {
         "tags": ["Browser client"],
-        "summary": "Serve the browser OIDC session and popup integration module",
+        "summary": "Serve browser OIDC popup session-recovery helpers",
         "responses": {
           "200": {
-            "description": "JavaScript ES module with session monitoring, token access, and popup sign-in"
+            "description": "JavaScript ES module to open an RP login popup and complete it after confirming the RP session"
           }
         }
       }

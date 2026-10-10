@@ -8,4 +8,10 @@ declare global {
   }
 }
 
+declare module 'express-session' {
+  interface SessionData {
+    qrLoginTransaction?: string;
+  }
+}
+
 export {};
