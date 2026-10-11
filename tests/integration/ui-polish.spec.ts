@@ -25,9 +25,17 @@ test('profile panel styling and OIDC application spacing and borders are correct
   await expect(dashboardBrand).toHaveCSS('color', 'rgb(114, 87, 245)');
   await expect(dashboardBrand.locator('xpath=..')).toHaveCSS('font-size', '18px');
   const nav = page.locator('auth-nav nav');
-  await expect(nav).toHaveCSS('justify-content', 'center');
   await expect(nav).toHaveCSS('border-bottom-width', '1px');
   await expect(page.locator('auth-nav a[href="/me#security"]')).toHaveClass(/rounded-md/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const navAlignment = await page
+    .locator('auth-nav nav > a')
+    .first()
+    .evaluate((link) => {
+      const nav = link.parentElement!;
+      return link.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+    });
+  expect(navAlignment).toBeLessThan(10);
   for (const [section, selector] of [
     ['security', 'dashboard-security section'],
     ['properties', 'dashboard-properties section'],
