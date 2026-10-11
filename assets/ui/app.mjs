@@ -90,6 +90,7 @@ export default function () {
   async function testLogin() {
     busy.value = true;
     setMessage('Signing in...');
+    console.info('Test-key login started', { hasKey: Boolean(testKey.value), hasReturnUrl: Boolean(value('url')) });
     try {
       const response = await fetch('/__test__/login', {
         method: 'POST',
@@ -97,12 +98,15 @@ export default function () {
         credentials: 'include',
         body: JSON.stringify({ key: testKey.value }),
       });
+      console.info('Test-key login response', { status: response.status, ok: response.ok });
       if (!response.ok) throw new Error(response.status === 401 ? 'Invalid test API key.' : 'Could not sign in.');
       const returnUrl = new URL(value('url') || '/me', location.origin);
       const nonce = value('signinNonce') || sessionStorage.getItem('auth.popup.signinNonce');
       if (nonce) returnUrl.searchParams.set('signinNonce', nonce);
+      console.info('Test-key login redirecting', { pathname: returnUrl.pathname, hasSigninNonce: Boolean(nonce) });
       location.href = returnUrl.pathname + returnUrl.search + returnUrl.hash;
     } catch (reason) {
+      console.error('Test-key login failed', { message: reason.message || 'Could not sign in.' });
       setMessage(reason.message || 'Could not sign in.', true);
     } finally {
       busy.value = false;

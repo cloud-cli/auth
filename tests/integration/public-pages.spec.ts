@@ -53,8 +53,17 @@ test('login page exposes the configured sign-in method', async ({ page }) => {
     await expect(page.getByText('Continue with Google')).toHaveCount(0);
     await expect(page.getByText('Use a passkey')).toHaveCount(0);
     await page.getByLabel('Test API key').fill(testKey);
+    const testLoginResponse = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === '/__test__/login' && response.request().method() === 'POST',
+    );
+    const profileResponse = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === '/api/v1/profile' && response.request().method() === 'GET',
+    );
     await page.getByRole('button', { name: 'Sign in' }).click();
+    expect((await testLoginResponse).status(), 'test-key login endpoint response').toBe(204);
+    expect((await profileResponse).status(), 'profile response after test-key login').toBe(200);
     await expect(page).toHaveURL(/\/me$/);
+    await expect(page.getByRole('button', { name: 'Toggle profile details' })).toBeVisible();
   } else {
     await expect(alternatives).toBeVisible();
     await expect(page.getByText('Continue with Google')).toBeVisible();
