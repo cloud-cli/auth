@@ -1,7 +1,7 @@
 import express from 'express';
 import { createHash, timingSafeEqual } from 'crypto';
 import { readFileSync } from 'fs';
-import migrate from '../db/migrations/007_user_management.js';
+import migrate from '../db/migrations/008_oidc_refresh_tokens.js';
 import {
   findByEmail,
   findByUserId,
@@ -44,6 +44,11 @@ import {
   updateManagedClientScopes,
   validateAuthorizationScopes,
   verifyClientSecret,
+  rotateRefreshToken,
+  createInitialRefreshToken,
+  revokeRefreshToken,
+  revokeRefreshTokenFamily,
+  revokeRefreshTokensForUser,
 } from './oidc.js';
 import {
   authenticate,
@@ -275,6 +280,7 @@ function registerUserAdminRoutes() {
     if (body.disabled === true || body.disabled === false) {
       await run('UPDATE auth_user SET disabled = ? WHERE user_id = ?', [body.disabled ? 1 : 0, id]);
       if (body.disabled) {
+        await revokeRefreshTokensForUser(id);
         const sessions = await all('SELECT sid, session FROM auth_session');
         for (const item of sessions as any[]) {
           try {
@@ -301,6 +307,7 @@ function registerUserAdminRoutes() {
         ]);
       else await run('DELETE FROM auth_blocked_identity WHERE profile_id = ?', [target.profile_id]);
       if (body.blocked) {
+        await revokeRefreshTokensForUser(id);
         const sessions = await all('SELECT sid, session FROM auth_session');
         for (const item of sessions as any[]) {
           try {
@@ -330,6 +337,7 @@ function registerUserAdminRoutes() {
     }
     for (const table of ['auth_authenticator', 'auth_api_token', 'auth_property', 'auth_qr_login'])
       await run(`DELETE FROM ${table} WHERE user_id = ?`, [id]);
+    await revokeRefreshTokensForUser(id);
     await run('DELETE FROM auth_audit_event WHERE user_id = ?', [id]);
     await run('DELETE FROM auth_blocked_identity WHERE profile_id = ?', [target.profile_id]);
     await run('DELETE FROM auth_user WHERE user_id = ?', [id]);
@@ -931,14 +939,44 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
   const clientId = body.client_id;
   const clientSecret = body.client_secret;
   const { grant_type, code, redirect_uri, code_verifier } = body;
+  if (grant_type !== 'authorization_code' && grant_type !== 'refresh_token')
+    return res.status(400).json({ error: 'unsupported_grant_type' });
   if (
-    grant_type !== 'authorization_code' ||
-    [code, clientId, redirect_uri, code_verifier].some((value) => typeof value !== 'string') ||
+    typeof clientId !== 'string' ||
     (typeof clientSecret !== 'string' && (await getClient(String(clientId || '')))?.isPublic !== true)
   ) {
     return res.status(400).json({ error: 'invalid_request' });
   }
   if (!isTokenServiceConfigured()) return res.status(503).json({ error: 'temporarily_unavailable' });
+
+  if (grant_type === 'refresh_token') {
+    if (typeof body.refresh_token !== 'string') return res.status(400).json({ error: 'invalid_request' });
+    let requestedScopes: string[] | undefined;
+    if (body.scope !== undefined) {
+      if (typeof body.scope !== 'string' || !body.scope.trim()) return res.status(400).json({ error: 'invalid_scope' });
+      requestedScopes = [...new Set<string>(body.scope.trim().split(/\s+/))];
+    }
+    const client = await getClient(clientId);
+    if (
+      !client ||
+      (client.isPublic ? Boolean(clientSecret) : !clientSecret || !(await verifyClientSecret(client, clientSecret)))
+    )
+      return res.status(401).json({ error: 'invalid_client' });
+    const refreshed = await rotateRefreshToken(body.refresh_token, clientId, requestedScopes);
+    if (refreshed === 'invalid_scope') return res.status(400).json({ error: 'invalid_scope' });
+    if (!refreshed) return res.status(400).json({ error: 'invalid_grant' });
+    const user = await findByUserId(refreshed.userId);
+    if (!user || (await isUserSuspended(user.userId))) {
+      await revokeRefreshTokenFamily(refreshed.familyId);
+      return res.status(400).json({ error: 'invalid_grant' });
+    }
+    return res.json({
+      ...(await tokenResponse(user, clientId, refreshed.scopes)),
+      refresh_token: refreshed.refreshToken,
+    });
+  }
+  if ([code, redirect_uri, code_verifier].some((value) => typeof value !== 'string'))
+    return res.status(400).json({ error: 'invalid_request' });
 
   const authorizationCode = await exchangeAuthorizationCode({
     code,
@@ -966,7 +1004,30 @@ app.post('/token', express.urlencoded({ extended: false }), async (req, res) => 
     redirectUri: redirect_uri,
   });
 
-  res.json(await tokenResponse(user, clientId, authorizationCode.scopes, authorizationCode.nonce));
+  const response: Record<string, unknown> = await tokenResponse(
+    user,
+    clientId,
+    authorizationCode.scopes,
+    authorizationCode.nonce,
+  );
+  if (authorizationCode.scopes.includes('offline_access'))
+    response.refresh_token = await createInitialRefreshToken(clientId, user.userId, authorizationCode.scopes);
+  res.json(response);
+});
+app.post('/revoke', express.urlencoded({ extended: false }), async (req, res) => {
+  const body = req.body || {};
+  const clientId = typeof body.client_id === 'string' ? body.client_id : '';
+  const clientSecret = typeof body.client_secret === 'string' ? body.client_secret : '';
+  const token = typeof body.token === 'string' ? body.token : '';
+  const client = await getClient(clientId);
+  if (
+    !client ||
+    (client.isPublic ? Boolean(clientSecret) : !clientSecret || !(await verifyClientSecret(client, clientSecret)))
+  ) {
+    return res.status(401).json({ error: 'invalid_client' });
+  }
+  if (token) await revokeRefreshToken(token, clientId);
+  res.sendStatus(200);
 });
 app.get('/logout', async (req, res) => {
   const idTokenHint = typeof req.query.id_token_hint === 'string' ? req.query.id_token_hint : '';
@@ -1044,12 +1105,15 @@ app.get('/.well-known/openid-configuration', async (_req, res) => {
     authorization_endpoint: `${iss}/authorize`,
     token_endpoint: `${iss}/token`,
     end_session_endpoint: `${iss}/logout`,
+    revocation_endpoint: `${iss}/revoke`,
     userinfo_endpoint: `${iss}/userinfo`,
     jwks_uri: `${iss}/.well-known/jwks.json`,
     response_types_supported: ['code'],
     subject_types_supported: ['public'],
     id_token_signing_alg_values_supported: ['RS256'],
-    scopes_supported: ['openid', 'profile', 'email'],
+    scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
+    revocation_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
     token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
     code_challenge_methods_supported: ['S256'],
     claims_supported: ['sub', 'name', 'preferred_username', 'email', 'picture', 'photo'],

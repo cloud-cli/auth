@@ -7,9 +7,10 @@ import {
   validateAuthorizationScopes,
 } from '../dist/src/oidc.js';
 
-test('OIDC authorization requires openid and only permits registered standard scopes', () => {
+test('OIDC authorization requires openid and permits only supported scopes', () => {
   assert.equal(validateAuthorizationScopes(['openid']), true);
   assert.equal(validateAuthorizationScopes(['openid', 'profile', 'email']), true);
+  assert.equal(validateAuthorizationScopes(['openid', 'offline_access']), true);
   assert.equal(validateAuthorizationScopes(['profile']), false);
   assert.equal(validateAuthorizationScopes(['openid', 'address']), false);
 });

@@ -1005,18 +1005,18 @@
     "/token": {
       "post": {
         "tags": ["JWT APIs"],
-        "summary": "Exchange an OIDC authorization code",
+        "summary": "Exchange an OIDC authorization code or refresh token",
         "requestBody": {
           "required": true,
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
                 "type": "object",
-                "required": ["grant_type", "code", "client_id", "redirect_uri", "code_verifier"],
+                "required": ["grant_type", "client_id"],
                 "properties": {
                   "grant_type": {
                     "type": "string",
-                    "const": "authorization_code"
+                    "enum": ["authorization_code", "refresh_token"]
                   },
                   "code": {
                     "type": "string"
@@ -1033,6 +1033,13 @@
                   },
                   "code_verifier": {
                     "type": "string"
+                  },
+                  "refresh_token": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "description": "Optional scope subset when refreshing; cannot expand the original grant"
                   }
                 }
               }
@@ -1041,7 +1048,7 @@
         },
         "responses": {
           "200": {
-            "description": "Access and identity tokens",
+            "description": "Access and identity tokens; includes a rotating refresh_token when offline_access was granted",
             "content": {
               "application/json": {
                 "schema": {
@@ -1051,11 +1058,38 @@
             }
           },
           "400": {
-            "description": "Invalid request or authorization code"
+            "description": "Invalid request, authorization code, refresh token, or requested scope"
           },
           "503": {
             "description": "JWT service is not configured"
           }
+        }
+      }
+    },
+    "/revoke": {
+      "post": {
+        "tags": ["JWT APIs"],
+        "summary": "Revoke an OIDC refresh token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": ["client_id", "token"],
+                "properties": {
+                  "client_id": { "type": "string" },
+                  "client_secret": { "type": "string" },
+                  "token": { "type": "string" },
+                  "token_type_hint": { "type": "string", "const": "refresh_token" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Token revoked or unknown" },
+          "401": { "description": "Invalid client credentials" }
         }
       }
     },
@@ -1761,6 +1795,13 @@
             "properties": {
               "id_token": {
                 "type": "string"
+              },
+              "scope": {
+                "type": "string"
+              },
+              "refresh_token": {
+                "type": "string",
+                "description": "Returned only when offline_access was granted"
               }
             }
           }

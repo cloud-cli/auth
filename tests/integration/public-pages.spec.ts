@@ -103,6 +103,7 @@ test('public modules and OpenAPI are served', async ({ request }) => {
   expect(spec.paths['/node.mjs']).toBeDefined();
   expect(spec.paths['/api/v1/profile']).toBeDefined();
   expect(spec.paths['/api/v1/revoke']).toBeDefined();
+  expect(spec.paths['/revoke']).toBeDefined();
   expect(spec.paths['/profile']).toBeUndefined();
   expect(spec.paths['/dashboard.mjs']).toBeUndefined();
   expect(spec.paths['/ui/dashboard.mjs']).toBeUndefined();
@@ -114,6 +115,9 @@ test('public modules and OpenAPI are served', async ({ request }) => {
   expect(new URL(discovery.end_session_endpoint).pathname).toBe('/logout');
   expect(discovery.code_challenge_methods_supported).toEqual(['S256']);
   expect(discovery.claims_supported).toContain('sub');
+  expect(discovery.scopes_supported).toContain('offline_access');
+  expect(discovery.grant_types_supported).toEqual(['authorization_code', 'refresh_token']);
+  expect(new URL(discovery.revocation_endpoint).pathname).toBe('/revoke');
   expect(discovery.token_endpoint_auth_methods_supported).toEqual(['client_secret_post', 'none']);
 });
 
@@ -348,7 +352,7 @@ test('native public OIDC clients register private-use redirects and authorize wi
           client_id: clientId,
           redirect_uri: redirectUri,
           state: 'native_state',
-          scope: 'openid profile email',
+          scope: 'openid profile email offline_access',
           nonce: 'native_nonce',
           code_challenge: challenge,
           code_challenge_method: 'S256',
@@ -376,7 +380,8 @@ test('native public OIDC clients register private-use redirects and authorize wi
     });
     expect(tokenResponse.status()).toBe(200);
     const tokens = await tokenResponse.json();
-    expect(tokens.scope).toBe('openid profile email');
+    expect(tokens.scope).toBe('openid profile email offline_access');
+    expect(tokens.refresh_token).toBeTruthy();
     const idClaims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString());
     expect(idClaims.sub).toBeTruthy();
     expect(idClaims.nonce).toBe('native_nonce');
@@ -389,6 +394,37 @@ test('native public OIDC clients register private-use redirects and authorize wi
     const userInfo = await userInfoResponse.json();
     expect(userInfo.sub).toBe(idClaims.sub);
     expect(userInfo.preferred_username).toBe(idClaims.preferred_username);
+
+    const refreshResponse = await page.request.post('/token', {
+      form: {
+        grant_type: 'refresh_token',
+        client_id: clientId,
+        refresh_token: tokens.refresh_token,
+      },
+    });
+    expect(refreshResponse.status()).toBe(200);
+    const refreshed = await refreshResponse.json();
+    expect(refreshed.refresh_token).toBeTruthy();
+    expect(refreshed.refresh_token).not.toBe(tokens.refresh_token);
+    expect(refreshed.scope).toBe('openid profile email offline_access');
+
+    const replayResponse = await page.request.post('/token', {
+      form: {
+        grant_type: 'refresh_token',
+        client_id: clientId,
+        refresh_token: tokens.refresh_token,
+      },
+    });
+    expect(replayResponse.status()).toBe(400);
+    expect(await replayResponse.json()).toEqual({ error: 'invalid_grant' });
+    const revokedFamilyResponse = await page.request.post('/token', {
+      form: {
+        grant_type: 'refresh_token',
+        client_id: clientId,
+        refresh_token: refreshed.refresh_token,
+      },
+    });
+    expect(revokedFamilyResponse.status()).toBe(400);
 
     const logoutUrl = new URL('/logout', 'http://127.0.0.1:3100');
     logoutUrl.search = new URLSearchParams({
