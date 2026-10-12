@@ -1,8 +1,18 @@
+/**
+ * Node.js client for the Auth service's OIDC and authenticated API endpoints.
+ * Requires `OIDC_CLIENT_ID`; `OIDC_ISSUER` (defaults to this service's issuer),
+ * `OIDC_CLIENT_SECRET`, and `AUTH_API_TOKEN` are optional for applicable operations.
+ *
+ * @example
+ * import client from './node.mjs';
+ * const profile = await client.getProfile(request);
+ */
 import { createHash, createPublicKey, randomBytes, verify } from 'node:crypto';
 
 const defaultIssuer = '__API_URL__';
 const decodeBase64Url = (value) => Buffer.from(value, 'base64url');
 
+/** Decode a compact JWT into its header, payload, signature, and signed bytes. @param {string} token @returns {{header: object, payload: object, signature: Buffer, signed: Buffer}} */
 function parseToken(token) {
   const parts = token.split('.');
   if (parts.length !== 3) {
@@ -21,6 +31,7 @@ function parseToken(token) {
 }
 
 class AuthApiError extends Error {
+  /** Create an error for a non-successful Auth API response. @param {string} method @param {string} path @param {number} status @param {string} detail @returns {void} */
   constructor(method, path, status, detail) {
     super(`Auth request ${method} ${path} failed: ${status} ${detail}`);
     this.name = 'AuthApiError';
@@ -28,6 +39,7 @@ class AuthApiError extends Error {
   }
 }
 
+/** Read and decode cookies from a Fetch or Node-style request. @param {Request|object} request @returns {Record<string, string>} */
 export function getCookies(request) {
   const header = request?.headers?.get ? request.headers.get('cookie') : request?.headers?.cookie;
   if (!header) {
@@ -49,12 +61,15 @@ export function getCookies(request) {
   );
 }
 
+/** Format one incoming session cookie for an outbound Cookie header; authorization and admin roles are still enforced by Auth. @param {Request|object} request @param {string} [cookieName='connect.sid'] @returns {string} */
 export function getSessionCookie(request, cookieName = 'connect.sid') {
   const value = getCookies(request)[cookieName];
   return value ? `${cookieName}=${encodeURIComponent(value)}` : '';
 }
 
+/** Client for OIDC, user-session, API-token, and administrator endpoints. The default export is an environment-configured instance. */
 export class AuthClient {
+  /** Configure the OIDC client and API credentials. `clientSecret` is the OIDC client secret; `authApiToken` is a separate Auth API bearer token. @param {{issuer?: string, clientId?: string, clientSecret?: string, authApiToken?: string, sessionCookieName?: string}} [options] @returns {void} */
   constructor({
     issuer = process.env.OIDC_ISSUER || defaultIssuer,
     clientId = process.env.OIDC_CLIENT_ID,
@@ -84,6 +99,7 @@ export class AuthClient {
     this.jwksExpiresAt = 0;
   }
 
+  /** Build an Auth issuer URL with optional query parameters. @param {string} path @param {Record<string, string>} [query] @returns {URL} */
   url(path, query) {
     const url = new URL(path, this.issuer);
     for (const [key, value] of Object.entries(query || {})) {
@@ -94,6 +110,7 @@ export class AuthClient {
     return url;
   }
 
+  /** Send a request to the issuer; `session` forwards the user's session cookie, `admin` forwards an admin session cookie, and `api` uses the configured Auth API bearer token. `form` is URL-encoded, `body` is JSON, and extra options are passed to fetch. @param {string} path @param {{method?: string, request?: Request|object, auth?: 'none'|'session'|'admin'|'api', body?: unknown, form?: Record<string, string>, headers?: Record<string, string>, allowEmpty?: boolean, [fetchOption: string]: unknown}} [options] @returns {Promise<unknown>} */
   async request(
     path,
     { method = 'GET', request, auth = 'none', body, form, headers = {}, allowEmpty = false, ...options } = {},
@@ -137,9 +154,11 @@ export class AuthClient {
     }
   }
 
+  /** Fetch OIDC discovery metadata from `/.well-known/openid-configuration`. @returns {Promise<object>} */
   getDiscovery() {
     return this.request('/.well-known/openid-configuration');
   }
+  /** Fetch keys from `/.well-known/jwks.json` and cache them for token verification for one hour. @returns {Promise<object>} */
   getJwks() {
     return this.request('/.well-known/jwks.json').then((keys) => {
       this.jwks = keys;
@@ -147,6 +166,7 @@ export class AuthClient {
       return keys;
     });
   }
+  /** Verify an RS256 JWT signature and issuer, audience, subject, and time claims. @param {string} token @returns {Promise<object>} Verified JWT payload. */
   async verifyToken(token) {
     const { header, payload, signature, signed } = parseToken(token);
     if (header.alg !== 'RS256' || typeof header.kid !== 'string') {
@@ -170,12 +190,14 @@ export class AuthClient {
     }
     return payload;
   }
+  /** Verify an access token, then fetch `/userinfo` using that token as a bearer credential. @param {string} token @returns {Promise<object|string>} */
   async getUserInfo(token) {
     await this.verifyToken(token);
     return this.request('/userinfo', {
       headers: { Authorization: `Bearer ${token}`, 'X-Auth-Audience': this.clientId },
     });
   }
+  /** Introspect an access token at `/oauth/introspect` using client Basic authentication (OIDC client secret). @param {string} token @returns {Promise<unknown>} */
   introspectToken(token) {
     return this.request('/oauth/introspect', {
       method: 'POST',
@@ -185,6 +207,7 @@ export class AuthClient {
       },
     });
   }
+  /** Revoke a token at `/api/v1/revoke` using client Basic authentication (OIDC client secret). @param {string} token @returns {Promise<void>} */
   revokeApiToken(token) {
     return this.request('/api/v1/revoke', {
       method: 'POST',
@@ -195,6 +218,7 @@ export class AuthClient {
       allowEmpty: true,
     });
   }
+  /** Revoke a refresh token at `/revoke`; submits the OIDC client ID and secret. @param {string} token @returns {Promise<void>} */
   revokeRefreshToken(token) {
     return this.request('/revoke', {
       method: 'POST',
@@ -207,6 +231,7 @@ export class AuthClient {
       allowEmpty: true,
     });
   }
+  /** Build a browser authorization redirect URL plus its state, PKCE verifier, and nonce; no network request is made. Include `offline_access` in `scope` to request a refresh token. @param {{redirectUri: string, scope?: string, nonce?: string}} options @returns {{url: string, state: string, codeVerifier: string, nonce: string}} */
   createAuthorizationRequest({
     redirectUri,
     scope = 'openid profile email',
@@ -229,9 +254,11 @@ export class AuthClient {
     });
     return { url: String(url), state, codeVerifier, nonce };
   }
+  /** Build only the browser authorization redirect URL (state and PKCE values are not returned). @param {object} options @returns {string} */
   authorizationUrl(options) {
     return this.createAuthorizationRequest(options).url;
   }
+  /** Exchange an authorization code at `/token`, optionally authenticating with the OIDC client secret. @param {{code: string, codeVerifier: string, redirectUri: string, clientSecret?: string}} options @returns {Promise<object>} Token response; includes `refresh_token` when `offline_access` was granted. */
   exchangeCode({ code, codeVerifier, redirectUri, clientSecret = this.clientSecret }) {
     return this.request('/token', {
       method: 'POST',
@@ -245,6 +272,7 @@ export class AuthClient {
       },
     });
   }
+  /** Exchange a rotating refresh token at `/token`, optionally narrowing its original scope; serialize calls per grant to avoid replay detection. @param {{refreshToken: string, scope?: string, clientSecret?: string}} options @returns {Promise<object>} Token response containing the replacement `refresh_token` when offline access continues. */
   refreshToken({ refreshToken, scope, clientSecret = this.clientSecret }) {
     if (!refreshToken) {
       throw new Error('A refresh token is required');
@@ -260,6 +288,7 @@ export class AuthClient {
       },
     });
   }
+  /** Get the profile via `/api/v1/profile` using the user's session cookie; returns null when unauthenticated or denied. @param {Request|object} request @returns {Promise<unknown|null>} */
   getProfile(request) {
     if (!getSessionCookie(request, this.sessionCookieName)) return Promise.resolve(null);
     return this.request('/api/v1/profile', { request, auth: 'session' }).catch((error) => {
@@ -267,15 +296,19 @@ export class AuthClient {
       throw error;
     });
   }
+  /** Check the user's session with `HEAD /api/v1/profile`. @param {Request|object} request @returns {Promise<void>} */
   checkSession(request) {
     return this.request('/api/v1/profile', { method: 'HEAD', request, auth: 'session', allowEmpty: true });
   }
+  /** Alias for getProfile; uses the user's session cookie. @param {Request|object} request @returns {Promise<unknown|null>} */
   getSessionProfile(request) {
     return this.getProfile(request);
   }
+  /** Resolve whether the user's session is authenticated. @param {Request|object} request @returns {Promise<boolean>} */
   isSessionAuthenticated(request) {
     return this.getProfile(request).then(Boolean);
   }
+  /** Return the profile or write an HTTP 401 response when the session is absent/invalid. @param {Request|object} request @param {object} response @returns {Promise<unknown|null>} */
   async requireSession(request, response) {
     const profile = await this.getProfile(request);
     if (profile) {
@@ -285,9 +318,11 @@ export class AuthClient {
     response.end('Authentication required');
     return null;
   }
+  /** Sign out the current user via `DELETE /api/v1/profile` using their session cookie. @param {Request|object} request @returns {Promise<void>} */
   signOut(request) {
     return this.request('/api/v1/profile', { method: 'DELETE', request, auth: 'session', allowEmpty: true });
   }
+  /** Update the current user's preferred username via the session-authenticated profile endpoint. @param {Request|object} request @param {string} preferred_username @returns {Promise<unknown>} */
   setPreferredUsername(request, preferred_username) {
     return this.request('/api/v1/profile/preferred-username', {
       method: 'PUT',
@@ -296,9 +331,11 @@ export class AuthClient {
       body: { preferred_username },
     });
   }
+  /** List the current user's properties using their session cookie. @param {Request|object} request @returns {Promise<unknown>} */
   getProperties(request) {
     return this.request('/api/v1/properties', { request, auth: 'session' });
   }
+  /** Get one session-authenticated property; returns null when absent or denied. @param {Request|object} request @param {string} key @returns {Promise<unknown|null>} */
   getProperty(request, key) {
     if (!getSessionCookie(request, this.sessionCookieName)) return Promise.resolve(null);
     return this.request(`/api/v1/properties/${encodeURIComponent(key)}`, { request, auth: 'session' }).catch(
@@ -308,9 +345,11 @@ export class AuthClient {
       },
     );
   }
+  /** Set a property for the current user via `PUT /api/v1/properties`. @param {Request|object} request @param {string} key @param {unknown} value @returns {Promise<unknown>} */
   setProperty(request, key, value) {
     return this.request('/api/v1/properties', { method: 'PUT', request, auth: 'session', body: { key, value } });
   }
+  /** Delete a current-user property via `DELETE /api/v1/properties/{key}`. @param {Request|object} request @param {string} key @returns {Promise<void>} */
   deleteProperty(request, key) {
     return this.request(`/api/v1/properties/${encodeURIComponent(key)}`, {
       method: 'DELETE',
@@ -319,9 +358,11 @@ export class AuthClient {
       allowEmpty: true,
     });
   }
+  /** Alias for deleteProperty. @param {Request|object} request @param {string} key @returns {Promise<void>} */
   removeProperty(request, key) {
     return this.deleteProperty(request, key);
   }
+  /** Issue a session-bound token for an audience using the user's session and request Origin. @param {Request|object} request @param {string} audience @returns {Promise<unknown>} */
   issueSessionToken(request, audience) {
     const origin = request?.headers?.get ? request.headers.get('origin') : request?.headers?.origin;
     if (!origin) {
@@ -335,13 +376,16 @@ export class AuthClient {
       body: { audience },
     });
   }
+  /** List the current user's API tokens, optionally filtered by client ID; uses their session cookie. @param {Request|object} request @param {string} [clientId] @returns {Promise<unknown>} */
   listUserApiTokens(request, clientId) {
     const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
     return this.request(`/api/v1/api-tokens/me${query}`, { request, auth: 'session' });
   }
+  /** Admin-session list of API tokens for a client. @param {Request|object} request @param {string} clientId @returns {Promise<unknown>} */
   listApiTokensForClient(request, clientId) {
     return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}`, { request, auth: 'admin' });
   }
+  /** Create a client API token using the admin session. @param {Request|object} request @param {string} clientId @param {object} data @returns {Promise<unknown>} */
   createApiToken(request, clientId, data) {
     return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}`, {
       method: 'POST',
@@ -350,6 +394,7 @@ export class AuthClient {
       body: data,
     });
   }
+  /** Delete a client API token using the admin session. @param {Request|object} request @param {string} clientId @param {string} tokenId @returns {Promise<void>} */
   deleteApiToken(request, clientId, tokenId) {
     return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}/${encodeURIComponent(tokenId)}`, {
       method: 'DELETE',
@@ -358,15 +403,19 @@ export class AuthClient {
       allowEmpty: true,
     });
   }
+  /** Alias for listApiTokensForClient; requires an admin session. @param {Request|object} request @param {string} clientId @returns {Promise<unknown>} */
   listUserApiTokensForClient(request, clientId) {
     return this.listApiTokensForClient(request, clientId);
   }
+  /** Alias for createApiToken; requires an admin session. @param {Request|object} request @param {string} clientId @param {object} data @returns {Promise<unknown>} */
   createUserApiToken(request, clientId, data) {
     return this.createApiToken(request, clientId, data);
   }
+  /** Alias for deleteApiToken; requires an admin session. @param {Request|object} request @param {string} clientId @param {string} tokenId @returns {Promise<void>} */
   deleteUserApiToken(request, clientId, tokenId) {
     return this.deleteApiToken(request, clientId, tokenId);
   }
+  /** Mint a downstream API token via `/api/v1/api-tokens/{clientId}/issue` using the configured Auth API bearer token, not OIDC client credentials. @param {{label: string, scopes: string[]}} options @returns {Promise<unknown>} */
   mintApiToken({ label, scopes }) {
     return this.request(`/api/v1/api-tokens/${encodeURIComponent(this.clientId)}/issue`, {
       method: 'POST',
@@ -374,12 +423,15 @@ export class AuthClient {
       body: { label, scopes },
     });
   }
+  /** List OIDC clients using the admin session cookie. @param {Request|object} request @returns {Promise<unknown>} */
   listOidcClients(request) {
     return this.request('/api/v1/oidc/clients', { request, auth: 'admin' });
   }
+  /** Create an OIDC client using the admin session; response may include its one-time client secret. @param {Request|object} request @param {{id: string, redirectUris: string[], postLogoutRedirectUris?: string[], scopes?: string[], isPublic?: boolean}} data @returns {Promise<unknown>} */
   createOidcClient(request, data) {
     return this.request('/api/v1/oidc/clients', { method: 'POST', request, auth: 'admin', body: data });
   }
+  /** Delete an OIDC client using the admin session. @param {Request|object} request @param {string} id @returns {Promise<void>} */
   deleteOidcClient(request, id) {
     return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -388,6 +440,7 @@ export class AuthClient {
       allowEmpty: true,
     });
   }
+  /** Replace a client's registered post-logout redirect URLs using the admin session. @param {Request|object} request @param {string} id @param {string[]} postLogoutRedirectUris @returns {Promise<unknown>} */
   setClientLogoutRedirects(request, id, postLogoutRedirectUris) {
     return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/logout-redirects`, {
       method: 'PUT',
@@ -396,6 +449,7 @@ export class AuthClient {
       body: { postLogoutRedirectUris },
     });
   }
+  /** Regenerate an OIDC client's secret using the admin session; the new secret may be returned once. @param {Request|object} request @param {string} id @returns {Promise<unknown>} */
   regenerateOidcClientSecret(request, id) {
     return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/secret`, {
       method: 'PUT',
@@ -403,6 +457,7 @@ export class AuthClient {
       auth: 'admin',
     });
   }
+  /** Replace an OIDC client's scopes using the admin session. @param {Request|object} request @param {string} id @param {string[]} scopes @returns {Promise<unknown>} */
   setOidcClientScopes(request, id, scopes) {
     return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/scopes`, {
       method: 'PUT',
@@ -411,9 +466,11 @@ export class AuthClient {
       body: { scopes },
     });
   }
+  /** List a client's Auth API tokens using the admin session. @param {Request|object} request @param {string} clientId @returns {Promise<unknown>} */
   listAuthApiTokens(request, clientId) {
     return this.request(`/api/v1/auth-api-tokens/${encodeURIComponent(clientId)}`, { request, auth: 'admin' });
   }
+  /** Create a client's fixed-purpose Auth API token using the admin session; its bearer value is returned only once. @param {Request|object} request @param {string} clientId @param {string} label @returns {Promise<unknown>} */
   createAuthApiToken(request, clientId, label) {
     return this.request(`/api/v1/auth-api-tokens/${encodeURIComponent(clientId)}`, {
       method: 'POST',
@@ -422,6 +479,7 @@ export class AuthClient {
       body: { label },
     });
   }
+  /** Delete a client's Auth API token using the admin session. @param {Request|object} request @param {string} clientId @param {string} tokenId @returns {Promise<void>} */
   deleteAuthApiToken(request, clientId, tokenId) {
     return this.request(`/api/v1/auth-api-tokens/${encodeURIComponent(clientId)}/${encodeURIComponent(tokenId)}`, {
       method: 'DELETE',
@@ -430,22 +488,28 @@ export class AuthClient {
       allowEmpty: true,
     });
   }
+  /** Retrieve signing keys using the admin session. @param {Request|object} request @returns {Promise<unknown>} */
   getKeys(request) {
     return this.request('/api/v1/keys', { request, auth: 'admin' });
   }
+  /** Rotate signing keys using the admin session; affects issued-token signing keys. @param {Request|object} request @returns {Promise<unknown>} */
   rotateKeys(request) {
     return this.request('/api/v1/keys/rotate', { method: 'POST', request, auth: 'admin' });
   }
+  /** Query audit records using the user's session cookie. @param {Request|object} request @param {Record<string, string>} [query] @returns {Promise<unknown>} */
   getAudit(request, query = {}) {
     const url = this.url('/api/v1/audit', query);
     return this.request(url.pathname + url.search, { request, auth: 'session' });
   }
+  /** Fetch audit filter options using the user's session cookie. @param {Request|object} request @returns {Promise<unknown>} */
   getAuditOptions(request) {
     return this.request('/api/v1/audit/options', { request, auth: 'session' });
   }
+  /** List administrator accounts using the admin session cookie. @param {Request|object} request @returns {Promise<unknown>} */
   listAdminUsers(request) {
     return this.request('/api/v1/admin/users', { request, auth: 'admin' });
   }
+  /** Update a user account using the admin session. @param {Request|object} request @param {string} id @param {object} data @returns {Promise<unknown>} */
   updateAdminUser(request, id, data) {
     return this.request(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
       method: 'PATCH',
@@ -454,6 +518,7 @@ export class AuthClient {
       body: data,
     });
   }
+  /** Delete a user account using the admin session. @param {Request|object} request @param {string} id @returns {Promise<unknown>} */
   deleteAdminUser(request, id) {
     return this.request(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -461,6 +526,7 @@ export class AuthClient {
       auth: 'admin',
     });
   }
+  /** Build the browser's RP-initiated logout URL; it does not call or follow the logout endpoint. @param {{idTokenHint?: string, postLogoutRedirectUri?: string, state?: string}} [options] @returns {string} */
   getLogoutUrl({ idTokenHint, postLogoutRedirectUri, state } = {}) {
     return String(
       this.url('/logout', {
@@ -471,11 +537,13 @@ export class AuthClient {
       }),
     );
   }
+  /** Read cookies from an incoming request. @param {Request|object} request @returns {Record<string, string>} */
   getCookies(request) {
     return getCookies(request);
   }
 }
 
+/** Create another AuthClient from explicit options or environment defaults. @param {object} [options] @returns {AuthClient} */
 export function createAuthClient(options = {}) {
   return new AuthClient(options);
 }
