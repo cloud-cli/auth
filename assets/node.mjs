@@ -1,15 +1,13 @@
 import { createHash, createPublicKey, randomBytes, verify } from 'node:crypto';
 
 const defaultIssuer = '__API_URL__';
-
-function decodeBase64Url(value) {
-  return Buffer.from(value, 'base64url');
-}
+const decodeBase64Url = (value) => Buffer.from(value, 'base64url');
 
 function parseToken(token) {
   const parts = token.split('.');
-  if (parts.length !== 3) throw new Error('Invalid JWT');
-
+  if (parts.length !== 3) {
+    throw new Error('Invalid JWT');
+  }
   try {
     return {
       header: JSON.parse(decodeBase64Url(parts[0]).toString('utf8')),
@@ -22,15 +20,31 @@ function parseToken(token) {
   }
 }
 
-export function getCookies(request) {
-  const header = request.headers?.get ? request.headers.get('cookie') : request.headers?.cookie;
-  if (!header) return {};
+class AuthApiError extends Error {
+  constructor(method, path, status, detail) {
+    super(`Auth request ${method} ${path} failed: ${status} ${detail}`);
+    this.name = 'AuthApiError';
+    this.status = status;
+  }
+}
 
+export function getCookies(request) {
+  const header = request?.headers?.get ? request.headers.get('cookie') : request?.headers?.cookie;
+  if (!header) {
+    return {};
+  }
   return Object.fromEntries(
     header.split(';').map((part) => {
       const separator = part.indexOf('=');
-      if (separator === -1) return [part.trim(), ''];
-      return [part.slice(0, separator).trim(), decodeURIComponent(part.slice(separator + 1).trim())];
+      if (separator === -1) {
+        return [part.trim(), ''];
+      }
+      const value = part.slice(separator + 1).trim();
+      try {
+        return [part.slice(0, separator).trim(), decodeURIComponent(value)];
+      } catch {
+        return [part.slice(0, separator).trim(), value];
+      }
     }),
   );
 }
@@ -40,227 +54,431 @@ export function getSessionCookie(request, cookieName = 'connect.sid') {
   return value ? `${cookieName}=${encodeURIComponent(value)}` : '';
 }
 
-export function createAuthClient({
-  issuer = defaultIssuer,
-  clientId,
-  clientSecret,
-  authApiToken,
-  sessionCookieName = 'connect.sid',
-} = {}) {
-  if (!clientId) throw new Error('A client ID is required');
-
-  let jwks;
-  let jwksExpiresAt = 0;
-
-  async function getJwks() {
-    if (jwks && Date.now() < jwksExpiresAt) return jwks;
-
-    const response = await fetch(new URL('/.well-known/jwks.json', issuer));
-    if (!response.ok) throw new Error(`Could not load JWKS: ${response.status}`);
-
-    jwks = await response.json();
-    jwksExpiresAt = Date.now() + 60 * 60 * 1000;
-    return jwks;
+export class AuthClient {
+  constructor({
+    issuer = process.env.OIDC_ISSUER || defaultIssuer,
+    clientId = process.env.OIDC_CLIENT_ID,
+    clientSecret = process.env.OIDC_CLIENT_SECRET,
+    authApiToken = process.env.AUTH_API_TOKEN,
+    sessionCookieName = 'connect.sid',
+  } = {}) {
+    if (!clientId) {
+      throw new Error('OIDC_CLIENT_ID is required');
+    }
+    let normalizedIssuer;
+    try {
+      normalizedIssuer = new URL(issuer).toString().replace(/\/$/, '');
+    } catch {
+      throw new Error('OIDC_ISSUER must be an absolute URL');
+    }
+    if (!/^https?:\/\//.test(normalizedIssuer)) {
+      throw new Error('OIDC_ISSUER must use HTTP or HTTPS');
+    }
+    this.issuer = normalizedIssuer;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.authApiToken = authApiToken;
+    this.sessionCookieName = sessionCookieName;
+    this.removeProperty = this.deleteProperty;
+    this.jwks = null;
+    this.jwksExpiresAt = 0;
   }
 
-  async function verifyToken(token) {
+  url(path, query) {
+    const url = new URL(path, this.issuer);
+    for (const [key, value] of Object.entries(query || {})) {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, value);
+      }
+    }
+    return url;
+  }
+
+  async request(
+    path,
+    { method = 'GET', request, auth = 'none', body, form, headers = {}, allowEmpty = false, ...options } = {},
+  ) {
+    const outgoing = { ...headers };
+    if (auth === 'session' || auth === 'admin') {
+      const cookie = getSessionCookie(request, this.sessionCookieName);
+      if (!cookie) {
+        throw new Error('Authentication required: pass the incoming request');
+      }
+      outgoing.Cookie = cookie;
+    } else if (auth === 'api') {
+      if (!this.authApiToken) {
+        throw new Error('An Auth API token is required');
+      }
+      outgoing.Authorization = `Bearer ${this.authApiToken}`;
+    }
+    if (form) {
+      outgoing['content-type'] = 'application/x-www-form-urlencoded';
+      body = new URLSearchParams(form);
+    }
+    if (body !== undefined && !form) {
+      outgoing['content-type'] = 'application/json';
+      body = JSON.stringify(body);
+    }
+    const response = await fetch(this.url(path), { method, headers: outgoing, body, ...options });
+    if (!response.ok) {
+      throw new AuthApiError(method, path, response.status, await response.text());
+    }
+    if (allowEmpty || response.status === 204) {
+      return undefined;
+    }
+    const text = await response.text();
+    if (!text) {
+      return undefined;
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
+  getDiscovery() {
+    return this.request('/.well-known/openid-configuration');
+  }
+  getJwks() {
+    return this.request('/.well-known/jwks.json').then((keys) => {
+      this.jwks = keys;
+      this.jwksExpiresAt = Date.now() + 3600000;
+      return keys;
+    });
+  }
+  async verifyToken(token) {
     const { header, payload, signature, signed } = parseToken(token);
-    if (header.alg !== 'RS256' || typeof header.kid !== 'string') throw new Error('Unsupported JWT');
-
-    const keys = await getJwks();
+    if (header.alg !== 'RS256' || typeof header.kid !== 'string') {
+      throw new Error('Unsupported JWT');
+    }
+    const keys = this.jwks && Date.now() < this.jwksExpiresAt ? this.jwks : await this.getJwks();
     const jwk = keys.keys?.find((key) => key.kid === header.kid && key.kty === 'RSA');
-    if (!jwk) throw new Error('Unknown JWT signing key');
-
-    const key = createPublicKey({ key: jwk, format: 'jwk' });
-    if (!verify('RSA-SHA256', signed, key, signature)) throw new Error('Invalid JWT signature');
-
-    const now = Math.floor(Date.now() / 1000);
-    const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    if (payload.iss !== issuer || !audiences.includes(clientId) || typeof payload.sub !== 'string')
+    if (!jwk || !verify('RSA-SHA256', signed, createPublicKey({ key: jwk, format: 'jwk' }), signature)) {
+      throw new Error('Invalid JWT signature');
+    }
+    const now = Math.floor(Date.now() / 1000),
+      audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+    if (payload.iss !== this.issuer || !audiences.includes(this.clientId) || typeof payload.sub !== 'string') {
       throw new Error('Invalid JWT claims');
-    if (typeof payload.exp !== 'number' || payload.exp <= now) throw new Error('Expired JWT');
-    if (typeof payload.nbf === 'number' && payload.nbf > now) throw new Error('JWT is not active');
-
+    }
+    if (typeof payload.exp !== 'number' || payload.exp <= now) {
+      throw new Error('Expired JWT');
+    }
+    if (typeof payload.nbf === 'number' && payload.nbf > now) {
+      throw new Error('JWT is not active');
+    }
     return payload;
   }
-
-  async function getUserInfo(token) {
-    await verifyToken(token);
-    const response = await fetch(new URL('/userinfo', issuer), {
-      headers: { Authorization: `Bearer ${token}`, 'X-Auth-Audience': clientId },
+  async getUserInfo(token) {
+    await this.verifyToken(token);
+    return this.request('/userinfo', {
+      headers: { Authorization: `Bearer ${token}`, 'X-Auth-Audience': this.clientId },
     });
-    if (!response.ok) throw new Error(`Could not load profile: ${response.status}`);
-
-    return response.json();
   }
-
-  async function introspectToken(token) {
-    const credentials = Buffer.from(`${clientId}:${clientSecret || ''}`).toString('base64');
-    const response = await fetch(new URL('/oauth/introspect', issuer), {
+  introspectToken(token) {
+    return this.request('/oauth/introspect', {
       method: 'POST',
-      headers: { Authorization: `Basic ${credentials}`, 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ token, token_type_hint: 'access_token' }),
+      form: { token, token_type_hint: 'access_token' },
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret || ''}`).toString('base64')}`,
+      },
     });
-    if (!response.ok) throw new Error(`Could not introspect token: ${response.status}`);
-    return response.json();
   }
-
-  async function revokeApiToken(token) {
-    const credentials = Buffer.from(`${clientId}:${clientSecret || ''}`).toString('base64');
-    const response = await fetch(new URL('/api/v1/revoke', issuer), {
+  revokeApiToken(token) {
+    return this.request('/api/v1/revoke', {
       method: 'POST',
-      headers: { Authorization: `Basic ${credentials}`, 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ token, token_type_hint: 'access_token' }),
+      form: { token, token_type_hint: 'access_token' },
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret || ''}`).toString('base64')}`,
+      },
+      allowEmpty: true,
     });
-    if (!response.ok) throw new Error(`Could not revoke API token: ${response.status}`);
   }
-
-  async function mintApiToken({ label, scopes }) {
-    if (!authApiToken) throw new Error('An Auth API token is required to mint API tokens');
-    const response = await fetch(new URL(`/api/v1/api-tokens/${encodeURIComponent(clientId)}/issue`, issuer), {
+  revokeRefreshToken(token) {
+    return this.request('/revoke', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${authApiToken}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ label, scopes }),
+      form: {
+        client_id: this.clientId,
+        client_secret: this.clientSecret || '',
+        token,
+        token_type_hint: 'refresh_token',
+      },
+      allowEmpty: true,
     });
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(`Could not mint API token: ${response.status} ${detail}`);
-    }
-    return response.json();
   }
-
-  async function getProfile(request) {
-    const cookie = getSessionCookie(request, sessionCookieName);
-    if (!cookie) return null;
-
-    const response = await fetch(new URL('/api/v1/profile', issuer), { headers: { Cookie: cookie } });
-    return response.ok ? response.json() : null;
-  }
-
-  async function getProperty(request, key) {
-    const cookie = getSessionCookie(request, sessionCookieName);
-    if (!cookie) return null;
-    const response = await fetch(new URL(`/api/v1/properties/${encodeURIComponent(key)}`, issuer), {
-      headers: { Cookie: cookie },
-    });
-    return response.ok ? response.json() : null;
-  }
-
-  async function setProperty(request, key, value) {
-    const cookie = getSessionCookie(request, sessionCookieName);
-    if (!cookie) throw new Error('Authentication required');
-    const response = await fetch(new URL('/api/v1/properties', issuer), {
-      method: 'PUT',
-      headers: { Cookie: cookie, 'content-type': 'application/json' },
-      body: JSON.stringify({ key, value }),
-    });
-    if (!response.ok) throw new Error(`Could not set property: ${response.status}`);
-    return response.json();
-  }
-
-  async function deleteProperty(request, key) {
-    const cookie = getSessionCookie(request, sessionCookieName);
-    if (!cookie) throw new Error('Authentication required');
-    const response = await fetch(new URL(`/api/v1/properties/${encodeURIComponent(key)}`, issuer), {
-      method: 'DELETE',
-      headers: { Cookie: cookie },
-    });
-    if (!response.ok) throw new Error(`Could not delete property: ${response.status}`);
-  }
-
-  async function isSessionAuthenticated(request) {
-    return Boolean(await getProfile(request));
-  }
-
-  async function requireSession(request, response) {
-    const profile = await getProfile(request);
-    if (profile) return profile;
-
-    response.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' });
-    response.end('Authentication required');
-    return null;
-  }
-
-  function createAuthorizationRequest({
+  createAuthorizationRequest({
     redirectUri,
     scope = 'openid profile email',
     nonce = randomBytes(32).toString('base64url'),
   }) {
-    if (!redirectUri) throw new Error('A redirect URI is required');
-
-    const state = randomBytes(32).toString('base64url');
-    const codeVerifier = randomBytes(32).toString('base64url');
-    const url = new URL('/authorize', issuer);
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('client_id', clientId);
-    url.searchParams.set('redirect_uri', redirectUri);
-    url.searchParams.set('state', state);
-    url.searchParams.set('scope', scope);
-    url.searchParams.set('nonce', nonce);
-    url.searchParams.set('code_challenge', createHash('sha256').update(codeVerifier).digest('base64url'));
-    url.searchParams.set('code_challenge_method', 'S256');
+    if (!redirectUri) {
+      throw new Error('A redirect URI is required');
+    }
+    const state = randomBytes(32).toString('base64url'),
+      codeVerifier = randomBytes(32).toString('base64url');
+    const url = this.url('/authorize', {
+      response_type: 'code',
+      client_id: this.clientId,
+      redirect_uri: redirectUri,
+      state,
+      scope,
+      nonce,
+      code_challenge: createHash('sha256').update(codeVerifier).digest('base64url'),
+      code_challenge_method: 'S256',
+    });
     return { url: String(url), state, codeVerifier, nonce };
   }
-
-  async function exchangeCode({ code, codeVerifier, redirectUri, clientSecret: suppliedClientSecret = clientSecret }) {
-    const body = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      code_verifier: codeVerifier,
-    });
-    if (suppliedClientSecret) body.set('client_secret', suppliedClientSecret);
-    const response = await fetch(new URL('/token', issuer), {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body,
-    });
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(`Could not exchange authorization code: ${response.status} ${detail}`);
-    }
-    return response.json();
+  authorizationUrl(options) {
+    return this.createAuthorizationRequest(options).url;
   }
-
-  async function refreshOidcToken({ refreshToken: token, scope, clientSecret: suppliedClientSecret = clientSecret }) {
-    if (!token) throw new Error('A refresh token is required');
-    if (scope !== undefined && typeof scope !== 'string') throw new Error('Refresh scope must be a string');
-    const body = new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: clientId,
-      refresh_token: token,
-    });
-    if (scope !== undefined) body.set('scope', scope);
-    if (suppliedClientSecret) body.set('client_secret', suppliedClientSecret);
-    const response = await fetch(new URL('/token', issuer), {
+  exchangeCode({ code, codeVerifier, redirectUri, clientSecret = this.clientSecret }) {
+    return this.request('/token', {
       method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body,
+      form: {
+        grant_type: 'authorization_code',
+        code,
+        client_id: this.clientId,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
+        ...(clientSecret ? { client_secret: clientSecret } : {}),
+      },
     });
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(`Could not refresh OIDC tokens: ${response.status} ${detail}`);
-    }
-    return response.json();
   }
-
-  return {
-    createAuthorizationRequest,
-    exchangeCode,
-    refreshToken: refreshOidcToken,
-    verifyToken,
-    getUserInfo,
-    getProfile,
-    getSessionProfile: getProfile,
-    getProperty,
-    setProperty,
-    deleteProperty,
-    removeProperty: deleteProperty,
-    introspectToken,
-    mintApiToken,
-    revokeApiToken,
-    isSessionAuthenticated,
-    requireSession,
-  };
+  refreshToken({ refreshToken, scope, clientSecret = this.clientSecret }) {
+    if (!refreshToken) {
+      throw new Error('A refresh token is required');
+    }
+    return this.request('/token', {
+      method: 'POST',
+      form: {
+        grant_type: 'refresh_token',
+        client_id: this.clientId,
+        refresh_token: refreshToken,
+        ...(scope !== undefined ? { scope } : {}),
+        ...(clientSecret ? { client_secret: clientSecret } : {}),
+      },
+    });
+  }
+  getProfile(request) {
+    if (!getSessionCookie(request, this.sessionCookieName)) return Promise.resolve(null);
+    return this.request('/api/v1/profile', { request, auth: 'session' }).catch((error) => {
+      if (error instanceof AuthApiError) return null;
+      throw error;
+    });
+  }
+  checkSession(request) {
+    return this.request('/api/v1/profile', { method: 'HEAD', request, auth: 'session', allowEmpty: true });
+  }
+  getSessionProfile(request) {
+    return this.getProfile(request);
+  }
+  isSessionAuthenticated(request) {
+    return this.getProfile(request).then(Boolean);
+  }
+  async requireSession(request, response) {
+    const profile = await this.getProfile(request);
+    if (profile) {
+      return profile;
+    }
+    response.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' });
+    response.end('Authentication required');
+    return null;
+  }
+  signOut(request) {
+    return this.request('/api/v1/profile', { method: 'DELETE', request, auth: 'session', allowEmpty: true });
+  }
+  setPreferredUsername(request, preferred_username) {
+    return this.request('/api/v1/profile/preferred-username', {
+      method: 'PUT',
+      request,
+      auth: 'session',
+      body: { preferred_username },
+    });
+  }
+  getProperties(request) {
+    return this.request('/api/v1/properties', { request, auth: 'session' });
+  }
+  getProperty(request, key) {
+    if (!getSessionCookie(request, this.sessionCookieName)) return Promise.resolve(null);
+    return this.request(`/api/v1/properties/${encodeURIComponent(key)}`, { request, auth: 'session' }).catch(
+      (error) => {
+        if (error instanceof AuthApiError) return null;
+        throw error;
+      },
+    );
+  }
+  setProperty(request, key, value) {
+    return this.request('/api/v1/properties', { method: 'PUT', request, auth: 'session', body: { key, value } });
+  }
+  deleteProperty(request, key) {
+    return this.request(`/api/v1/properties/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+      request,
+      auth: 'session',
+      allowEmpty: true,
+    });
+  }
+  removeProperty(request, key) {
+    return this.deleteProperty(request, key);
+  }
+  issueSessionToken(request, audience) {
+    const origin = request?.headers?.get ? request.headers.get('origin') : request?.headers?.origin;
+    if (!origin) {
+      throw new Error('Origin header required to issue a session token');
+    }
+    return this.request('/api/v1/session/token', {
+      method: 'POST',
+      request,
+      auth: 'session',
+      headers: { Origin: origin },
+      body: { audience },
+    });
+  }
+  listUserApiTokens(request, clientId) {
+    const query = clientId ? `?clientId=${encodeURIComponent(clientId)}` : '';
+    return this.request(`/api/v1/api-tokens/me${query}`, { request, auth: 'session' });
+  }
+  listApiTokensForClient(request, clientId) {
+    return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}`, { request, auth: 'admin' });
+  }
+  createApiToken(request, clientId, data) {
+    return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}`, {
+      method: 'POST',
+      request,
+      auth: 'admin',
+      body: data,
+    });
+  }
+  deleteApiToken(request, clientId, tokenId) {
+    return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}/${encodeURIComponent(tokenId)}`, {
+      method: 'DELETE',
+      request,
+      auth: 'admin',
+      allowEmpty: true,
+    });
+  }
+  listUserApiTokensForClient(request, clientId) {
+    return this.listApiTokensForClient(request, clientId);
+  }
+  createUserApiToken(request, clientId, data) {
+    return this.createApiToken(request, clientId, data);
+  }
+  deleteUserApiToken(request, clientId, tokenId) {
+    return this.deleteApiToken(request, clientId, tokenId);
+  }
+  mintApiToken({ label, scopes }) {
+    return this.request(`/api/v1/api-tokens/${encodeURIComponent(this.clientId)}/issue`, {
+      method: 'POST',
+      auth: 'api',
+      body: { label, scopes },
+    });
+  }
+  listOidcClients(request) {
+    return this.request('/api/v1/oidc/clients', { request, auth: 'admin' });
+  }
+  createOidcClient(request, data) {
+    return this.request('/api/v1/oidc/clients', { method: 'POST', request, auth: 'admin', body: data });
+  }
+  deleteOidcClient(request, id) {
+    return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      request,
+      auth: 'admin',
+      allowEmpty: true,
+    });
+  }
+  setClientLogoutRedirects(request, id, postLogoutRedirectUris) {
+    return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/logout-redirects`, {
+      method: 'PUT',
+      request,
+      auth: 'admin',
+      body: { postLogoutRedirectUris },
+    });
+  }
+  regenerateOidcClientSecret(request, id) {
+    return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/secret`, {
+      method: 'PUT',
+      request,
+      auth: 'admin',
+    });
+  }
+  setOidcClientScopes(request, id, scopes) {
+    return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/scopes`, {
+      method: 'PUT',
+      request,
+      auth: 'admin',
+      body: { scopes },
+    });
+  }
+  listAuthApiTokens(request, clientId) {
+    return this.request(`/api/v1/auth-api-tokens/${encodeURIComponent(clientId)}`, { request, auth: 'admin' });
+  }
+  createAuthApiToken(request, clientId, label) {
+    return this.request(`/api/v1/auth-api-tokens/${encodeURIComponent(clientId)}`, {
+      method: 'POST',
+      request,
+      auth: 'admin',
+      body: { label },
+    });
+  }
+  deleteAuthApiToken(request, clientId, tokenId) {
+    return this.request(`/api/v1/auth-api-tokens/${encodeURIComponent(clientId)}/${encodeURIComponent(tokenId)}`, {
+      method: 'DELETE',
+      request,
+      auth: 'admin',
+      allowEmpty: true,
+    });
+  }
+  getKeys(request) {
+    return this.request('/api/v1/keys', { request, auth: 'admin' });
+  }
+  rotateKeys(request) {
+    return this.request('/api/v1/keys/rotate', { method: 'POST', request, auth: 'admin' });
+  }
+  getAudit(request, query = {}) {
+    const url = this.url('/api/v1/audit', query);
+    return this.request(url.pathname + url.search, { request, auth: 'session' });
+  }
+  getAuditOptions(request) {
+    return this.request('/api/v1/audit/options', { request, auth: 'session' });
+  }
+  listAdminUsers(request) {
+    return this.request('/api/v1/admin/users', { request, auth: 'admin' });
+  }
+  updateAdminUser(request, id, data) {
+    return this.request(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      request,
+      auth: 'admin',
+      body: data,
+    });
+  }
+  deleteAdminUser(request, id) {
+    return this.request(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      request,
+      auth: 'admin',
+    });
+  }
+  getLogoutUrl({ idTokenHint, postLogoutRedirectUri, state } = {}) {
+    return String(
+      this.url('/logout', {
+        client_id: this.clientId,
+        id_token_hint: idTokenHint,
+        post_logout_redirect_uri: postLogoutRedirectUri,
+        state,
+      }),
+    );
+  }
+  getCookies(request) {
+    return getCookies(request);
+  }
 }
+
+export function createAuthClient(options = {}) {
+  return new AuthClient(options);
+}
+
+const authClient = new AuthClient();
+export default authClient;

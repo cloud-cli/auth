@@ -202,7 +202,15 @@ The RP session check happens in the popup at the RP origin. This avoids dependin
 
 Use `/node.mjs` from a backend or a Node.js HTTP server. It has no npm dependency on Auth: the example below fetches the published module and imports it from a `data:` URL.
 
-Register a confidential OIDC client in `/oidc` for a server-side application. Its callback URI must exactly match the URI registered with Auth. Keep its client secret on the server.
+Register a confidential OIDC client in `/oidc` for a server-side application. Its callback URI must exactly match the URI registered with Auth. Keep its client secret on the server. Download `/node.mjs` into the service and consume its default export with a normal Node.js import. The default instance reads `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` from the environment. `AuthClient` is also exported for explicitly configured instances, and `createAuthClient(options)` remains as a compatibility factory. `AUTH_API_TOKEN` optionally configures the separate fixed-purpose bearer credential used only by `mintApiToken`.
+
+```js
+import client, { AuthClient } from './node.mjs';
+const profile = await client.getProfile(incomingRequest); // forwards only connect.sid
+const isolatedClient = new AuthClient({ clientId: 'other-app', clientSecret: process.env.OTHER_OIDC_SECRET });
+```
+
+Session/profile, properties, `/api/v1/api-tokens/me`, client administration, client-scoped token management, keys, audit, and admin-user methods take the incoming HTTP request as their first argument and forward only its `connect.sid` cookie. Client administration and client-scoped token management require an administrator's session; the caller must already possess the appropriate Auth session, this is not an admin credential exchange. OIDC exchange/refresh uses the OIDC client ID/secret, introspection and downstream-token revocation use HTTP Basic OIDC client credentials, and downstream token minting uses only the optional Auth API Bearer token. These credential types are not interchangeable. `authorizationUrl()` and `getLogoutUrl()` construct browser redirect URLs; the client does not automate browser navigation. The session-token method also forwards the request's `Origin`, which Auth must allow. Interactive WebAuthn, recovery, QR and browser asset endpoints are excluded; ordinary session-backed audit endpoints remain available.
 
 #### Complete minimal HTTP server example
 
@@ -216,12 +224,7 @@ const issuer = 'https://auth.example.com';
 const appOrigin = 'https://inventory.example.com';
 const redirectUri = `${appOrigin}/auth/callback`;
 const source = await (await fetch(`${issuer}/node.mjs`)).text();
-const { createAuthClient } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
-const auth = createAuthClient({
-  issuer,
-  clientId: 'inventory',
-  clientSecret: process.env.AUTH_CLIENT_SECRET,
-});
+const { default: auth } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
 
 const loginTransactions = new Map(); // Use a shared store with a short TTL in production.
 const appSessions = new Map(); // Use a persistent session store in production.
