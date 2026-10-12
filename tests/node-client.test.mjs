@@ -14,6 +14,65 @@ test('OIDC authorization requests include state, nonce, openid scopes, and S256 
   assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
   assert.equal(url.searchParams.get('code_challenge').length, 43);
   assert.equal(request.codeVerifier.length, 43);
+
+  const offlineRequest = auth.createAuthorizationRequest({
+    redirectUri: 'https://app.example/callback',
+    scope: 'openid profile email offline_access',
+  });
+  assert.equal(new URL(offlineRequest.url).searchParams.get('scope'), 'openid profile email offline_access');
+});
+
+test('refreshToken exchanges a rotating OIDC refresh token server-to-server', async () => {
+  const originalFetch = globalThis.fetch;
+  let call;
+  globalThis.fetch = async (url, options) => {
+    call = { url: String(url), options };
+    return new Response(JSON.stringify({ access_token: 'new-access', refresh_token: 'new-refresh' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  try {
+    const auth = createAuthClient({ issuer: 'https://auth.example', clientId: 'storage', clientSecret: 'secret' });
+    const result = await auth.refreshToken({ refreshToken: 'old-refresh', scope: 'openid' });
+    assert.equal(call.url, 'https://auth.example/token');
+    assert.equal(call.options.method, 'POST');
+    const body = new URLSearchParams(call.options.body);
+    assert.equal(body.get('grant_type'), 'refresh_token');
+    assert.equal(body.get('client_id'), 'storage');
+    assert.equal(body.get('client_secret'), 'secret');
+    assert.equal(body.get('refresh_token'), 'old-refresh');
+    assert.equal(body.get('scope'), 'openid');
+    assert.equal(result.refresh_token, 'new-refresh');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('public OIDC token requests omit client_secret', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    return new Response(JSON.stringify({ access_token: 'access' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  try {
+    const auth = createAuthClient({ issuer: 'https://auth.example', clientId: 'native-app' });
+    await auth.exchangeCode({
+      code: 'authorization-code',
+      codeVerifier: 'verifier',
+      redirectUri: 'com.example:/callback',
+    });
+    await auth.refreshToken({ refreshToken: 'old-refresh' });
+    for (const { options } of calls) assert.equal(new URLSearchParams(options.body).has('client_secret'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('mintApiToken sends the client-bound Auth API token and downstream scopes', async () => {

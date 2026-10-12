@@ -202,15 +202,15 @@ export function createAuthClient({
     return { url: String(url), state, codeVerifier, nonce };
   }
 
-  async function exchangeCode({ code, codeVerifier, redirectUri, clientSecret }) {
+  async function exchangeCode({ code, codeVerifier, redirectUri, clientSecret: suppliedClientSecret = clientSecret }) {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       client_id: clientId,
-      client_secret: clientSecret,
       redirect_uri: redirectUri,
       code_verifier: codeVerifier,
     });
+    if (suppliedClientSecret) body.set('client_secret', suppliedClientSecret);
     const response = await fetch(new URL('/token', issuer), {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -223,9 +223,32 @@ export function createAuthClient({
     return response.json();
   }
 
+  async function refreshOidcToken({ refreshToken: token, scope, clientSecret: suppliedClientSecret = clientSecret }) {
+    if (!token) throw new Error('A refresh token is required');
+    if (scope !== undefined && typeof scope !== 'string') throw new Error('Refresh scope must be a string');
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      refresh_token: token,
+    });
+    if (scope !== undefined) body.set('scope', scope);
+    if (suppliedClientSecret) body.set('client_secret', suppliedClientSecret);
+    const response = await fetch(new URL('/token', issuer), {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`Could not refresh OIDC tokens: ${response.status} ${detail}`);
+    }
+    return response.json();
+  }
+
   return {
     createAuthorizationRequest,
     exchangeCode,
+    refreshToken: refreshOidcToken,
     verifyToken,
     getUserInfo,
     getProfile,
