@@ -40,3 +40,9 @@ test('administrator user management operations are documented', () => {
   assert.equal(spec.paths['/api/v1/admin/users/{id}'].delete.tags[0], 'Admin-only APIs');
   assert.ok(spec.paths['/api/v1/admin/users/{id}'].patch.requestBody);
 });
+
+test('OIDC scope documentation includes opt-in offline access', () => {
+  const scope = spec.paths['/authorize'].get.parameters.find(({ name }) => name === 'scope');
+  assert.match(scope.description, /offline_access/);
+  assert.match(scope.description, /openid is required/);
+});

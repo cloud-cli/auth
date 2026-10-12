@@ -1,7 +1,9 @@
 /**
  * Node.js client for the Auth service's OIDC and authenticated API endpoints.
- * Requires `OIDC_CLIENT_ID`; `OIDC_ISSUER` (defaults to this service's issuer),
- * `OIDC_CLIENT_SECRET`, and `AUTH_API_TOKEN` are optional for applicable operations.
+ * OIDC and client-bound API operations require `OIDC_CLIENT_ID`; `OIDC_ISSUER`
+ * (defaults to this service's issuer), `OIDC_CLIENT_SECRET`, and `AUTH_API_TOKEN`
+ * are optional for applicable operations. Named utilities and session helpers can
+ * be imported without configuring a client ID.
  *
  * @example
  * import client from './node.mjs';
@@ -77,9 +79,6 @@ export class AuthClient {
     authApiToken = process.env.AUTH_API_TOKEN,
     sessionCookieName = 'connect.sid',
   } = {}) {
-    if (!clientId) {
-      throw new Error('OIDC_CLIENT_ID is required');
-    }
     let normalizedIssuer;
     try {
       normalizedIssuer = new URL(issuer).toString().replace(/\/$/, '');
@@ -90,6 +89,7 @@ export class AuthClient {
       throw new Error('OIDC_ISSUER must use HTTP or HTTPS');
     }
     this.issuer = normalizedIssuer;
+    this.issuerOrigin = new URL(normalizedIssuer).origin;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.authApiToken = authApiToken;
@@ -97,6 +97,16 @@ export class AuthClient {
     this.removeProperty = this.deleteProperty;
     this.jwks = null;
     this.jwksExpiresAt = 0;
+    this.jwksLastRefreshAt = 0;
+    this.jwksRequest = null;
+  }
+
+  /** Require a configured OIDC client ID for client-bound operations. @returns {string} */
+  requireClientId() {
+    if (!this.clientId) {
+      throw new Error('OIDC_CLIENT_ID is required for this operation');
+    }
+    return this.clientId;
   }
 
   /** Build an Auth issuer URL with optional query parameters. @param {string} path @param {Record<string, string>} [query] @returns {URL} */
@@ -115,6 +125,10 @@ export class AuthClient {
     path,
     { method = 'GET', request, auth = 'none', body, form, headers = {}, allowEmpty = false, ...options } = {},
   ) {
+    const url = this.url(path);
+    if (url.origin !== this.issuerOrigin) {
+      throw new Error('Auth request URL must use the configured issuer origin');
+    }
     const outgoing = { ...headers };
     if (auth === 'session' || auth === 'admin') {
       const cookie = getSessionCookie(request, this.sessionCookieName);
@@ -136,7 +150,7 @@ export class AuthClient {
       outgoing['content-type'] = 'application/json';
       body = JSON.stringify(body);
     }
-    const response = await fetch(this.url(path), { method, headers: outgoing, body, ...options });
+    const response = await fetch(url, { method, headers: outgoing, body, ...options, redirect: 'manual' });
     if (!response.ok) {
       throw new AuthApiError(method, path, response.status, await response.text());
     }
@@ -160,11 +174,20 @@ export class AuthClient {
   }
   /** Fetch keys from `/.well-known/jwks.json` and cache them for token verification for one hour. @returns {Promise<object>} */
   getJwks() {
-    return this.request('/.well-known/jwks.json').then((keys) => {
-      this.jwks = keys;
-      this.jwksExpiresAt = Date.now() + 3600000;
-      return keys;
-    });
+    if (!this.jwksRequest) {
+      this.jwksLastRefreshAt = Date.now();
+      this.jwksRequest = this.request('/.well-known/jwks.json')
+        .then((keys) => {
+          this.jwks = keys;
+          this.jwksExpiresAt = Date.now() + 3600000;
+          this.jwksLastRefreshAt = Date.now();
+          return keys;
+        })
+        .finally(() => {
+          this.jwksRequest = null;
+        });
+    }
+    return this.jwksRequest;
   }
   /** Verify an RS256 JWT signature and issuer, audience, subject, and time claims. @param {string} token @returns {Promise<object>} Verified JWT payload. */
   async verifyToken(token) {
@@ -172,8 +195,13 @@ export class AuthClient {
     if (header.alg !== 'RS256' || typeof header.kid !== 'string') {
       throw new Error('Unsupported JWT');
     }
-    const keys = this.jwks && Date.now() < this.jwksExpiresAt ? this.jwks : await this.getJwks();
-    const jwk = keys.keys?.find((key) => key.kid === header.kid && key.kty === 'RSA');
+    this.requireClientId();
+    let keys = this.jwks && Date.now() < this.jwksExpiresAt ? this.jwks : await this.getJwks();
+    let jwk = keys.keys?.find((key) => key.kid === header.kid && key.kty === 'RSA');
+    if (!jwk && Date.now() - this.jwksLastRefreshAt >= 5000) {
+      keys = await this.getJwks();
+      jwk = keys.keys?.find((key) => key.kid === header.kid && key.kty === 'RSA');
+    }
     if (!jwk || !verify('RSA-SHA256', signed, createPublicKey({ key: jwk, format: 'jwk' }), signature)) {
       throw new Error('Invalid JWT signature');
     }
@@ -192,6 +220,7 @@ export class AuthClient {
   }
   /** Verify an access token, then fetch `/userinfo` using that token as a bearer credential. @param {string} token @returns {Promise<object|string>} */
   async getUserInfo(token) {
+    this.requireClientId();
     await this.verifyToken(token);
     return this.request('/userinfo', {
       headers: { Authorization: `Bearer ${token}`, 'X-Auth-Audience': this.clientId },
@@ -199,6 +228,7 @@ export class AuthClient {
   }
   /** Introspect an access token at `/oauth/introspect` using client Basic authentication (OIDC client secret). @param {string} token @returns {Promise<unknown>} */
   introspectToken(token) {
+    this.requireClientId();
     return this.request('/oauth/introspect', {
       method: 'POST',
       form: { token, token_type_hint: 'access_token' },
@@ -209,6 +239,7 @@ export class AuthClient {
   }
   /** Revoke a token at `/api/v1/revoke` using client Basic authentication (OIDC client secret). @param {string} token @returns {Promise<void>} */
   revokeApiToken(token) {
+    this.requireClientId();
     return this.request('/api/v1/revoke', {
       method: 'POST',
       form: { token, token_type_hint: 'access_token' },
@@ -220,6 +251,7 @@ export class AuthClient {
   }
   /** Revoke a refresh token at `/revoke`; submits the OIDC client ID and secret. @param {string} token @returns {Promise<void>} */
   revokeRefreshToken(token) {
+    this.requireClientId();
     return this.request('/revoke', {
       method: 'POST',
       form: {
@@ -237,6 +269,7 @@ export class AuthClient {
     scope = 'openid profile email',
     nonce = randomBytes(32).toString('base64url'),
   }) {
+    this.requireClientId();
     if (!redirectUri) {
       throw new Error('A redirect URI is required');
     }
@@ -260,6 +293,7 @@ export class AuthClient {
   }
   /** Exchange an authorization code at `/token`, optionally authenticating with the OIDC client secret. @param {{code: string, codeVerifier: string, redirectUri: string, clientSecret?: string}} options @returns {Promise<object>} Token response; includes `refresh_token` when `offline_access` was granted. */
   exchangeCode({ code, codeVerifier, redirectUri, clientSecret = this.clientSecret }) {
+    this.requireClientId();
     return this.request('/token', {
       method: 'POST',
       form: {
@@ -272,8 +306,9 @@ export class AuthClient {
       },
     });
   }
-  /** Exchange a rotating refresh token at `/token`, optionally narrowing its original scope; serialize calls per grant to avoid replay detection. @param {{refreshToken: string, scope?: string, clientSecret?: string}} options @returns {Promise<object>} Token response containing the replacement `refresh_token` when offline access continues. */
+  /** Exchange a rotating refresh token at `/token`, optionally narrowing its original scope. This method does not coalesce calls; the caller must serialize refresh attempts per grant to avoid replay detection. @param {{refreshToken: string, scope?: string, clientSecret?: string}} options @returns {Promise<object>} Token response containing the replacement `refresh_token` when offline access continues. */
   refreshToken({ refreshToken, scope, clientSecret = this.clientSecret }) {
+    this.requireClientId();
     if (!refreshToken) {
       throw new Error('A refresh token is required');
     }
@@ -292,7 +327,7 @@ export class AuthClient {
   getProfile(request) {
     if (!getSessionCookie(request, this.sessionCookieName)) return Promise.resolve(null);
     return this.request('/api/v1/profile', { request, auth: 'session' }).catch((error) => {
-      if (error instanceof AuthApiError) return null;
+      if (error instanceof AuthApiError && [401, 403, 404].includes(error.status)) return null;
       throw error;
     });
   }
@@ -340,7 +375,7 @@ export class AuthClient {
     if (!getSessionCookie(request, this.sessionCookieName)) return Promise.resolve(null);
     return this.request(`/api/v1/properties/${encodeURIComponent(key)}`, { request, auth: 'session' }).catch(
       (error) => {
-        if (error instanceof AuthApiError) return null;
+        if (error instanceof AuthApiError && [401, 403, 404].includes(error.status)) return null;
         throw error;
       },
     );
@@ -417,6 +452,7 @@ export class AuthClient {
   }
   /** Mint a downstream API token via `/api/v1/api-tokens/{clientId}/issue` using the configured Auth API bearer token, not OIDC client credentials. @param {{label: string, scopes: string[]}} options @returns {Promise<unknown>} */
   mintApiToken({ label, scopes }) {
+    this.requireClientId();
     return this.request(`/api/v1/api-tokens/${encodeURIComponent(this.clientId)}/issue`, {
       method: 'POST',
       auth: 'api',
@@ -528,6 +564,7 @@ export class AuthClient {
   }
   /** Build the browser's RP-initiated logout URL; it does not call or follow the logout endpoint. @param {{idTokenHint?: string, postLogoutRedirectUri?: string, state?: string}} [options] @returns {string} */
   getLogoutUrl({ idTokenHint, postLogoutRedirectUri, state } = {}) {
+    this.requireClientId();
     return String(
       this.url('/logout', {
         client_id: this.clientId,

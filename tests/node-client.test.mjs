@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { test } from 'node:test';
 
@@ -14,6 +15,22 @@ test('exports a class and one environment-configured default client', () => {
   assert.equal(defaultAuthClient.clientId, process.env.OIDC_CLIENT_ID);
   assert.equal(defaultAuthClient.clientSecret, process.env.OIDC_CLIENT_SECRET);
   assert.equal(createAuthClient({ clientId: 'compat' }).clientId, 'compat');
+});
+
+test('module utilities and default import work without OIDC_CLIENT_ID', () => {
+  const env = { ...process.env, OIDC_ISSUER: 'https://default-auth.example' };
+  delete env.OIDC_CLIENT_ID;
+  delete env.OIDC_CLIENT_SECRET;
+  delete env.AUTH_API_TOKEN;
+  execFileSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      "const { default: client, getCookies } = await import('./assets/node.mjs'); let requiresClientId = false; try { client.createAuthorizationRequest({ redirectUri: 'https://app.example/callback' }); } catch (error) { requiresClientId = /OIDC_CLIENT_ID/.test(error.message); } if (client.clientId !== undefined || !requiresClientId || getCookies({ headers: { cookie: 'a=b' } }).a !== 'b' || (await client.getProfile({ headers: {} })) !== null) process.exit(1);",
+    ],
+    { env, stdio: 'pipe' },
+  );
 });
 
 test('session/admin routes forward only the per-call cookie; API mint uses a separate bearer token', async () => {
@@ -35,10 +52,32 @@ test('session/admin routes forward only the per-call cookie; API mint uses a sep
     await auth.mintApiToken({ label: 'x', scopes: [] });
     assert.equal(calls[0].options.headers.Cookie, 'connect.sid=s%2Fv');
     assert.equal(calls[0].options.headers.Authorization, undefined);
+    assert.equal(calls[0].options.redirect, 'manual');
     assert.equal(calls[1].url, 'https://auth.example/api/v1/admin/users/user%2Fa');
     assert.equal(calls[2].options.headers.Origin, 'https://app.example');
     assert.equal(calls[3].options.headers.Authorization, 'Bearer api-key');
     await assert.rejects(auth.listOidcClients({ headers: {} }), /Authentication required/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('request rejects cross-origin URLs before forwarding session or Auth API credentials', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response('{}');
+  };
+  try {
+    const auth = new AuthClient({ issuer: 'https://auth.example', clientId: 'id', authApiToken: 'api-key' });
+    const request = { headers: { cookie: 'connect.sid=secret' } };
+    await assert.rejects(
+      auth.request('//attacker.invalid/capture', { request, auth: 'session' }),
+      /configured issuer origin/,
+    );
+    await assert.rejects(auth.request('https://attacker.invalid/capture', { auth: 'api' }), /configured issuer origin/);
+    assert.equal(calls, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -65,14 +104,18 @@ test('session API path values are encoded and audit query values use URL encodin
 
 test('profile and property helpers return null for unauthenticated or missing data', async () => {
   const originalFetch = globalThis.fetch;
+  let profileStatus = 401;
   globalThis.fetch = async (url) =>
-    new Response('not found', { status: String(url).includes('/properties/') ? 404 : 401 });
+    new Response('not found', { status: String(url).includes('/properties/') ? 404 : profileStatus });
   try {
     const auth = createAuthClient({ issuer: 'https://auth.example', clientId: 'id' });
     const request = { headers: { cookie: 'connect.sid=session' } };
     assert.equal(await auth.getProfile(request), null);
     assert.equal(await auth.isSessionAuthenticated(request), false);
     assert.equal(await auth.getProperty(request, 'missing'), null);
+    profileStatus = 503;
+    await assert.rejects(auth.getProfile(request), /503/);
+    profileStatus = 401;
 
     const response = {
       writeHead(status) {
@@ -251,6 +294,36 @@ test('getProfile is the session profile; getUserInfo loads OIDC UserInfo', async
     assert.equal(calls[2].url, 'https://auth.example/.well-known/jwks.json');
     assert.equal(calls[3].url, 'https://auth.example/userinfo');
     assert.equal(calls[3].options.headers.Authorization, `Bearer ${token}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('verifyToken refreshes JWKS once when a cached set lacks the token kid', async () => {
+  const originalFetch = globalThis.fetch;
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const jwk = publicKey.export({ format: 'jwk' });
+  jwk.kid = 'rotated-key';
+  jwk.alg = 'RS256';
+  jwk.use = 'sig';
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const head = encode({ alg: 'RS256', kid: 'rotated-key' });
+  const payload = encode({ iss: 'https://auth.example', aud: 'storage', sub: 'user', exp: 4102444800 });
+  const token = `${head}.${payload}.${sign('RSA-SHA256', Buffer.from(`${head}.${payload}`), privateKey).toString('base64url')}`;
+  let jwksCalls = 0;
+  globalThis.fetch = async () => {
+    jwksCalls += 1;
+    return new Response(JSON.stringify({ keys: [jwk] }), { status: 200 });
+  };
+  try {
+    const auth = createAuthClient({ issuer: 'https://auth.example', clientId: 'storage' });
+    auth.jwks = { keys: [{ ...jwk, kid: 'old-key' }] };
+    auth.jwksExpiresAt = Date.now() + 3600000;
+    assert.equal((await auth.verifyToken(token)).sub, 'user');
+    assert.equal(jwksCalls, 1);
+    const unknownHead = encode({ alg: 'RS256', kid: 'attacker-kid' });
+    await assert.rejects(auth.verifyToken(`${unknownHead}.${payload}.${token.split('.')[2]}`), /Invalid JWT signature/);
+    assert.equal(jwksCalls, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }

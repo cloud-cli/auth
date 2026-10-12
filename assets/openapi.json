@@ -911,7 +911,7 @@
             "name": "scope",
             "in": "query",
             "required": false,
-            "description": "Space-delimited. If omitted or blank, defaults to openid; only openid, profile, and email are supported.",
+            "description": "Space-delimited. If omitted or blank, defaults to openid. Supported values are openid, profile, email, and offline_access; openid is required, and offline_access is opt-in for refresh tokens.",
             "schema": {
               "type": "string"
             }

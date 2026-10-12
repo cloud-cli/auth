@@ -298,7 +298,9 @@ createServer(async (request, response) => {
 
 Persist login transactions and relying-party sessions in production; do not use in-memory maps across restarts or replicas. The callback binds `state` to the browser with a short-lived HTTP-only cookie and validates both `state` and the ID Token `nonce`. Keep the OIDC client secret in a server-side secret manager.
 
-For server-to-server renewal, request `offline_access` in `createAuthorizationRequest`, persist the returned refresh token securely with the RP session, and use `auth.refreshToken({ refreshToken })` when its access token expires. Store each rotated `refresh_token` replacement before using it again. Serialize refresh attempts per RP session; concurrent use of the same refresh token is treated as replay and revokes that token family. The refresh token expires after 30 days and the user must sign in again after that.
+`exchangeCode()` and `refreshToken()` are token-endpoint helpers, not a complete OIDC relying-party implementation: they do not validate callback state or the ID Token nonce for you. Validate the saved state and nonce in the callback, and retain your existing OIDC library for callback processing when it provides the validation your application needs.
+
+For server-to-server renewal, request `offline_access` in `createAuthorizationRequest`, persist the returned refresh token securely with the RP session, and use `auth.refreshToken({ refreshToken })` when its access token expires. Store each rotated `refresh_token` replacement before using it again. The helper does not serialize refreshes: serialize attempts per RP session in your application. Concurrent use of the same refresh token is treated as replay and revokes that token family. The refresh token expires after 30 days and the user must sign in again after that.
 
 The module also exports `getProfile` (`getSessionProfile` is an alias), `getProperty`, `setProperty`, `deleteProperty` (`removeProperty` is an alias), `isSessionAuthenticated`, and `requireSession`. These helpers forward the Auth `connect.sid` cookie from the incoming request and are intended only for sibling subdomains that share `SESSION_DOMAIN`. They cannot authenticate a request from an unrelated domain. `getUserInfo(token)` fetches the OIDC UserInfo document, `introspectToken(token)` validates an opaque API token, `mintApiToken(...)` issues a downstream token with a fixed-purpose Auth API token, and `revokeApiToken(token)` uses the registered OIDC client credentials.
 
@@ -492,7 +494,7 @@ Useful endpoints:
 ### OAuth and OIDC behavior
 
 - Authorization Code flow with PKCE S256 is supported.
-- Supported OIDC scopes are `openid`, `profile`, and `email`; `openid` is the default when scope is omitted or blank.
+- Supported OIDC scopes are `openid`, `profile`, `email`, and opt-in `offline_access`; `openid` is required and is the default when scope is omitted or blank.
 - Confidential clients authenticate with client credentials at `/token`; public clients have no secret and rely on PKCE.
 - Redirect URI matching is exact. Web redirects require HTTPS, except loopback development URIs. Native private-use callback schemes are allowed for public clients.
 - Access tokens are signed with RS256. The provider metadata advertises only the supported response types, scopes, and authentication methods.
