@@ -692,6 +692,12 @@ test('v2 dashboard and profile page stay compact at mobile widths', async ({ pag
 
   await page.goto('/me#security');
   await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
+  const mobileContentGap = await page.evaluate(() => {
+    const header = document.querySelector('main > header').getBoundingClientRect();
+    const content = document.querySelector('main > div.bg-white').getBoundingClientRect();
+    return content.top - header.bottom;
+  });
+  expect(mobileContentGap).toBe(16);
 
   await page.setViewportSize({ width: 360, height: 800 });
   const narrowPageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
