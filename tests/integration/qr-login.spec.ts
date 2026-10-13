@@ -42,7 +42,7 @@ test('phone approval completes QR sign-in on a fresh laptop session', async ({ b
     expect(approvalStatus).toBe(204);
 
     await expect(laptop).toHaveURL(/\/me$/, { timeout: 10_000 });
-    await expect(laptop.getByRole('button', { name: 'Toggle profile details' })).toBeVisible();
+    await expect(laptop.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
   } finally {
     await laptopContext.close();
     await phoneContext.close();

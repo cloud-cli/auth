@@ -121,6 +121,7 @@ const uiAssets = Object.fromEntries(
     'v2-users.html',
     'v2-keys.html',
     'v2-activity.html',
+    'v2-profile.html',
     'v2-copy-value.html',
   ].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]),
 );
@@ -389,8 +390,8 @@ function renderAuthError(message: string) {
   const escaped = message.replace(/[&<>"']/g, (character) => entities[character]);
   return uiAssets['login.html']
     .replace(
-      '<h2 class="text-3xl font-extrabold tracking-[-.03em]">Welcome back</h2>',
-      `<h2 class="text-3xl font-extrabold tracking-[-.03em]">Welcome back</h2><p role="alert" class="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">${escaped}</p><div class="flex flex-wrap gap-3"><a class="rounded-xl bg-violet px-4 py-3 text-sm font-bold text-white" href="/login">Try signing in again</a><a class="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold" href="/">Return to Auth home</a></div>`,
+      '<div data-auth-error></div>',
+      `<div role="alert" class="grid gap-3 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p>${escaped}</p><div class="flex flex-wrap gap-3"><a class="rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white" href="/login">Try signing in again</a><a class="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-brand" href="/">Return to Auth home</a></div></div>`,
     )
     .replace('__TEST_LOGIN_ENABLED__', testLoginEnabled ? 'true' : 'false');
 }
@@ -429,7 +430,7 @@ function serveAppEntry(req, res) {
     hasPassportUser: Boolean(req.session?.passport?.user),
     sessionCookieCount,
   });
-  return serveUi(authenticated ? 'profile.html' : 'landing.html')(req, res);
+  return serveUi(authenticated ? 'v2.html' : 'landing.html')(req, res);
 }
 
 const googleScopes = {

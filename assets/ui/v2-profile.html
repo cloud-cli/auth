@@ -1,0 +1,201 @@
+<template component="v2-profile">
+  <section class="content-section animate-fade-in max-w-3xl">
+    <div class="mb-8 flex items-center gap-3">
+      <lucide-icon icon="user-round" size="28" class="text-brand"></lucide-icon>
+      <div>
+        <h2 class="text-xl font-bold tracking-tight text-gray-900">Your profile</h2>
+        <p class="text-sm text-gray-500">Manage your account details and sign-in identity.</p>
+      </div>
+    </div>
+
+    <div
+      class="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-[#f8faf7] p-5 sm:flex-row sm:items-center"
+    >
+      <div
+        class="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-brand text-xl font-bold text-white"
+        aria-hidden="true"
+      >
+        {{ initial }}
+        <template if="user.photo"
+          ><img
+            attr-src="user.photo"
+            alt=""
+            class="absolute inset-0 h-full w-full object-cover"
+            on-error="$event.target.hidden = true"
+        /></template>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h3 class="break-words text-lg font-bold text-gray-900">{{ user.name || 'Loading profile…' }}</h3>
+        <p class="break-all text-sm text-gray-500">{{ user.email }}</p>
+      </div>
+      <template if="user.role === 'admin'"
+        ><span
+          class="inline-flex w-fit items-center gap-1.5 rounded-full border border-[#dce9ca] bg-[#edf5e4] px-3 py-1 text-xs font-semibold text-[#385642]"
+          aria-label="Administrator"
+          ><lucide-icon icon="crown" size="14"></lucide-icon>Administrator</span
+        ></template
+      >
+    </div>
+
+    <div class="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white px-5">
+      <section class="py-5" aria-labelledby="preferred-heading">
+        <h3 id="preferred-heading" class="text-sm font-bold text-gray-900">Preferred username</h3>
+        <p class="mt-1 text-sm text-gray-500">
+          Choose a username using letters, numbers, underscores, or hyphens. It must start and end with a letter or
+          number and be at most 30 characters.
+        </p>
+        <template if="!user.preferred_username"
+          ><form class="mt-4 flex flex-col gap-3 sm:flex-row" on-submit="saveUsername($event)">
+            <label class="sr-only" for="v2-preferred-username">Preferred username</label>
+            <input
+              id="v2-preferred-username"
+              name="preferred_username"
+              minlength="1"
+              maxlength="30"
+              pattern="[A-Za-z0-9]([A-Za-z0-9_-]{0,28}[A-Za-z0-9])?"
+              required
+              autocomplete="username"
+              class="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              aria-describedby="v2-username-status"
+            />
+            <button
+              type="submit"
+              attr-disabled="saving"
+              class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:opacity-60"
+            >
+              {{ saving ? 'Saving…' : 'Save username' }}
+            </button>
+          </form></template
+        >
+        <p id="v2-username-status" class="mt-2 text-sm text-gray-500" role="status">{{ usernameMessage }}</p>
+        <template if="user.preferred_username"
+          ><p class="mt-3 text-sm text-gray-600">
+            Saved username:
+            <code class="break-all font-mono font-semibold">{{ user.preferred_username }}</code>
+          </p></template
+        >
+      </section>
+
+      <section class="py-5" aria-labelledby="subject-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <h3 id="subject-heading" class="text-sm font-bold text-gray-900">OIDC subject</h3>
+            <code class="mt-2 block break-all font-mono text-sm text-gray-600">{{ user.id }}</code>
+          </div>
+          <button
+            type="button"
+            on-click="copySubject()"
+            class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-brand hover:bg-[#f2f7ed]"
+            aria-label="Copy OIDC subject"
+          >
+            Copy
+          </button>
+        </div>
+        <p class="mt-2 text-sm text-gray-500" role="status">{{ copyMessage }}</p>
+      </section>
+
+      <section class="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-gray-900">Sign out</h3>
+          <p class="mt-1 text-sm text-gray-500">End your current session on this device.</p>
+        </div>
+        <button
+          type="button"
+          on-click="signOut()"
+          attr-disabled="signingOut"
+          class="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+        >
+          {{ signingOut ? 'Signing out…' : 'Sign out' }}
+        </button>
+      </section>
+    </div>
+    <p class="mt-4 text-sm text-red-700" role="alert">{{ error }}</p>
+  </section>
+
+  <script setup>
+    import { ref } from '@li3/web';
+
+    export default function () {
+      const user = ref({ id: '', name: '', email: '', photo: '', role: '', preferred_username: '' });
+      const initial = ref('U');
+      const error = ref('');
+      const usernameMessage = ref('');
+      const copyMessage = ref('');
+      const saving = ref(false);
+      const signingOut = ref(false);
+
+      async function loadProfile() {
+        try {
+          const response = await fetch('/api/v1/profile', { credentials: 'include' });
+          if (!response.ok) throw new Error('Could not load your profile.');
+          user.value = await response.json();
+          initial.value = (user.value.name || 'U').slice(0, 1).toUpperCase();
+        } catch (reason) {
+          error.value = reason instanceof Error ? reason.message : 'Could not load your profile.';
+        }
+      }
+
+      async function saveUsername(event) {
+        event.preventDefault();
+        const field = event.currentTarget.elements.namedItem('preferred_username');
+        if (!field.reportValidity()) return;
+        saving.value = true;
+        usernameMessage.value = 'Saving…';
+        error.value = '';
+        try {
+          const response = await fetch('/api/v1/profile/preferred-username', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ preferred_username: field.value }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Could not set username.');
+          user.value = { ...user.value, preferred_username: result.preferred_username };
+          usernameMessage.value = 'Username saved.';
+        } catch (reason) {
+          usernameMessage.value = '';
+          error.value = reason instanceof Error ? reason.message : 'Could not set username.';
+        } finally {
+          saving.value = false;
+        }
+      }
+
+      async function copySubject() {
+        try {
+          await navigator.clipboard.writeText(user.value.id);
+          copyMessage.value = 'OIDC subject copied.';
+        } catch {
+          copyMessage.value = 'Could not copy OIDC subject.';
+        }
+      }
+
+      async function signOut() {
+        signingOut.value = true;
+        error.value = '';
+        try {
+          const response = await fetch('/api/v1/profile', { method: 'DELETE', credentials: 'include' });
+          if (!response.ok) throw new Error('Could not sign out. Please try again.');
+          location.assign('/login');
+        } catch (reason) {
+          signingOut.value = false;
+          error.value = reason instanceof Error ? reason.message : 'Could not sign out. Please try again.';
+        }
+      }
+
+      loadProfile();
+      return {
+        user,
+        initial,
+        error,
+        usernameMessage,
+        copyMessage,
+        saving,
+        signingOut,
+        saveUsername,
+        copySubject,
+        signOut,
+      };
+    }
+  </script>
+</template>

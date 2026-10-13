@@ -12,22 +12,21 @@
             <svg class="w-7 h-7" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path
                 d="M16 4 L26 8 V15 C26 21 16 28 16 28 C16 28 6 21 6 15 V8 L16 4 Z"
-                stroke="#1E3A2F"
+                fill="#c8e6a8"
+                stroke="#263d32"
                 stroke-width="2.5"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />
               <path
                 d="M16 12 V18 M16 22 H16.01"
-                stroke="#34D399"
+                stroke="#263d32"
                 stroke-width="2.5"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />
             </svg>
-            <span class="text-2xl font-black tracking-tight text-brand"
-              >auth<span class="text-emerald-600">.</span></span
-            >
+            <span class="text-2xl font-black tracking-tight text-brand">auth<span class="text-[#c8e6a8]">.</span></span>
           </div>
           <button
             id="close-menu-btn"
@@ -51,6 +50,16 @@
           >
             <lucide-icon icon="shield-check" size="20" class-active="section === 'security'"></lucide-icon>
             <span>Security</span>
+          </button>
+
+          <button
+            data-target="profile"
+            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+            class-active="section === 'profile'"
+            on-click="navigate('profile')"
+          >
+            <lucide-icon icon="user-round" size="20" class-active="section === 'profile'"></lucide-icon>
+            <span>Profile</span>
           </button>
 
           <button
@@ -171,6 +180,7 @@
         <div class="max-w-4xl mx-auto h-full relative">
           <!-- Section Components -->
           <template if="section === 'security'"><v2-security></v2-security></template>
+          <template if="section === 'profile'"><v2-profile></v2-profile></template>
           <template if="section === 'properties'"><v2-properties></v2-properties></template>
           <template if="section === 'applications'"><v2-applications></v2-applications></template>
           <template if="section === 'users'"><v2-users></v2-users></template>
@@ -202,7 +212,9 @@
     import { getProfile } from '/ui/dashboard.mjs';
 
     export default function () {
-      const section = ref(location.hash.slice(1) || 'security');
+      const sectionForHash = (hash) =>
+        ({ oidc: 'applications', 'auth-api-tokens': 'keys' })[hash] || hash || 'security';
+      const section = ref(sectionForHash(location.hash.slice(1)));
       const admin = ref(false);
       const user = ref({ name: '', email: '', photo: '', role: '' });
       const mobileMenuOpen = ref(false);
@@ -259,7 +271,7 @@
       // Initialize
       loadProfile().catch(console.error);
       addEventListener('hashchange', () => {
-        section.value = location.hash.slice(1) || 'security';
+        section.value = sectionForHash(location.hash.slice(1));
       });
 
       return {

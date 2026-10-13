@@ -63,7 +63,10 @@ export default function () {
   const clients = ref([]);
   const createdSecret = ref('');
   const audit = ref([]);
-  const section = ref(location.hash.slice(1) || 'security');
+  const initialSection = location.hash.slice(1);
+  const section = ref(
+    { oidc: 'applications', 'auth-api-tokens': 'keys' }[initialSection] || initialSection || 'security',
+  );
   const profileExpanded = ref(false);
   const propertyKey = templateRef('propertyKey');
   const propertyValue = templateRef('propertyValue');
@@ -295,7 +298,10 @@ export default function () {
     if (returnUrl && loginPending) {
       setTimeout(() => (location.href = returnUrl), 300);
     }
-    addEventListener('hashchange', () => (section.value = location.hash.slice(1) || 'security'));
+    addEventListener('hashchange', () => {
+      const hash = location.hash.slice(1);
+      section.value = { oidc: 'applications', 'auth-api-tokens': 'keys' }[hash] || hash || 'security';
+    });
     loadProfile().catch((reason) => setMessage(reason.message, true));
     getAuditEvents()
       .then((value) => (audit.value = value))

@@ -2,86 +2,35 @@ import { expect, test } from '@playwright/test';
 
 const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
 
-test('profile panel styling and OIDC application spacing and borders are correct', async ({ page }) => {
+test('v2 navigation, profile, and dashboard sections render cleanly', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
-
   await page.goto('/');
-  await page.evaluate(async (secret) => {
-    await fetch('/__test__/login', {
-      method: 'POST',
-      headers: { 'x-test-secret': secret, 'content-type': 'application/json' },
-      body: JSON.stringify({ role: 'admin' }),
-    });
-  }, testKey);
+  const login = await page.evaluate(
+    async (secret) =>
+      fetch('/__test__/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ key: secret, role: 'admin' }),
+      }).then((response) => response.status),
+    testKey,
+  );
+  expect(login).toBe(204);
 
-  const appId = `e2e-ui-${Date.now()}`;
   await page.goto('/me');
-  const header = page.locator('main > header');
-  await expect(header).toHaveCSS('border-bottom-width', '0px');
-  await expect(header).toHaveCSS('padding-bottom', '0px');
-  await expect(page.locator('header button[aria-label="Toggle profile details"]')).toHaveCSS('padding', '8px');
-  const dashboardBrand = page.locator('header a[href="/me"] svg');
-  await expect(dashboardBrand).toBeVisible();
-  await expect(dashboardBrand).toHaveCSS('color', 'rgb(114, 87, 245)');
-  await expect(dashboardBrand.locator('xpath=..')).toHaveCSS('font-size', '18px');
-  const nav = page.locator('auth-nav nav');
-  await expect(nav).toHaveCSS('border-bottom-width', '1px');
-  await expect(page.locator('auth-nav a[href="/me#security"]')).toHaveClass(/rounded-md/);
-  await page.setViewportSize({ width: 390, height: 844 });
-  const navAlignment = await page
-    .locator('auth-nav nav > a')
-    .first()
-    .evaluate((link) => {
-      const nav = link.parentElement!;
-      return link.getBoundingClientRect().left - nav.getBoundingClientRect().left;
-    });
-  expect(navAlignment).toBeLessThan(10);
-  for (const [section, selector] of [
-    ['security', 'dashboard-security section'],
-    ['properties', 'dashboard-properties section'],
-    ['activity', 'dashboard-activity section'],
-    ['oidc', 'dashboard-oidc section'],
-    ['auth-api-tokens', 'signing-key-manager section'],
-    ['auth-api-tokens', 'dashboard-auth-api-tokens section'],
+  await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
+  await expect(page.locator('#nav-menu')).toBeVisible();
+  await expect(page.locator('#sidebar').getByText('auth', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Profile' })).toBeVisible();
+
+  for (const [hash, heading] of [
+    ['security', 'Passkeys'],
+    ['profile', 'Your profile'],
+    ['properties', 'Properties'],
+    ['activity', 'Authentication history'],
+    ['oidc', 'Applications'],
+    ['auth-api-tokens', 'Signing keys'],
   ]) {
-    await page.goto(`/me#${section}`);
-    const pageSection = page.locator(selector);
-    await expect(pageSection).toHaveClass(/rounded-b-lg/);
-    await expect(pageSection).not.toHaveClass(/mt-/);
-  }
-
-  await page.evaluate(async (id) => {
-    const response = await fetch('/api/v1/oidc/clients', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, redirectUris: [`https://${id}.example/callback`], scopes: ['profile'] }),
-    });
-    if (!response.ok) throw new Error(`Could not create test app: ${response.status}`);
-  }, appId);
-
-  try {
-    await page.goto('/me#oidc');
-    const appDetails = page.locator('details').filter({ hasText: appId });
-    const appRow = appDetails.locator('xpath=..');
-    await expect(appRow).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
-    await appDetails.locator('summary').click();
-    await expect(appRow).toHaveCSS('border-top-color', 'rgb(226, 232, 240)');
-
-    const callbackForm = appDetails.locator('form').first();
-    const marginTop = await callbackForm.evaluate((element) => Number.parseFloat(getComputedStyle(element).marginTop));
-    expect(marginTop).toBe(24);
-    const callbackSectionMargin = await callbackForm.evaluate((element) => {
-      let current = element.parentElement;
-      while (current && !current.querySelector('strong')?.textContent?.includes('Callback URLs')) {
-        current = current.parentElement;
-      }
-      return Number.parseFloat(getComputedStyle(current!).marginTop);
-    });
-    expect(callbackSectionMargin).toBe(20);
-  } finally {
-    await page.evaluate(
-      async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-      appId,
-    );
+    await page.goto(`/me#${hash}`);
+    await expect(page.getByRole('heading', { name: heading })).toBeVisible();
   }
 });

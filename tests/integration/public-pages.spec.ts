@@ -11,6 +11,21 @@ test('landing page is available', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 });
 
+test('login uses the forest and mint sign-in presentation', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'A single auth for every app.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute('data-page', 'login');
+  await expect(page.locator('body')).toHaveAttribute('data-test-login', /^(true|false)$/);
+  if (testKey) {
+    await expect(page.getByLabel('Test API key')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  } else {
+    await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Use a passkey' })).toBeVisible();
+  }
+});
+
 test('v2 dashboard and its Li3 components are served', async ({ request }) => {
   const pageResponse = await request.get('/v2');
   expect(pageResponse.ok()).toBeTruthy();
@@ -28,6 +43,7 @@ test('v2 dashboard and its Li3 components are served', async ({ request }) => {
     'v2-users.html',
     'v2-keys.html',
     'v2-activity.html',
+    'v2-profile.html',
     'v2-copy-value.html',
   ]) {
     const response = await request.get(`/ui/${asset}`);
@@ -42,7 +58,7 @@ test('v2 dashboard and its Li3 components are served', async ({ request }) => {
   expect(layout).not.toContain('border-r border-gray-200/50');
 });
 
-test('v2 dashboard loads the current profile and opens admin user details', async ({ page }) => {
+test('default dashboard loads v2 profile and admin user details', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   await page.goto('/');
   await page.evaluate(async (secret) => {
@@ -53,7 +69,9 @@ test('v2 dashboard loads the current profile and opens admin user details', asyn
     });
   }, testKey!);
 
-  await page.goto('/v2');
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
+  await page.goto('/me');
   await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
   const profile = await page.evaluate(async () => (await fetch('/api/v1/profile')).json());
   await expect(page.locator('header').getByText(profile.name, { exact: true })).toBeVisible();
@@ -62,6 +80,17 @@ test('v2 dashboard loads the current profile and opens admin user details', asyn
   await expect(user).toBeVisible();
   await user.click();
   await expect(page.getByText('UUID:', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Profile' }).click();
+  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+  const usernameInput = page.getByLabel('Preferred username');
+  if (await usernameInput.count()) {
+    await expect(usernameInput).toBeVisible();
+  } else {
+    await expect(page.getByText('Saved username:')).toBeVisible();
+  }
+  await expect(page.getByText('OIDC subject', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Copy OIDC subject' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 
   const propertyKey = `v2-clientSecret-${Date.now()}`;
   await page.getByRole('button', { name: 'Properties' }).click();
@@ -161,7 +190,7 @@ test('a stale duplicate session cookie cannot shadow a newly authenticated sessi
   ]);
 
   await page.goto('/me');
-  await expect(page.getByRole('button', { name: 'Toggle profile details' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
 });
 
 test('login page exposes the configured sign-in method', async ({ page }) => {
@@ -183,7 +212,7 @@ test('login page exposes the configured sign-in method', async ({ page }) => {
     expect((await testLoginResponse).status(), 'test-key login endpoint response').toBe(204);
     expect((await profileResponse).status(), 'profile response after test-key login').toBe(200);
     await expect(page).toHaveURL(/\/me$/);
-    await expect(page.getByRole('button', { name: 'Toggle profile details' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
   } else {
     await expect(alternatives).toBeVisible();
     await expect(page.getByText('Continue with Google')).toBeVisible();
@@ -342,7 +371,7 @@ test('admin Users page lists accounts and protects the current administrator', a
   }, testKey);
   await page.goto('/me#users');
   await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
-  await expect(page.locator('auth-nav lucide-icon[icon="users"]')).toBeAttached();
+  await expect(page.locator('#nav-menu lucide-icon[icon="users"]')).toBeAttached();
   const user = await page.evaluate(async () => (await fetch('/api/v1/admin/users')).json());
   expect(user.length).toBeGreaterThan(0);
   expect(user[0]).toHaveProperty('id');
@@ -399,23 +428,18 @@ test('preferred username can be set once and cannot be changed through the API',
   const profile = await page.evaluate(async () => (await fetch('/api/v1/profile')).json());
   let preferredUsername = profile.preferred_username;
   await page.goto('/me');
-  await page.getByRole('button', { name: 'Toggle profile details' }).click();
+  await page.getByRole('button', { name: 'Profile' }).click();
   if (!preferredUsername) {
     await expect(page.getByLabel('Preferred username')).toBeVisible();
     preferredUsername = `test_${Math.random().toString(36).slice(2, 10)}`;
-    const setResponse = await page.evaluate(
-      async (username) =>
-        fetch('/api/v1/profile/preferred-username', {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ preferred_username: username }),
-        }).then((response) => response.status),
-      preferredUsername,
-    );
-    expect(setResponse).toBe(201);
-  } else {
-    await expect(page.getByText(preferredUsername, { exact: true })).toBeVisible();
+    await page.getByLabel('Preferred username').fill(preferredUsername);
+    await page.getByRole('button', { name: 'Save username' }).click();
+    await expect(page.locator('#v2-username-status')).toContainText('Username saved.');
     await expect(page.getByLabel('Preferred username')).toHaveCount(0);
+    await expect(page.getByText('Saved username:').locator('..')).toContainText(preferredUsername);
+  } else {
+    await expect(page.getByLabel('Preferred username')).toHaveCount(0);
+    await expect(page.getByText('Saved username:').locator('..')).toContainText(preferredUsername);
   }
 
   const changeResponse = await page.evaluate(async () =>
@@ -615,7 +639,7 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   await expect(page.getByText(/Confidential clients are server-side apps/)).toBeVisible();
 });
 
-test('profile identity and passkeys stay compact at mobile widths', async ({ page }) => {
+test('v2 dashboard and profile page stay compact at mobile widths', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
@@ -631,32 +655,26 @@ test('profile identity and passkeys stay compact at mobile widths', async ({ pag
 
   await page.goto('/me#security');
   await expect(page.getByText('Passkeys')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Toggle profile details' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
 
   await page.setViewportSize({ width: 360, height: 800 });
   const narrowPageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(narrowPageWidth).toBeLessThanOrEqual(360);
   await page.setViewportSize({ width: 390, height: 844 });
 
-  const layout = await page.evaluate(() => {
-    const profileCard = document.querySelector('button[aria-label="Toggle profile details"]').getBoundingClientRect();
-    const passkeys = [...document.querySelectorAll('h2')].find((item) => item.textContent.trim() === 'Passkeys');
-    const section = passkeys.closest('section');
-    return {
-      viewportWidth: window.innerWidth,
-      documentWidth: document.documentElement.scrollWidth,
-      profileCardRight: profileCard.right,
-      passkeyPadding: Number.parseFloat(getComputedStyle(section).paddingTop),
-    };
-  });
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await page.getByRole('button', { name: 'Profile' }).click();
+  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+  const layout = await page.evaluate(() => ({
+    viewportWidth: window.innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+    profileSectionRight: document.querySelector('.content-section').getBoundingClientRect().right,
+  }));
 
   expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
-  expect(layout.profileCardRight).toBeLessThanOrEqual(layout.viewportWidth);
-  expect(layout.passkeyPadding).toBeLessThanOrEqual(20);
+  expect(layout.profileSectionRight).toBeLessThanOrEqual(layout.viewportWidth);
 });
 
-test('header profile card expands to show account details and sign out', async ({ page }) => {
+test('profile page shows identity, copies OIDC subject, and signs out', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -672,34 +690,23 @@ test('header profile card expands to show account details and sign out', async (
   );
 
   await page.goto('/me');
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
   const removedAccount = await page.request.get('/account', { maxRedirects: 0 });
   expect(removedAccount.status()).toBe(404);
   await page.setViewportSize({ width: 360, height: 800 });
-  const profileToggle = page.getByRole('button', { name: 'Toggle profile details' });
-  await expect(profileToggle).toHaveAttribute('aria-expanded', 'false');
-  await profileToggle.click();
-  await expect(profileToggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('.profile-card')).toHaveClass(/profile-card-expanded/);
-  const transitionSeconds = await page
-    .locator('.profile-card')
-    .evaluate((element) => Number.parseFloat(getComputedStyle(element).transitionDuration.split(',')[0]));
-  expect(transitionSeconds).toBeGreaterThan(0);
-  await expect(page.locator('.profile-card-name')).toHaveText('John Doe');
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await page.getByRole('button', { name: 'Profile' }).click();
+  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
   await expect(page.getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
   await expect(page.getByLabel('Administrator')).toBeVisible();
-  await expect(page.getByText('Account', { exact: true })).toHaveCount(0);
   const subject = await page.locator('#profile-subject').innerText();
   const profile = await page.evaluate(() => fetch('/api/v1/profile').then((response) => response.json()));
   expect(subject).toBe(profile.id);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
   await page.getByRole('button', { name: 'Copy OIDC subject' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'OIDC subject copied.' })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(subject);
-  await profileToggle.click();
-  await expect(profileToggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden();
-  await profileToggle.click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(pageErrors).toEqual([]);
