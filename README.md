@@ -210,7 +210,7 @@ const profile = await client.getProfile(incomingRequest); // forwards only conne
 const isolatedClient = new AuthClient({ clientId: 'other-app', clientSecret: process.env.OTHER_OIDC_SECRET });
 ```
 
-Session/profile, properties, `/api/v1/api-tokens/me`, client administration, client-scoped token management, keys, audit, and admin-user methods take the incoming HTTP request as their first argument and forward only its `connect.sid` cookie. Client administration and client-scoped token management require an administrator's session; the caller must already possess the appropriate Auth session, this is not an admin credential exchange. OIDC exchange/refresh uses the OIDC client ID/secret, introspection and downstream-token revocation use HTTP Basic OIDC client credentials, and downstream token minting uses only the optional Auth API Bearer token. These credential types are not interchangeable. `authorizationUrl()` and `getLogoutUrl()` construct browser redirect URLs; the client does not automate browser navigation. The session-token method also forwards the request's `Origin`, which Auth must allow. Interactive WebAuthn, recovery, QR and browser asset endpoints are excluded; ordinary session-backed audit endpoints remain available.
+Session/profile, properties, `/api/v1/api-tokens/me`, client administration, client-scoped token management, keys, audit, and admin-user methods take the incoming HTTP request as their first argument and forward only its `connect.sid` cookie. Client administration and client-scoped token management require an administrator's session; the caller must already possess the appropriate Auth session, this is not an admin credential exchange. OIDC exchange/refresh uses the OIDC client ID/secret, introspection and downstream-token revocation use HTTP Basic OIDC client credentials, and downstream token minting uses only the optional Auth API Bearer token. These credential types are not interchangeable. `createAuthorizationRequest()` plus `completeAuthorization()` handles the authorization callback; `authorizationUrl()` only returns a redirect URL and discards the state/PKCE transaction, so it is not suitable for a complete login flow. `getLogoutUrl()` constructs a logout redirect URL; the client does not automate browser navigation. The session-token method also forwards the request's `Origin`, which Auth must allow. Interactive WebAuthn, recovery, QR and browser asset endpoints are excluded; ordinary session-backed audit endpoints remain available.
 
 #### Complete minimal HTTP server example
 
@@ -218,7 +218,7 @@ This standalone example shows the complete redirect/callback/session flow using 
 
 ```js
 import { createServer } from 'node:http';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 const issuer = 'https://auth.example.com';
 const appOrigin = 'https://inventory.example.com';
@@ -231,12 +231,6 @@ const appSessions = new Map(); // Use a persistent session store in production.
 
 function setCookie(name, value, maxAge) {
   return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
-}
-
-function sameValue(left, right) {
-  const a = Buffer.from(left || '');
-  const b = Buffer.from(right || '');
-  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 function redirect(response, location) {
@@ -260,20 +254,13 @@ createServer(async (request, response) => {
     const login = loginTransactions.get(loginId);
     loginTransactions.delete(loginId);
     const clearLoginCookie = 'inventory.login=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
-    if (!login || login.expiresAt < Date.now() || !sameValue(url.searchParams.get('state'), login.state)) {
+    if (!login || login.expiresAt < Date.now()) {
       response.writeHead(400, { 'Set-Cookie': clearLoginCookie }).end('Invalid or expired login state');
       return;
     }
 
     try {
-      const tokens = await auth.exchangeCode({
-        code: url.searchParams.get('code') || '',
-        codeVerifier: login.codeVerifier,
-        redirectUri,
-        clientSecret: process.env.AUTH_CLIENT_SECRET,
-      });
-      const claims = await auth.verifyToken(tokens.id_token);
-      if (!sameValue(claims.nonce, login.nonce)) throw new Error('Invalid OIDC nonce');
+      const { tokens } = await auth.completeAuthorization({ callbackUrl: url, transaction: login });
       const user = await auth.getUserInfo(tokens.access_token);
       const sessionId = randomBytes(32).toString('base64url');
       appSessions.set(sessionId, user);
@@ -298,9 +285,9 @@ createServer(async (request, response) => {
 
 Persist login transactions and relying-party sessions in production; do not use in-memory maps across restarts or replicas. The callback binds `state` to the browser with a short-lived HTTP-only cookie and validates both `state` and the ID Token `nonce`. Keep the OIDC client secret in a server-side secret manager.
 
-`exchangeCode()` and `refreshToken()` are token-endpoint helpers, not a complete OIDC relying-party implementation: they do not validate callback state or the ID Token nonce for you. Validate the saved state and nonce in the callback, and retain your existing OIDC library for callback processing when it provides the validation your application needs.
+`completeAuthorization()` validates the callback location, saved state, PKCE exchange, ID Token signature and standard claims, authorized party, optional `at_hash`, and nonce. It does not create or persist the login transaction: retrieve it from a short-lived store bound to the initiating browser, verify its expiry, and atomically consume it once before calling the helper. Keep the low-level `exchangeCode()` and `verifyToken()` methods when you need to customize callback processing; prefer a maintained OIDC library if your application needs validation beyond the checks documented here.
 
-For server-to-server renewal, request `offline_access` in `createAuthorizationRequest`, persist the returned refresh token securely with the RP session, and use `auth.refreshToken({ refreshToken })` when its access token expires. Store each rotated `refresh_token` replacement before using it again. The helper does not serialize refreshes: serialize attempts per RP session in your application. Concurrent use of the same refresh token is treated as replay and revokes that token family. The refresh token expires after 30 days and the user must sign in again after that.
+For server-to-server renewal, request `offline_access` in `createAuthorizationRequest`, persist the returned refresh token securely with the RP session, and use `auth.refreshToken({ refreshToken })` when its access token expires. Overlapping refresh calls for the same token/options are coalesced within one `AuthClient` instance. This is not a distributed lock: serialize refresh attempts per RP session across multiple instances/processes/replicas and persist each rotated replacement atomically before using it again. Concurrent use of the same refresh token is treated as replay and revokes that token family. The refresh token expires after 30 days and the user must sign in again after that.
 
 The module also exports `getProfile` (`getSessionProfile` is an alias), `getProperty`, `setProperty`, `deleteProperty` (`removeProperty` is an alias), `isSessionAuthenticated`, and `requireSession`. These helpers forward the Auth `connect.sid` cookie from the incoming request and are intended only for sibling subdomains that share `SESSION_DOMAIN`. They cannot authenticate a request from an unrelated domain. `getUserInfo(token)` fetches the OIDC UserInfo document, `introspectToken(token)` validates an opaque API token, `mintApiToken(...)` issues a downstream token with a fixed-purpose Auth API token, and `revokeApiToken(token)` uses the registered OIDC client credentials.
 
