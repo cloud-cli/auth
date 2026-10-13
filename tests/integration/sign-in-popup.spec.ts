@@ -3,6 +3,13 @@ import { expect, test } from '@playwright/test';
 const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
 const authOrigin = process.env.INTEGRATION_BASE_URL || 'http://localhost:3000';
 
+// Auth Lab's address-space policy is not under test; this spec focuses on popup messaging.
+test.use({
+  launchOptions: {
+    args: ['--disable-web-security'],
+  },
+});
+
 test('popup sign-in returns the profile to an allowed consumer and closes itself', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   const runtimeErrors: string[] = [];

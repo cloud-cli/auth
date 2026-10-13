@@ -48,6 +48,27 @@ test('login uses the forest and mint sign-in presentation', async ({ page }) => 
   expect(pageErrors).toEqual([]);
 });
 
+test('passkey action stays legible on keyboard focus in either color scheme', async ({ page }) => {
+  await page.route('**/login', async (route) => {
+    const response = await route.fetch();
+    const html = (await response.text()).replace(/data-test-login="(?:true|false)"/, 'data-test-login="false"');
+    await route.fulfill({ response, body: html });
+  });
+  await page.goto('/login');
+  const passkey = page.getByRole('link', { name: 'Use a passkey' });
+  await expect(passkey).toBeVisible();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(passkey).toBeFocused();
+  await expect(passkey).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await expect(passkey).toHaveCSS('background-color', 'rgb(55, 109, 70)');
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(passkey).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await expect(passkey).toHaveCSS('background-color', 'rgb(55, 109, 70)');
+  await expect(passkey).toHaveCSS('outline-color', 'rgb(200, 230, 168)');
+});
+
 test('v2 dashboard and its Li3 components are served', async ({ request }) => {
   const pageResponse = await request.get('/v2');
   expect(pageResponse.ok()).toBeTruthy();
