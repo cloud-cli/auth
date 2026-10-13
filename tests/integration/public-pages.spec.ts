@@ -16,12 +16,14 @@ test('v2 dashboard and its Li3 components are served', async ({ request }) => {
   expect(pageResponse.ok()).toBeTruthy();
   const page = await pageResponse.text();
   expect(page).toContain('<v2-layout class="block h-full w-full"></v2-layout>');
+  expect(page).not.toContain('Management /');
 
   for (const asset of [
     'v2-layout.html',
     'v2-security.html',
     'v2-properties.html',
     'v2-applications.html',
+    'v2-app-editor.html',
     'v2-app-form.html',
     'v2-users.html',
     'v2-keys.html',
@@ -34,6 +36,10 @@ test('v2 dashboard and its Li3 components are served', async ({ request }) => {
     expect(component).toContain('<template component=');
     expect(component, `${asset} setup should export a component factory`).toContain('export default function () {');
   }
+
+  const layout = await request.get('/ui/v2-layout.html').then((response) => response.text());
+  expect(layout).not.toContain('Flow Auth Server v2.4.1');
+  expect(layout).not.toContain('border-r border-gray-200/50');
 });
 
 test('v2 dashboard loads the current profile and opens admin user details', async ({ page }) => {
@@ -56,6 +62,71 @@ test('v2 dashboard loads the current profile and opens admin user details', asyn
   await expect(user).toBeVisible();
   await user.click();
   await expect(page.getByText('UUID:', { exact: true })).toBeVisible();
+
+  const propertyKey = `v2-clientSecret-${Date.now()}`;
+  await page.getByRole('button', { name: 'Properties' }).click();
+  await page.getByPlaceholder('Key').fill(propertyKey);
+  await page.getByPlaceholder('Value').fill('v2-e2e-value');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  const propertyRow = page.locator('div.flex.items-center.gap-3').filter({ hasText: propertyKey });
+  const propertyValue = propertyRow.locator('input[readonly]');
+  await expect(propertyValue).toHaveValue('v2-e2e-value');
+  expect(await propertyValue.evaluate((input) => getComputedStyle(input).filter)).toBe('none');
+  page.once('dialog', (dialog) => dialog.accept());
+  await propertyRow.getByRole('button', { name: 'Remove property' }).click();
+  await expect(page.getByText(propertyKey, { exact: true })).toHaveCount(0);
+
+  const clientId = `v2-dashboard-${Date.now()}`;
+  try {
+    await page.getByRole('button', { name: 'Applications' }).click();
+    await page.getByRole('button', { name: 'Add app' }).click();
+    await page.getByPlaceholder('App ID').fill(clientId);
+    await page.getByPlaceholder('https://app.example/callback').fill(`https://${clientId}.example/callback`);
+    await page.getByRole('button', { name: 'Add', exact: true }).first().click();
+    await page.getByPlaceholder('new:scope').fill('profile');
+    await page.getByRole('button', { name: 'Add', exact: true }).last().click();
+    await page.getByRole('button', { name: 'Create app' }).click();
+    await expect(page.getByText('Copy this new client secret now. It is only shown once.')).toBeVisible();
+
+    const application = page.locator('details').filter({ hasText: clientId });
+    await expect(application).toBeVisible();
+    await application.locator('summary').click();
+    await expect(page.getByText('Callback URLs', { exact: true })).toBeVisible();
+    await expect(page.getByText('Post-logout return URLs', { exact: true })).toBeVisible();
+    await expect(page.getByText('Scopes', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tokens' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Activity' }).click();
+    const auditOptions = await page.evaluate(async () =>
+      fetch('/api/v1/audit/options').then((response) => response.json()),
+    );
+    if (auditOptions.apps.length && auditOptions.events.length) {
+      const app = auditOptions.apps[0];
+      const event = auditOptions.events[0];
+      const [appFilter, eventFilter] = page.getByRole('combobox').all();
+      await appFilter.selectOption({ label: app });
+      await eventFilter.selectOption({ label: event });
+      const filteredResponse = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          url.pathname === '/api/v1/audit' &&
+          url.searchParams.get('app') === app &&
+          url.searchParams.get('event') === event
+        );
+      });
+      await page.getByRole('button', { name: 'Filter' }).click();
+      expect((await filteredResponse).ok()).toBeTruthy();
+    }
+  } finally {
+    const status = await page.evaluate(
+      async (id) =>
+        fetch('/api/v1/oidc/clients/' + encodeURIComponent(id), { method: 'DELETE' }).then(
+          (response) => response.status,
+        ),
+      clientId,
+    );
+    expect([204, 404]).toContain(status);
+  }
 });
 
 test('session-dependent app entry is not cached or conditionally revalidated', async ({ request }) => {

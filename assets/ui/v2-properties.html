@@ -19,31 +19,24 @@
           >
             {{ property.key }}
           </div>
-          <input
-            type="text"
-            class="flex-1 border border-gray-200 text-gray-500 text-sm font-mono px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand bg-white"
-            bind-value="property.value"
-            on-change="save(property)"
-            readonly
-          />
-          <template if="property.key.includes('Secret') || property.key.includes('secret')">
-            <div class="relative">
-              <input
-                type="text"
-                class="flex-1 border border-gray-200 text-gray-500 text-sm font-mono px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand bg-white blur-[3px] hover:blur-none transition-all cursor-pointer"
-                bind-value="property.value"
-                on-change="save(property)"
-                readonly
-              />
+          <div class="relative min-w-0 flex-1">
+            <input
+              type="text"
+              class="w-full border border-gray-200 text-gray-500 text-sm font-mono px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand bg-white"
+              bind-value="property.value"
+              on-change="save(property)"
+              readonly
+            />
+            <template if="property.key.includes('Secret') || property.key.includes('secret')">
               <button
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand text-sm"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 on-click="copyValue(property.value)"
                 aria-label="Copy value"
               >
                 Copy
               </button>
-            </div>
-          </template>
+            </template>
+          </div>
           <button
             class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg border border-transparent hover:border-red-100 transition-colors shrink-0"
             on-click="remove(property)"

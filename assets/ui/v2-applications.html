@@ -8,15 +8,17 @@
           or desktops and use PKCE without a secret.
         </p>
       </div>
-      <button
-        class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0"
-        on-click="toggleForm()"
-      >
-        <lucide-icon icon="plus" size="16"></lucide-icon>Add app
-      </button>
+      <template if="admin">
+        <button
+          class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0"
+          on-click="toggleForm()"
+        >
+          <lucide-icon icon="plus" size="16"></lucide-icon>Add app
+        </button>
+      </template>
     </div>
 
-    <template if="formOpen">
+    <template if="admin && formOpen">
       <v2-app-form bind-form-open="formOpen" on-created="load()"></v2-app-form>
     </template>
 
@@ -26,33 +28,47 @@
           <li class="p-8 text-center text-gray-500">No applications configured yet.</li>
         </template>
         <template for="app of apps">
-          <li class="p-4 hover:bg-gray-50/80 transition-colors flex items-center justify-between group relative">
-            <div class="flex items-center gap-2 flex-1 min-w-0">
-              <lucide-icon icon="chevron-right" size="14" class="text-gray-400 shrink-0"></lucide-icon>
-              <span class="font-semibold text-gray-900 text-sm truncate">{{ app.id }}</span>
-              <span class="text-gray-400 text-sm">&middot;</span>
-              <span class="text-gray-500 text-sm font-medium"
-                >{{ app.isPublic ? 'Public client' : 'Confidential client' }}</span
-              >
-            </div>
-            <div class="flex gap-2">
-              <template if="!app.isPublic">
-                <button
-                  class="p-1.5 text-gray-400 hover:text-brand bg-white border border-gray-200 hover:border-brand rounded-md transition-colors"
-                  on-click="regenSecret(app.id)"
-                  aria-label="Regenerate secret"
+          <li class="p-4 hover:bg-gray-50/80 transition-colors group relative">
+            <div class="flex items-center justify-between gap-3">
+              <details class="min-w-0 flex-1" on-toggle="loadTokens(app)">
+                <summary
+                  class="flex cursor-pointer list-none items-center gap-2 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
                 >
-                  <lucide-icon icon="key-round" size="18"></lucide-icon>
-                </button>
-              </template>
-              <button
-                class="p-1.5 text-gray-400 hover:text-red-600 bg-white border border-gray-200 hover:border-red-300 rounded-md transition-colors"
-                on-click="deleteApp(app.id)"
-                aria-label="Delete application"
-              >
-                <lucide-icon icon="trash" size="18"></lucide-icon>
-              </button>
+                  <lucide-icon icon="chevron-right" size="14" class="text-gray-400 shrink-0"></lucide-icon>
+                  <span class="font-semibold text-gray-900 text-sm truncate">{{ app.id }}</span>
+                  <span class="text-gray-400 text-sm">&middot;</span>
+                  <span class="text-gray-500 text-sm font-medium"
+                    >{{ app.isPublic ? 'Public client' : 'Confidential client' }}</span
+                  >
+                </summary>
+              </details>
+              <div class="flex gap-2 shrink-0">
+                <template if="admin">
+                  <template if="!app.isPublic">
+                    <button
+                      class="p-1.5 text-gray-400 hover:text-brand bg-white border border-gray-200 hover:border-brand rounded-md transition-colors"
+                      on-click="regenSecret(app.id, $event)"
+                      aria-label="Regenerate secret"
+                    >
+                      <lucide-icon icon="key-round" size="18"></lucide-icon>
+                    </button>
+                  </template>
+                  <button
+                    class="p-1.5 text-gray-400 hover:text-red-600 bg-white border border-gray-200 hover:border-red-300 rounded-md transition-colors"
+                    on-click="deleteApp(app.id, $event)"
+                    aria-label="Delete application"
+                  >
+                    <lucide-icon icon="trash" size="18"></lucide-icon>
+                  </button>
+                </template>
+              </div>
             </div>
+            <v2-app-editor
+              bind-app="app"
+              bind-admin="admin"
+              hidden="false"
+              bind-hidden.bool="!app.expanded"
+            ></v2-app-editor>
             <template if="app.secret">
               <v2-copy-value-box
                 bind-token="app.secret"
@@ -67,26 +83,49 @@
 
   <link rel="component" href="/ui/v2-app-form.html" />
   <link rel="component" href="/ui/v2-copy-value.html" />
+  <link rel="component" href="/ui/v2-app-editor.html" />
   <script setup>
     import { ref } from '@li3/web';
-    import { getOidcClients, removeOidcClient, regenerateOidcClientSecret, createOidcClient } from '/ui/dashboard.mjs';
+    import {
+      getApiTokens,
+      getOidcClients,
+      getProfile,
+      removeOidcClient,
+      regenerateOidcClientSecret,
+    } from '/ui/dashboard.mjs';
 
     export default function () {
       const apps = ref([]);
+      const admin = ref(false);
       const formOpen = ref(false);
 
       const load = async () => {
         apps.value = (await getOidcClients()).map((app) => ({
           ...app,
+          expanded: false,
+          tokens: [],
+          tokensLoaded: false,
           secret: '',
         }));
+      };
+
+      const loadTokens = async (app) => {
+        app.expanded = !app.expanded;
+        if (!app.expanded || app.tokensLoaded) return;
+        try {
+          app.tokens = await getApiTokens(app.id);
+          app.tokensLoaded = true;
+        } catch (error) {
+          alert('Could not load tokens: ' + error.message);
+        }
       };
 
       const toggleForm = () => {
         formOpen.value = !formOpen.value;
       };
 
-      const deleteApp = async (id) => {
+      const deleteApp = async (id, event) => {
+        event?.stopPropagation();
         if (!confirm('Remove this OIDC application? This cannot be undone.')) return;
         try {
           await removeOidcClient(id);
@@ -96,7 +135,8 @@
         }
       };
 
-      const regenSecret = async (id) => {
+      const regenSecret = async (id, event) => {
+        event?.stopPropagation();
         if (!confirm('Regenerate this OIDC client secret? The current secret will stop working.')) return;
         try {
           const result = await regenerateOidcClientSecret(id);
@@ -108,7 +148,10 @@
       };
 
       load();
-      return { apps, formOpen, toggleForm, deleteApp, regenSecret, load };
+      getProfile()
+        .then((profile) => (admin.value = profile.role === 'admin'))
+        .catch(() => {});
+      return { apps, admin, formOpen, toggleForm, deleteApp, regenSecret, load, loadTokens };
     }
   </script>
 </template>

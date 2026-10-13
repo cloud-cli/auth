@@ -3,7 +3,7 @@
     <!-- Sidebar -->
     <aside
       id="sidebar"
-      class="w-64 flex-col justify-between p-4 shrink-0 h-full absolute md:relative z-40 bg-app-bg shadow-xl md:shadow-none transition-transform -translate-x-full md:translate-x-0 flex border-r border-gray-200/50"
+      class="w-64 flex-col justify-between p-4 shrink-0 h-full absolute md:relative z-40 bg-app-bg shadow-xl md:shadow-none transition-transform -translate-x-full md:translate-x-0 flex"
     >
       <div class="flex flex-col gap-6">
         <!-- Brand Logo -->
@@ -110,10 +110,6 @@
           </button>
         </nav>
       </div>
-
-      <div class="mt-auto px-2 pb-2">
-        <div class="text-[10px] text-gray-400 font-medium">Flow Auth Server v2.4.1</div>
-      </div>
     </aside>
 
     <!-- Mobile Menu Overlay Background -->
@@ -139,9 +135,6 @@
           >
             <lucide-icon icon="menu" size="24"></lucide-icon>
           </button>
-          <div class="text-sm font-medium text-gray-500 hidden md:block" id="breadcrumb">
-            Management / <span class="text-gray-900 font-semibold" id="breadcrumb-current">{{ breadcrumbLabel }}</span>
-          </div>
         </div>
 
         <!-- User Profile -->
@@ -215,17 +208,6 @@
       const mobileMenuOpen = ref(false);
       const profileExpanded = ref(false);
 
-      const breadcrumbLabels = {
-        security: 'Security',
-        properties: 'Properties',
-        applications: 'Applications',
-        users: 'Users',
-        keys: 'Keys & tokens',
-        activity: 'Activity',
-      };
-
-      const breadcrumbLabel = ref(breadcrumbLabels[section.value] || 'Security');
-
       const userInitial = ref('U');
 
       async function loadProfile() {
@@ -278,7 +260,6 @@
       loadProfile().catch(console.error);
       addEventListener('hashchange', () => {
         section.value = location.hash.slice(1) || 'security';
-        breadcrumbLabel.value = breadcrumbLabels[section.value] || 'Security';
       });
 
       return {
@@ -287,7 +268,6 @@
         user,
         mobileMenuOpen,
         profileExpanded,
-        breadcrumbLabel,
         userInitial,
         navigate,
         openMenu,

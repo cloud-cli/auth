@@ -10,7 +10,7 @@
       <div class="relative flex-1">
         <select
           class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5 pr-10 shadow-sm outline-none"
-          bind-value="selectedApp"
+          ref="app"
           on-change="filter()"
         >
           <option value="">All apps</option>
@@ -23,7 +23,7 @@
       <div class="relative flex-1">
         <select
           class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5 pr-10 shadow-sm outline-none"
-          bind-value="selectedEvent"
+          ref="event"
           on-change="filter()"
         >
           <option value="">All events</option>
@@ -44,8 +44,14 @@
     <!-- Log List -->
     <div class="border border-gray-100 rounded-xl overflow-hidden shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
       <ul class="divide-y divide-gray-100">
-        <template if="audit.length === 0">
-          <li class="p-8 text-center text-gray-500">No authentication activity yet.</li>
+        <template if="loading">
+          <li class="p-8 text-center text-gray-500" role="status">Loading authentication history…</li>
+        </template>
+        <template if="!loading &amp;&amp; error">
+          <li class="p-8 text-center text-red-600" role="alert">{{ error }}</li>
+        </template>
+        <template if="!loading &amp;&amp; !error &amp;&amp; audit.length === 0">
+          <li class="p-8 text-center text-gray-500">No authentication activity found.</li>
         </template>
         <template for="entry of audit">
           <li
@@ -73,7 +79,7 @@
       <button
         class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold disabled:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
         on-click="previous()"
-        :disabled="offset === 0"
+        bind-disabled.bool="offset === 0 || loading"
       >
         Previous
       </button>
@@ -81,7 +87,7 @@
       <button
         class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold disabled:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
         on-click="next()"
-        :disabled="offset + 20 >= total"
+        bind-disabled.bool="loading || offset + 20 >= total"
       >
         Next
       </button>
@@ -99,15 +105,38 @@
       const total = ref(0);
       const offset = ref(0);
       const pages = ref(1);
-      const selectedApp = ref('');
-      const selectedEvent = ref('');
+      const app = templateRef('app');
+      const event = templateRef('event');
+      const loading = ref(false);
+      const error = ref('');
+      let requestId = 0;
 
       const load = async (nextOffset = 0) => {
-        const result = await getAuditEvents({ app: selectedApp.value, event: selectedEvent.value, offset: nextOffset });
-        audit.value = result.items;
-        total.value = result.total;
-        offset.value = result.offset;
-        pages.value = Math.max(1, Math.ceil(result.total / 20));
+        const id = ++requestId;
+        loading.value = true;
+        error.value = '';
+        try {
+          const result = await getAuditEvents({
+            app: app.value?.value || '',
+            event: event.value?.value || '',
+            offset: nextOffset,
+          });
+          if (id !== requestId) return;
+          audit.value = Array.isArray(result.items) ? result.items : [];
+          total.value = Number(result.total) || 0;
+          offset.value = Number(result.offset) || 0;
+          pages.value = Math.max(1, Math.ceil(total.value / 20));
+        } catch (cause) {
+          if (id === requestId) {
+            audit.value = [];
+            total.value = 0;
+            offset.value = 0;
+            pages.value = 1;
+            error.value = cause instanceof Error ? cause.message : 'Could not load authentication history.';
+          }
+        } finally {
+          if (id === requestId) loading.value = false;
+        }
       };
 
       const filter = () => load(0);
@@ -122,10 +151,14 @@
         }
       };
 
-      getAuditOptions().then((value) => {
-        apps.value = value.apps;
-        events.value = value.events;
-      });
+      getAuditOptions()
+        .then((value) => {
+          apps.value = Array.isArray(value.apps) ? value.apps : [];
+          events.value = Array.isArray(value.events) ? value.events : [];
+        })
+        .catch((cause) => {
+          error.value = cause instanceof Error ? cause.message : 'Could not load audit filters.';
+        });
       load();
 
       return {
@@ -135,8 +168,10 @@
         total,
         offset,
         pages,
-        selectedApp,
-        selectedEvent,
+        loading,
+        error,
+        app,
+        event,
         filter,
         previous,
         next,

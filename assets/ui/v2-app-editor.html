@@ -1,0 +1,329 @@
+<template component="v2-app-editor"
+  ><v2-callback-editor bind-app="app" bind-admin="admin"></v2-callback-editor>
+  <v2-logout-redirect-editor bind-app="app" bind-admin="admin"></v2-logout-redirect-editor>
+  <div class="mt-3 grid gap-4">
+    <v2-scope-editor bind-app="app" bind-admin="admin"></v2-scope-editor>
+    <v2-token-editor bind-app="app"></v2-token-editor>
+  </div>
+  <script setup>
+    import { defineProp } from '@li3/web';
+    export default function () {
+      const app = defineProp('app'),
+        admin = defineProp('admin', { default: false });
+      return { app, admin };
+    }
+  </script></template
+>
+
+<link rel="component" href="/ui/v2-copy-value.html" />
+
+<template component="v2-callback-editor"
+  ><div class="mt-5 rounded-xl bg-brand/5 p-3 text-sm">
+    <strong>Callback URLs</strong>
+    <template for="uri of app.redirectUris"
+      ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2">
+        <span class="min-w-0 flex-1 break-all text-slate-600">{{ uri }}</span
+        ><template if="admin"
+          ><button class="text-red-600" type="button" on-click="removeCallback(uri)">Remove</button></template
+        >
+      </div></template
+    >
+    <template if="admin"
+      ><form class="mt-6 flex gap-2 border-t border-brand/10 pt-3" on-submit.prevent="addCallback()">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2"
+          bind-value="callbackInput"
+          on-input="setCallbackInput($event.target.value)"
+          placeholder="https://app.example/callback"
+          required
+        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand">Add</button>
+      </form>
+      <p class="mt-2 text-xs text-red-600">{{ callbackError }}</p></template
+    >
+  </div>
+  <script setup>
+    import { defineProp, hook, ref } from '@li3/web';
+    import { updateOidcCallbacks } from '/ui/dashboard.mjs';
+    export default function () {
+      const app = defineProp('app'),
+        admin = defineProp('admin', { default: false }),
+        callbackError = ref('');
+      const [callbackInput, setCallbackInput] = hook('');
+      const updateCallbacks = async (callbacks) => {
+        try {
+          app.value.redirectUris = (await updateOidcCallbacks(app.value.id, callbacks)).redirectUris;
+          callbackError.value = '';
+        } catch (error) {
+          callbackError.value = error.message || 'Could not save callback URLs.';
+        }
+      };
+      const addCallback = async () => {
+        const callback = callbackInput.value.trim();
+        if (!validCallback(callback, app.value.isPublic)) {
+          return (callbackError.value = 'Use HTTPS, a loopback HTTP URL, or a custom scheme for a public app.');
+        }
+        await updateCallbacks([...app.value.redirectUris, callback]);
+        if (!callbackError.value) setCallbackInput('');
+      };
+      const removeCallback = (callback) =>
+        updateCallbacks(app.value.redirectUris.filter((value) => value !== callback));
+      const validCallback = (callback, publicClient) => {
+        try {
+          const url = new URL(callback);
+          return (
+            url.protocol === 'https:' ||
+            (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) ||
+            (publicClient && /^[a-z][a-z0-9+.-]*\.[a-z0-9+.-]+:$/i.test(url.protocol))
+          );
+        } catch {
+          return false;
+        }
+      };
+      return { app, admin, callbackError, callbackInput, setCallbackInput, addCallback, removeCallback, validCallback };
+    }
+  </script></template
+>
+
+<template component="v2-logout-redirect-editor"
+  ><div class="mt-4 rounded-xl bg-brand/5 p-3 text-sm">
+    <strong>Post-logout return URLs</strong>
+    <template for="uri of app.postLogoutRedirectUris || []"
+      ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2">
+        <span class="min-w-0 flex-1 break-all text-slate-600">{{ uri }}</span
+        ><template if="admin"
+          ><button class="text-red-600" type="button" on-click="removeRedirect(uri)">Remove</button></template
+        >
+      </div></template
+    >
+    <template if="admin"
+      ><form class="mt-4 flex gap-2 border-t border-brand/10 pt-3" on-submit.prevent="addRedirect()">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2"
+          bind-value="redirectInput"
+          on-input="setRedirectInput($event.target.value)"
+          placeholder="https://app.example/signed-out"
+          required
+        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand">Add</button>
+      </form>
+      <p class="mt-2 text-xs text-red-600">{{ redirectError }}</p></template
+    >
+  </div>
+  <script setup>
+    import { defineProp, hook, ref } from '@li3/web';
+    import { updateOidcLogoutRedirects } from '/ui/dashboard.mjs';
+    export default function () {
+      const app = defineProp('app'),
+        admin = defineProp('admin', { default: false }),
+        redirectError = ref('');
+      const [redirectInput, setRedirectInput] = hook('');
+      const values = () => app.value.postLogoutRedirectUris || [];
+      const save = async (uris) => {
+        try {
+          app.value.postLogoutRedirectUris = (
+            await updateOidcLogoutRedirects(app.value.id, uris)
+          ).postLogoutRedirectUris;
+          redirectError.value = '';
+        } catch (error) {
+          redirectError.value = error.message || 'Could not save post-logout URLs.';
+        }
+      };
+      const addRedirect = async () => {
+        const uri = redirectInput.value.trim();
+        if (!validCallback(uri, app.value.isPublic)) {
+          return (redirectError.value = 'Use HTTPS, a loopback HTTP URL, or a custom scheme for a public app.');
+        }
+        await save([...new Set([...values(), uri])]);
+        if (!redirectError.value) setRedirectInput('');
+      };
+      const removeRedirect = (uri) => save(values().filter((value) => value !== uri));
+      const validCallback = (value, publicClient) => {
+        try {
+          const url = new URL(value);
+          return (
+            url.protocol === 'https:' ||
+            (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) ||
+            (publicClient && /^[a-z][a-z0-9+.-]*\.[a-z0-9+.-]+:$/i.test(url.protocol))
+          );
+        } catch {
+          return false;
+        }
+      };
+      return { app, admin, redirectError, redirectInput, setRedirectInput, addRedirect, removeRedirect };
+    }
+  </script></template
+>
+
+<template component="v2-scope-editor"
+  ><div>
+    <h3 class="font-bold">Scopes</h3>
+    <div class="mt-1 flex flex-wrap gap-1">
+      <template for="scope of app.scopes"
+        ><template if="admin"
+          ><button
+            class="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-1 text-xs text-brand"
+            type="button"
+            on-click="removeScope(scope)"
+          >
+            <span>{{ scope }}</span><span aria-hidden="true">x</span>
+          </button></template
+        ><template if="!admin"
+          ><span class="rounded-full bg-brand/10 px-2 py-1 text-xs text-brand">{{ scope }}</span></template
+        ></template
+      >
+    </div>
+    <template if="admin"
+      ><div class="mt-2 flex gap-2">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          placeholder="new:scope"
+          bind-value="scopeInput"
+          on-input="setScopeInput($event.target.value)"
+        />
+        <button
+          class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white"
+          type="button"
+          on-click="addScope($event)"
+        >
+          Add
+        </button>
+      </div></template
+    >
+  </div>
+  <script setup>
+    import { defineProp, hook } from '@li3/web';
+    import { addOidcScopes, updateOidcScopes } from '/ui/dashboard.mjs';
+    export default function () {
+      const app = defineProp('app'),
+        admin = defineProp('admin', { default: false }),
+        [scopeInput, setScopeInput] = hook('');
+      const addScope = async (event) => {
+        const scope = scopeInput.value.trim();
+        if (!scope) return;
+        const result = await addOidcScopes(app.value.id, [scope]);
+        app.value.scopes = result.scopes;
+        setScopeInput('');
+      };
+      const removeScope = async (scope) => {
+        if (!confirm(`Remove ${scope}? Existing tokens will lose this scope.`)) return;
+        const result = await updateOidcScopes(
+          app.value.id,
+          app.value.scopes.filter((value) => value !== scope),
+        );
+        app.value.scopes = result.scopes;
+      };
+      return { app, admin, scopeInput, setScopeInput, addScope, removeScope };
+    }
+  </script></template
+>
+
+<template component="v2-token-editor"
+  ><div>
+    <h3 class="font-bold">Tokens</h3>
+    <div class="mt-2 grid gap-2 rounded-lg bg-brand/5 p-2">
+      <input
+        class="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+        bind-value="tokenLabel"
+        on-input="setTokenLabel($event.target.value)"
+        placeholder="Token label"
+        required
+      />
+      <div class="grid gap-1">
+        <template for="scope of app.scopes"
+          ><label
+            class="flex items-center gap-2 rounded-lg border border-brand/20 bg-white px-2 py-1 text-xs text-brand"
+          >
+            <input
+              class="mr-1 accent-brand"
+              type="checkbox"
+              attr-checked.bool="tokenScopes.includes(scope)"
+              on-change="toggleTokenScope(scope)"
+            />{{ scope }}
+          </label></template
+        >
+      </div>
+      <p class="text-xs text-red-600">{{ tokenError }}</p>
+      <button
+        class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white"
+        type="button"
+        on-click="createToken()"
+      >
+        Generate token
+      </button>
+    </div>
+    <template if="createdToken"
+      ><v2-copy-value-box
+        bind-token="createdToken"
+        message="Copy this downstream API token now. It is only shown once."
+      ></v2-copy-value-box
+    ></template>
+    <p class="mt-2 text-sm text-slate-500" hidden="false" bind-hidden.bool="app.tokens.length > 0">No tokens yet.</p>
+    <div class="mt-2 grid gap-2">
+      <template for="token of app.tokens"
+        ><article class="rounded-lg border border-slate-100 p-2 text-sm">
+          <strong>{{ token.label }}</strong>
+          <p class="text-slate-600">Created {{ token.createdAt }}</p>
+          <p class="break-words text-slate-600">Scopes: {{ token.scopes.join(', ') }}</p>
+          <template if="token.revokedAt"><p class="text-red-600">Revoked {{ token.revokedAt }}</p></template>
+          <template if="!token.revokedAt"><p class="text-emerald-600">Active</p></template>
+          <template if="!token.revokedAt"
+            ><button class="mt-1 text-red-600" type="button" on-click="revokeToken(token)">Revoke</button></template
+          >
+        </article></template
+      >
+    </div>
+  </div>
+  <script setup>
+    import { defineProp, hook, ref } from '@li3/web';
+    import { createApiToken, getApiTokens, revokeApiToken } from '/ui/dashboard.mjs';
+    export default function () {
+      const app = defineProp('app'),
+        createdToken = ref(''),
+        tokenScopes = ref([]),
+        tokenError = ref(''),
+        [tokenLabel, setTokenLabel] = hook('');
+      const load = async () => {
+        if (!app.value?.id) return;
+        app.value.tokens = await getApiTokens(app.value.id);
+        app.value.tokensLoaded = true;
+      };
+      const toggleTokenScope = (scope) => {
+        tokenScopes.value = tokenScopes.value.includes(scope)
+          ? tokenScopes.value.filter((value) => value !== scope)
+          : [...tokenScopes.value, scope];
+      };
+      const createToken = async () => {
+        if (!tokenScopes.value.length) {
+          tokenError.value = 'Choose at least one scope.';
+          return;
+        }
+        try {
+          const result = await createApiToken(app.value.id, tokenLabel.value, tokenScopes.value);
+          setTokenLabel('');
+          tokenScopes.value = [];
+          tokenError.value = '';
+          createdToken.value = result.token;
+          await load();
+        } catch (error) {
+          tokenError.value = error.message || 'Could not create token.';
+        }
+      };
+      const revokeToken = async (token) => {
+        if (confirm('Revoke this token?')) {
+          await revokeApiToken(app.value.id, token.tokenId);
+          await load();
+        }
+      };
+      return {
+        app,
+        createdToken,
+        tokenScopes,
+        tokenError,
+        tokenLabel,
+        setTokenLabel,
+        toggleTokenScope,
+        createToken,
+        revokeToken,
+      };
+    }
+  </script></template
+>

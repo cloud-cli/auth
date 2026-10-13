@@ -116,6 +116,7 @@ const uiAssets = Object.fromEntries(
     'v2-security.html',
     'v2-properties.html',
     'v2-applications.html',
+    'v2-app-editor.html',
     'v2-app-form.html',
     'v2-users.html',
     'v2-keys.html',
