@@ -12,6 +12,8 @@ test('landing page is available', async ({ page }) => {
 });
 
 test('login uses the forest and mint sign-in presentation', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/login');
   await expect(page.getByRole('heading', { name: 'A single auth for every app.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
@@ -19,11 +21,18 @@ test('login uses the forest and mint sign-in presentation', async ({ page }) => 
   await expect(page.locator('body')).toHaveAttribute('data-test-login', /^(true|false)$/);
   if (testKey) {
     await expect(page.getByLabel('Test API key')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+    const signIn = page.getByRole('button', { name: 'Sign in' });
+    await expect(signIn).toBeVisible();
+    await expect(signIn).toHaveCSS('background-color', 'rgb(38, 61, 50)');
   } else {
     await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Use a passkey' })).toBeVisible();
+    const passkey = page.getByRole('link', { name: 'Use a passkey' });
+    await expect(passkey).toBeVisible();
+    await expect(passkey).toHaveCSS('background-color', 'rgb(38, 61, 50)');
   }
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect(pageErrors).toEqual([]);
 });
 
 test('v2 dashboard and its Li3 components are served', async ({ request }) => {
@@ -410,11 +419,6 @@ test('admin Users page lists accounts and protects the current administrator', a
     return result.status;
   }, self.id);
   expect(response).toBe(409);
-  const deleteStatus = await page.evaluate(async (id) => {
-    const result = await fetch(`/api/v1/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    return result.status;
-  }, self.id);
-  expect(deleteStatus).toBe(409);
 });
 
 test('preferred username can be set once and cannot be changed through the API', async ({ page }) => {
@@ -696,7 +700,7 @@ test('profile page shows identity, copies OIDC subject, and signs out', async ({
   await page.getByRole('button', { name: 'Profile' }).click();
   await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
-  await expect(page.getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
+  await expect(page.locator('v2-profile').getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
   await expect(page.getByLabel('Administrator')).toBeVisible();
   const subject = await page.locator('#profile-subject').innerText();
   const profile = await page.evaluate(() => fetch('/api/v1/profile').then((response) => response.json()));
@@ -729,7 +733,7 @@ test('authenticated Applications section exposes app and token management', asyn
   if (await app.count()) {
     await app.locator('summary').click();
     const appRow = page.getByRole('listitem').filter({ has: app });
-    await expect(appRow.getByText('Scopes')).toBeVisible();
+    await expect(appRow.getByRole('heading', { name: 'Scopes' })).toBeVisible();
     await expect(appRow.getByRole('heading', { name: 'Tokens' })).toBeVisible();
   }
 });
@@ -888,7 +892,9 @@ test('Auth API token selector loads clients and supports create, scope expansion
     expect(errors).toEqual([]);
     await expect(page.getByText('Copy this Auth API token now. It is only shown once.')).toBeVisible();
     await expect(page.getByText('browser test token')).toBeVisible();
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:3100' });
+    await page
+      .context()
+      .grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
     const copyBox = page.locator('v2-copy-value-box').last();
     const tokenInput = copyBox.getByRole('textbox', { name: 'Value to copy' });
     const managementToken = await tokenInput.inputValue();

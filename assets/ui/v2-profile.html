@@ -60,7 +60,7 @@
             />
             <button
               type="submit"
-              attr-disabled="saving"
+              bind-disabled.bool="saving"
               class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:opacity-60"
             >
               {{ saving ? 'Saving…' : 'Save username' }}
@@ -102,7 +102,7 @@
         <button
           type="button"
           on-click="signOut()"
-          attr-disabled="signingOut"
+          bind-disabled.bool="signingOut"
           class="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
         >
           {{ signingOut ? 'Signing out…' : 'Sign out' }}
