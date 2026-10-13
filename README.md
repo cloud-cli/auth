@@ -283,7 +283,81 @@ createServer(async (request, response) => {
 }).listen(3000);
 ```
 
-Persist login transactions and relying-party sessions in production; do not use in-memory maps across restarts or replicas. The callback binds `state` to the browser with a short-lived HTTP-only cookie and validates both `state` and the ID Token `nonce`. Keep the OIDC client secret in a server-side secret manager.
+#### Express version
+
+If the app already uses Express, keep its session middleware and add these two routes. `sessionStore` must be a persistent Express session store in production. `loginTransactions` is a short-lived server-side store keyed by the Express session ID; its `takeOnce()` operation must atomically return and delete the transaction (for example, with Redis `GETDEL`).
+
+```js
+import express from 'express';
+import session from 'express-session';
+import auth from './node.mjs';
+import { loginTransactions, sessionStore } from './stores.js';
+
+const app = express();
+const appOrigin = process.env.APP_ORIGIN;
+const redirectUri = `${appOrigin}/auth/callback`;
+
+app.set('trust proxy', 1); // If TLS terminates at a trusted reverse proxy.
+app.use(
+  session({
+    store: sessionStore,
+    secret: process.env.APP_SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { httpOnly: true, secure: true, sameSite: 'lax' },
+  }),
+);
+
+const saveSession = (req) =>
+  new Promise((resolve, reject) => {
+    req.session.save((error) => (error ? reject(error) : resolve()));
+  });
+const regenerateSession = (req) =>
+  new Promise((resolve, reject) => {
+    req.session.regenerate((error) => (error ? reject(error) : resolve()));
+  });
+
+app.get('/login', async (req, res, next) => {
+  try {
+    const transaction = auth.createAuthorizationRequest({ redirectUri });
+    req.session.loginStarted = true; // Create/save the browser's session cookie before redirecting.
+    await saveSession(req);
+    await loginTransactions.put(req.sessionID, transaction, { ttlSeconds: 300 });
+    res.redirect(transaction.url);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/auth/callback', async (req, res, next) => {
+  try {
+    const transaction = await loginTransactions.takeOnce(req.sessionID);
+    if (!transaction) return res.sendStatus(400);
+
+    const { claims } = await auth.completeAuthorization({
+      callbackUrl: new URL(req.originalUrl, appOrigin),
+      transaction,
+    });
+    await regenerateSession(req); // Prevent session fixation after login.
+    req.session.user = { sub: claims.sub, name: claims.name, email: claims.email };
+    await saveSession(req);
+    res.redirect('/');
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/', (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  res.send(`Hello, ${req.session.user.name || req.session.user.sub}`);
+});
+
+app.listen(3000);
+```
+
+For sign-in alone, the default `openid profile email` scopes are enough; do not request `offline_access` or persist tokens unless the app needs to call APIs later. `APP_ORIGIN` must be the app's fixed public origin, and its callback URI must exactly match the OIDC client registration.
+
+Persist login transactions and relying-party sessions in production; do not use in-memory maps across restarts or replicas. Bind the transaction to the initiating browser with a short-lived HTTP-only cookie or server-side session, and validate both `state` and the ID Token `nonce`. Keep the OIDC client secret in a server-side secret manager.
 
 `completeAuthorization()` validates the callback location, saved state, PKCE exchange, ID Token signature and standard claims, authorized party, optional `at_hash`, and nonce. It does not create or persist the login transaction: retrieve it from a short-lived store bound to the initiating browser, verify its expiry, and atomically consume it once before calling the helper. Keep the low-level `exchangeCode()` and `verifyToken()` methods when you need to customize callback processing; prefer a maintained OIDC library if your application needs validation beyond the checks documented here.
 
