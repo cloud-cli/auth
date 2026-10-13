@@ -235,6 +235,30 @@ test('mintApiToken sends the client-bound Auth API token and downstream scopes',
   }
 });
 
+test('addApiTokenScopes appends scopes using the client-bound Auth API bearer token', async () => {
+  const originalFetch = globalThis.fetch;
+  let call;
+  globalThis.fetch = async (url, options) => {
+    call = { url: String(url), options };
+    return new Response(JSON.stringify({ scopes: ['storage:limits', 'storage:catalog:read'] }), { status: 200 });
+  };
+  try {
+    const auth = createAuthClient({
+      issuer: 'https://auth.example',
+      clientId: 'storage',
+      authApiToken: 'auth_management',
+    });
+    const result = await auth.addApiTokenScopes(['storage:catalog:read']);
+    assert.equal(call.url, 'https://auth.example/api/v1/api-tokens/storage/scopes');
+    assert.equal(call.options.method, 'POST');
+    assert.equal(call.options.headers.Authorization, 'Bearer auth_management');
+    assert.deepEqual(JSON.parse(call.options.body), { scopes: ['storage:catalog:read'] });
+    assert.deepEqual(result.scopes, ['storage:limits', 'storage:catalog:read']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('revokeApiToken uses the registered client credentials and versioned endpoint', async () => {
   const originalFetch = globalThis.fetch;
   let call;

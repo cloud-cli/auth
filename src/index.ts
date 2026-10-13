@@ -782,6 +782,31 @@ app.post('/api/v1/api-tokens/:clientId/issue', express.json(), async (req, res) 
     throw error;
   }
 });
+app.post('/api/v1/api-tokens/:clientId/scopes', express.json(), async (req, res) => {
+  const client = await getClient(req.params.clientId);
+  const authorization = req.get('authorization') || '';
+  const authToken = authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : '';
+  if (!client || !(await verifyAuthApiToken(authToken, req.params.clientId))) {
+    return res.status(401).json({ error: 'invalid_client' });
+  }
+  const scopes = req.body?.scopes;
+  if (
+    !Array.isArray(scopes) ||
+    scopes.length === 0 ||
+    scopes.length > 100 ||
+    scopes.some((scope) => typeof scope !== 'string' || !/^[a-zA-Z0-9:._-]{1,80}$/.test(scope))
+  ) {
+    return res.status(400).json({ error: 'invalid_scope' });
+  }
+  try {
+    res.json({ scopes: await addManagedClientScopes(client.id, scopes) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === 'Client not found') return res.status(400).json({ error: 'invalid_client' });
+    if (message === 'Client scope limit exceeded') return res.status(400).json({ error: 'scope_limit_exceeded' });
+    throw error;
+  }
+});
 app.delete('/api/v1/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
   res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );

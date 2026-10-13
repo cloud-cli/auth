@@ -676,7 +676,7 @@
       "post": {
         "tags": ["API tokens"],
         "summary": "Mint a downstream API token using an Auth API token",
-        "description": "Requires an Auth API Bearer token issued to clientId. This credential has the fixed permission to mint tokens only for its own client. The request's downstream scopes must be configured for that OIDC client. The returned opaque token is shown once.",
+        "description": "Requires an Auth API Bearer token issued to clientId. This credential has the fixed permission to mint tokens only for its own client. Requested downstream scopes must already be configured for that OIDC client; use POST /api/v1/api-tokens/{clientId}/scopes to append new scopes first. The returned opaque token is shown once.",
         "security": [
           {
             "bearerAuth": []
@@ -723,6 +723,61 @@
           },
           "401": {
             "description": "Missing, invalid, expired, or revoked Auth API token"
+          }
+        }
+      }
+    },
+    "/api/v1/api-tokens/{clientId}/scopes": {
+      "post": {
+        "tags": ["API tokens"],
+        "summary": "Append downstream scopes for a client's own APIs",
+        "description": "Requires the fixed-purpose Auth API Bearer token issued to clientId. Adds scopes to that client's allowed downstream scope list without changing existing scopes. Duplicate additions are ignored. Send 1–100 canonical scope names per request; each name is at most 80 characters, and a client may have at most 500 scopes. This operation cannot remove or replace scopes; only an administrator can do that through OIDC client management.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["scopes"],
+                "properties": {
+                  "scopes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9:._-]{1,80}$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Full updated scope list; prior scopes remain unchanged"
+          },
+          "400": {
+            "description": "Malformed scope list, unknown client, or client scope limit exceeded"
+          },
+          "401": {
+            "description": "Missing, invalid, expired, revoked, or wrong-client Auth API token"
           }
         }
       }

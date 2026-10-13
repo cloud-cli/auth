@@ -378,12 +378,33 @@ export async function regenerateManagedClientSecret(id: string) {
 }
 
 export async function addManagedClientScopes(id: string, scopes: string[]) {
+  const maxClientScopes = 500;
+  const additions = [
+    ...new Set(scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope))),
+  ];
+  await run(
+    `UPDATE auth_oidc_client SET scopes = (
+      SELECT json_group_array(scope) FROM (
+        SELECT scope FROM (
+          SELECT value AS scope, 0 AS source, CAST(key AS INTEGER) AS ordinal FROM json_each(auth_oidc_client.scopes)
+          UNION ALL
+          SELECT value AS scope, 1 AS source, CAST(key AS INTEGER) AS ordinal FROM json_each(?)
+        ) GROUP BY scope ORDER BY MIN(source), MIN(ordinal)
+      )
+    ) WHERE id = ? AND (
+      SELECT count(*) FROM (
+        SELECT value FROM json_each(auth_oidc_client.scopes)
+        UNION
+        SELECT value FROM json_each(?)
+      )
+    ) <= ?`,
+    [json(additions), id, json(additions), maxClientScopes],
+  );
   const client = (await rows<OidcClient>('auth_oidc_client', 'id = ?', [id]))[0];
   if (!client) throw new Error('Client not found');
-  const additions = scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope));
-  client.scopes = [...new Set([...(client.scopes || []), ...additions])];
-  await run('UPDATE auth_oidc_client SET scopes = ? WHERE id = ?', [json(client.scopes), id]);
-  return client.scopes;
+  const resultingScopes = client.scopes || [];
+  if (additions.some((scope) => !resultingScopes.includes(scope))) throw new Error('Client scope limit exceeded');
+  return resultingScopes;
 }
 
 export async function updateManagedClientScopes(id: string, scopes: string[]) {

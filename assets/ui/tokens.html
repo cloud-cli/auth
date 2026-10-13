@@ -93,8 +93,9 @@
           required
         />
         <p class="rounded-xl bg-violet/5 p-3 text-sm text-slate-600">
-          This token has one fixed permission: mint scoped API tokens for this client. Choose downstream scopes when
-          calling the token-issuance API.
+          This token has one fixed permission: mint scoped API tokens and append downstream scopes for this client.
+          Existing scopes cannot be removed with this token; other clients and administrative operations are not
+          available to it.
         </p>
         <button class="rounded-xl bg-violet px-4 py-3 font-bold text-white" type="button" on-click="createToken()">
           Generate Auth API token

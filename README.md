@@ -333,7 +333,7 @@ Auth advertises RP-initiated logout at `/logout`. Redirect to it with `client_id
 Auth supports two different opaque token types. Do not confuse them:
 
 - **API tokens** are user-subject tokens issued for an OIDC application's configured downstream scopes. An authenticated user can create/revoke them from `/me#oidc`. Tokens are shown once, stored hashed, expire after one year, and can be revoked.
-- **Auth API tokens** are fixed-purpose, client-subject credentials for backend automation. An administrator creates them under **Keys & tokens** (`/me#auth-api-tokens`). They carry only the `auth:tokens:write` permission and can mint downstream API tokens for their own registered client; they cannot administer users, passkeys, or OIDC clients.
+- **Auth API tokens** are fixed-purpose, client-subject credentials for backend automation. An administrator creates them under **Keys & tokens** (`/me#auth-api-tokens`). They carry the `auth:tokens:write` permission and can mint downstream API tokens and append downstream scopes for their own registered client; they cannot remove scopes or administer users, passkeys, or other OIDC client settings.
 
 To mint a downstream token from a backend, create an Auth API token for the registered client and call:
 
@@ -347,13 +347,25 @@ Content-Type: application/json
 
 The requested scopes must be configured for that client. Store the Auth API token in a server-side secret manager and revoke it from the dashboard if compromised. The Node module's `mintApiToken({ label, scopes })` performs this operation when `authApiToken` is provided to `createAuthClient`.
 
+As an app's APIs grow, append scopes to its own client without an administrator action:
+
+```http
+POST /api/v1/api-tokens/{clientId}/scopes
+Authorization: Bearer <auth-api-token>
+Content-Type: application/json
+
+{"scopes":["storage:catalog:read"]}
+```
+
+The response returns the full scope list. Existing scopes are retained and duplicates are ignored. Add 1–100 canonical scope names per request (up to 80 characters each); a client may have up to 500 scopes. This endpoint only adds scopes; removing or replacing scopes remains administrator-only through OIDC client management. `auth.addApiTokenScopes(['storage:catalog:read'])` performs this operation in the Node client.
+
 Resource APIs validate downstream opaque tokens with `POST /oauth/introspect`, using the registered OIDC client's HTTP Basic credentials. Active responses follow OAuth 2.0 Token Introspection and include `active`, `client_id`, `sub`, `scope`, `iat`, and `exp`; responses are marked `Cache-Control: no-store` and include `X-Token-Expires-At` metadata.
 
 Registered OAuth clients may revoke opaque tokens with `POST /api/v1/revoke`, HTTP Basic client credentials, and a form-encoded `token`. The endpoint follows RFC 7009 and returns success for unknown tokens.
 
 #### Configure downstream scopes
 
-Add only the downstream API scopes a client needs in its OIDC client settings. Scope names are application-defined. A user's API token can contain only scopes configured for that client; adding or removing a client scope does not turn an Auth API token into a general-purpose credential.
+Scope names are application-defined. Auth API tokens may append scopes only to their own client's scope list; administrators remain responsible for removing or replacing scopes. A user's API token can contain only scopes configured for that client, and an Auth API token cannot manage another client or any other OIDC client settings.
 
 #### Rotate JWT signing keys
 

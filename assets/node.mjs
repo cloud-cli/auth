@@ -459,6 +459,15 @@ export class AuthClient {
       body: { label, scopes },
     });
   }
+  /** Append downstream scopes to this client's scope list with the configured Auth API bearer token. Existing scopes cannot be removed through this operation. @param {string[]} scopes @returns {Promise<{scopes: string[]}>} */
+  addApiTokenScopes(scopes) {
+    this.requireClientId();
+    return this.request(`/api/v1/api-tokens/${encodeURIComponent(this.clientId)}/scopes`, {
+      method: 'POST',
+      auth: 'api',
+      body: { scopes },
+    });
+  }
   /** List OIDC clients using the admin session cookie. @param {Request|object} request @returns {Promise<unknown>} */
   listOidcClients(request) {
     return this.request('/api/v1/oidc/clients', { request, auth: 'admin' });

@@ -46,3 +46,13 @@ test('OIDC scope documentation includes opt-in offline access', () => {
   assert.match(scope.description, /offline_access/);
   assert.match(scope.description, /openid is required/);
 });
+
+test('Auth API tokens may append but cannot replace client scopes', () => {
+  const operation = spec.paths['/api/v1/api-tokens/{clientId}/scopes'].post;
+  assert.deepEqual(operation.security, [{ bearerAuth: [] }]);
+  assert.match(operation.description, /without changing existing scopes/);
+  assert.match(operation.description, /cannot remove or replace scopes/);
+  const scopes = operation.requestBody.content['application/json'].schema.properties.scopes;
+  assert.equal(scopes.minItems, 1);
+  assert.equal(scopes.maxItems, 100);
+});

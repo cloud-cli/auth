@@ -687,9 +687,13 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   await expect(reloadedApp.getByText('Active')).toHaveCount(0);
 });
 
-test('Auth API token selector loads clients and supports create and revoke', async ({ page }) => {
+test('Auth API token selector loads clients and supports create, scope expansion, and revoke', async ({
+  page,
+  request,
+}) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   const appId = `e2e-auth-api-${Date.now()}`;
+  const otherAppId = `${appId}-other`;
   await page.goto('/');
   const loginStatus = await page.evaluate(async (secret) => {
     const response = await fetch('/__test__/login', {
@@ -711,6 +715,16 @@ test('Auth API token selector loads clients and supports create and revoke', asy
   }, appId);
 
   try {
+    const otherCreated = await page.evaluate(async (id) => {
+      const response = await fetch('/api/v1/oidc/clients', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, redirectUris: [`https://${id}.example/callback`], scopes: ['other:scope'] }),
+      });
+      return response.status;
+    }, otherAppId);
+    expect(otherCreated).toBe(201);
+
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => {
@@ -760,18 +774,78 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     );
     expect(issued.status).toBe(201);
     expect(issued.body.token).toMatch(/^auth_/);
-    const forbiddenScope = await page.evaluate(
+    const notYetAllowed = await page.evaluate(
       async ({ id, token }) => {
         const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}/issue`, {
           method: 'POST',
           headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-          body: JSON.stringify({ label: 'out-of-scope token', scopes: ['admin:all'] }),
+          body: JSON.stringify({ label: 'new scope before configuration', scopes: ['storage:catalog:read'] }),
         });
         return response.status;
       },
       { id: appId, token: managementToken! },
     );
-    expect(forbiddenScope).toBe(400);
+    expect(notYetAllowed).toBe(400);
+
+    const scopeAddition = await page.evaluate(
+      async ({ id, token }) => {
+        const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}/scopes`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ scopes: ['storage:catalog:read', 'storage:catalog:read'] }),
+        });
+        return { status: response.status, body: await response.json() };
+      },
+      { id: appId, token: managementToken! },
+    );
+    expect(scopeAddition.status).toBe(200);
+    expect(scopeAddition.body.scopes).toEqual(['storage:limits', 'storage:catalog:read']);
+
+    const issueNewScope = await page.evaluate(
+      async ({ id, token }) => {
+        const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}/issue`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ label: 'newly configured scope', scopes: ['storage:catalog:read'] }),
+        });
+        return response.status;
+      },
+      { id: appId, token: managementToken! },
+    );
+    expect(issueNewScope).toBe(201);
+
+    const wrongClient = await page.evaluate(
+      async ({ id, token }) => {
+        const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}/scopes`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ scopes: ['attacker:scope'] }),
+        });
+        return response.status;
+      },
+      { id: otherAppId, token: managementToken! },
+    );
+    expect(wrongClient).toBe(401);
+
+    const cannotRemove = await request.put(`/api/v1/oidc/clients/${encodeURIComponent(appId)}/scopes`, {
+      headers: { authorization: `Bearer ${managementToken}` },
+      data: { scopes: ['storage:catalog:read'] },
+    });
+    expect(cannotRemove.status()).toBe(403);
+
+    const malformedScopes = await page.evaluate(
+      async ({ id, token }) => {
+        const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}/scopes`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ scopes: ['invalid scope'] }),
+        });
+        return response.status;
+      },
+      { id: appId, token: managementToken! },
+    );
+    expect(malformedScopes).toBe(400);
+
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Revoke' }).click();
     await expect(page.getByText('revoked', { exact: true })).toBeVisible();
@@ -780,6 +854,10 @@ test('Auth API token selector loads clients and supports create and revoke', asy
     await page.evaluate(
       async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
       appId,
+    );
+    await page.evaluate(
+      async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+      otherAppId,
     );
   }
 });
