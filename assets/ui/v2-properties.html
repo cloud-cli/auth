@@ -81,40 +81,42 @@
     import { ref, templateRef } from '@li3/web';
     import { deleteProperty, getProperties, setProperty } from '/ui/dashboard.mjs';
 
-    const properties = ref([]);
-    const keyInput = templateRef('keyInput');
-    const valueInput = templateRef('valueInput');
+    export default function () {
+      const properties = ref([]);
+      const keyInput = templateRef('keyInput');
+      const valueInput = templateRef('valueInput');
 
-    const load = async () => {
-      properties.value = await getProperties();
-    };
+      const load = async () => {
+        properties.value = await getProperties();
+      };
 
-    const save = async (property) => {
-      await setProperty(property.key, property.value);
-    };
+      const save = async (property) => {
+        await setProperty(property.key, property.value);
+      };
 
-    const remove = async (property) => {
-      if (confirm('Remove ' + property.key + '?')) {
-        await deleteProperty(property.key);
-        properties.value = properties.value.filter((item) => item !== property);
-      }
-    };
+      const remove = async (property) => {
+        if (confirm('Remove ' + property.key + '?')) {
+          await deleteProperty(property.key);
+          properties.value = properties.value.filter((item) => item !== property);
+        }
+      };
 
-    const add = async () => {
-      const name = keyInput.value?.value.trim();
-      if (!name) return;
-      await setProperty(name, valueInput.value?.value || '');
-      keyInput.value.value = '';
-      valueInput.value.value = '';
-      await load();
-    };
+      const add = async () => {
+        const name = keyInput.value?.value.trim();
+        if (!name) return;
+        await setProperty(name, valueInput.value?.value || '');
+        keyInput.value.value = '';
+        valueInput.value.value = '';
+        await load();
+      };
 
-    const copyValue = async (value) => {
-      await navigator.clipboard.writeText(value);
-      // Could add toast notification here
-    };
+      const copyValue = async (value) => {
+        await navigator.clipboard.writeText(value);
+        // Could add toast notification here
+      };
 
-    load();
-    return { properties, keyInput, valueInput, save, remove, add, copyValue };
+      load();
+      return { properties, keyInput, valueInput, save, remove, add, copyValue };
+    }
   </script>
 </template>

@@ -130,128 +130,130 @@
       revokeAuthApiToken,
     } from '/ui/dashboard.mjs';
 
-    const keys = ref([]);
-    const apps = ref([]);
-    const selectedClient = ref('');
-    const allTokens = ref([]);
-    const visibleTokens = ref([]);
-    const emptyMessage = ref('Loading Auth API tokens…');
-    const createdToken = ref('');
-    const error = ref('');
-    const tokenLabel = ref('');
-    let overviewRevision = 0;
+    export default function () {
+      const keys = ref([]);
+      const apps = ref([]);
+      const selectedClient = ref('');
+      const allTokens = ref([]);
+      const visibleTokens = ref([]);
+      const emptyMessage = ref('Loading Auth API tokens…');
+      const createdToken = ref('');
+      const error = ref('');
+      const tokenLabel = ref('');
+      let overviewRevision = 0;
 
-    const load = async () => {
-      keys.value = await getSigningKeys();
-      apps.value = await getOidcClients();
-    };
-
-    const rotate = async () => {
-      if (confirm('Rotate the JWT signing key?')) {
-        await rotateSigningKey();
-        await load();
-      }
-    };
-
-    const selectClient = async (clientId) => {
-      selectedClient.value = clientId;
-      createdToken.value = '';
-      error.value = '';
-      visibleTokens.value = [];
-      emptyMessage.value = clientId ? 'Loading tokens…' : '';
-      await loadTokens();
-    };
-
-    const loadTokens = async () => {
-      if (!selectedClient.value) {
-        visibleTokens.value = allTokens.value;
-        emptyMessage.value = visibleTokens.value.length ? '' : 'No Auth API tokens have been minted for your apps.';
-        return;
-      }
-      const clientId = selectedClient.value;
-      const clientTokens = await getAuthApiTokens(clientId);
-      if (selectedClient.value !== clientId) return;
-      visibleTokens.value = clientTokens.map((token) => ({ appId: clientId, token }));
-      emptyMessage.value = visibleTokens.value.length ? '' : 'No Auth API tokens exist for this app.';
-    };
-
-    const createToken = async () => {
-      error.value = '';
-      try {
-        const result = await createAuthApiToken(selectedClient.value, tokenLabel.value.trim());
-        createdToken.value = result.token;
-        tokenLabel.value = '';
-        await loadTokens();
-        await loadOverview();
-      } catch (reason) {
-        error.value = reason.message || 'Could not create Auth API token.';
-      }
-    };
-
-    const revoke = async (entry) => {
-      if (!confirm(`Revoke token "${entry.token.label}"?`)) return;
-      await revokeAuthApiToken(entry.appId, entry.token.tokenId);
-      if (selectedClient.value) await loadTokens();
-      else await loadOverview();
-    };
-
-    const loadOverview = async () => {
-      const revision = ++overviewRevision;
-      try {
+      const load = async () => {
+        keys.value = await getSigningKeys();
         apps.value = await getOidcClients();
-        const results = await Promise.all(
-          apps.value.map(async (app) => {
-            try {
-              return { appId: app.id, tokens: await getAuthApiTokens(app.id) };
-            } catch {
-              return { appId: app.id, tokens: null };
-            }
-          }),
-        );
-        if (revision !== overviewRevision) return;
-        allTokens.value = results.flatMap((result) =>
-          result.tokens ? result.tokens.map((token) => ({ appId: result.appId, token })) : [],
-        );
+      };
+
+      const rotate = async () => {
+        if (confirm('Rotate the JWT signing key?')) {
+          await rotateSigningKey();
+          await load();
+        }
+      };
+
+      const selectClient = async (clientId) => {
+        selectedClient.value = clientId;
+        createdToken.value = '';
+        error.value = '';
+        visibleTokens.value = [];
+        emptyMessage.value = clientId ? 'Loading tokens…' : '';
+        await loadTokens();
+      };
+
+      const loadTokens = async () => {
         if (!selectedClient.value) {
           visibleTokens.value = allTokens.value;
-          emptyMessage.value = results.some((result) => result.tokens === null)
-            ? "Some apps' tokens could not be loaded. Select an app to retry its token list."
-            : visibleTokens.value.length
-              ? ''
-              : 'No Auth API tokens have been minted for your apps.';
-        } else if (results.some((result) => result.tokens === null)) {
-          error.value = "Some apps' tokens could not be loaded. Select an app to retry its token list.";
+          emptyMessage.value = visibleTokens.value.length ? '' : 'No Auth API tokens have been minted for your apps.';
+          return;
         }
-      } catch (reason) {
-        if (revision === overviewRevision) {
-          error.value = reason.message || 'Could not load apps and their Auth API tokens.';
-          if (!selectedClient.value) emptyMessage.value = error.value;
+        const clientId = selectedClient.value;
+        const clientTokens = await getAuthApiTokens(clientId);
+        if (selectedClient.value !== clientId) return;
+        visibleTokens.value = clientTokens.map((token) => ({ appId: clientId, token }));
+        emptyMessage.value = visibleTokens.value.length ? '' : 'No Auth API tokens exist for this app.';
+      };
+
+      const createToken = async () => {
+        error.value = '';
+        try {
+          const result = await createAuthApiToken(selectedClient.value, tokenLabel.value.trim());
+          createdToken.value = result.token;
+          tokenLabel.value = '';
+          await loadTokens();
+          await loadOverview();
+        } catch (reason) {
+          error.value = reason.message || 'Could not create Auth API token.';
         }
-      }
-    };
+      };
 
-    const setTokenLabel = (value) => {
-      tokenLabel.value = value;
-    };
+      const revoke = async (entry) => {
+        if (!confirm(`Revoke token "${entry.token.label}"?`)) return;
+        await revokeAuthApiToken(entry.appId, entry.token.tokenId);
+        if (selectedClient.value) await loadTokens();
+        else await loadOverview();
+      };
 
-    load();
-    loadOverview();
-    return {
-      keys,
-      apps,
-      selectedClient,
-      allTokens,
-      visibleTokens,
-      emptyMessage,
-      createdToken,
-      error,
-      tokenLabel,
-      setTokenLabel,
-      rotate,
-      selectClient,
-      loadTokens,
-      createToken,
-      revoke,
-    };
+      const loadOverview = async () => {
+        const revision = ++overviewRevision;
+        try {
+          apps.value = await getOidcClients();
+          const results = await Promise.all(
+            apps.value.map(async (app) => {
+              try {
+                return { appId: app.id, tokens: await getAuthApiTokens(app.id) };
+              } catch {
+                return { appId: app.id, tokens: null };
+              }
+            }),
+          );
+          if (revision !== overviewRevision) return;
+          allTokens.value = results.flatMap((result) =>
+            result.tokens ? result.tokens.map((token) => ({ appId: result.appId, token })) : [],
+          );
+          if (!selectedClient.value) {
+            visibleTokens.value = allTokens.value;
+            emptyMessage.value = results.some((result) => result.tokens === null)
+              ? "Some apps' tokens could not be loaded. Select an app to retry its token list."
+              : visibleTokens.value.length
+                ? ''
+                : 'No Auth API tokens have been minted for your apps.';
+          } else if (results.some((result) => result.tokens === null)) {
+            error.value = "Some apps' tokens could not be loaded. Select an app to retry its token list.";
+          }
+        } catch (reason) {
+          if (revision === overviewRevision) {
+            error.value = reason.message || 'Could not load apps and their Auth API tokens.';
+            if (!selectedClient.value) emptyMessage.value = error.value;
+          }
+        }
+      };
+
+      const setTokenLabel = (value) => {
+        tokenLabel.value = value;
+      };
+
+      load();
+      loadOverview();
+      return {
+        keys,
+        apps,
+        selectedClient,
+        allTokens,
+        visibleTokens,
+        emptyMessage,
+        createdToken,
+        error,
+        tokenLabel,
+        setTokenLabel,
+        rotate,
+        selectClient,
+        loadTokens,
+        createToken,
+        revoke,
+      };
+    }
   </script>
 </template>

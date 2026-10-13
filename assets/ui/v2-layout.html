@@ -205,94 +205,95 @@
     }
   </style>
   <script setup>
-    import { ref, hook, defineProp } from '@li3/web';
-    import { getProfile, getAuditEvents } from '/ui/dashboard.mjs';
+    import { ref } from '@li3/web';
+    import { getProfile } from '/ui/dashboard.mjs';
 
-    const page = document.body.dataset.page;
-    const testLoginEnabled = document.body.dataset.testLogin === 'true';
+    export default function () {
+      const section = ref(location.hash.slice(1) || 'security');
+      const admin = ref(false);
+      const user = ref({ name: '', email: '', photo: '', role: '' });
+      const mobileMenuOpen = ref(false);
+      const profileExpanded = ref(false);
 
-    const section = ref(location.hash.slice(1) || 'security');
-    const admin = ref(false);
-    const user = ref({ name: '', email: '', photo: '', role: '' });
-    const mobileMenuOpen = ref(false);
-    const profileExpanded = ref(false);
+      const breadcrumbLabels = {
+        security: 'Security',
+        properties: 'Properties',
+        applications: 'Applications',
+        users: 'Users',
+        keys: 'Keys & tokens',
+        activity: 'Activity',
+      };
 
-    const breadcrumbLabels = {
-      security: 'Security',
-      properties: 'Properties',
-      applications: 'Applications',
-      users: 'Users',
-      keys: 'Keys & tokens',
-      activity: 'Activity',
-    };
+      const breadcrumbLabel = ref(breadcrumbLabels[section.value] || 'Security');
 
-    const breadcrumbLabel = hook(() => breadcrumbLabels[section.value] || 'Security');
+      const userInitial = ref('U');
 
-    const userInitial = hook(() => (user.value.name || 'U').slice(0, 1).toUpperCase());
-
-    async function loadProfile() {
-      try {
-        const profile = await getProfile();
-        user.value = profile;
-        admin.value = profile.role === 'admin';
-      } catch (reason) {
-        console.error('Failed to load profile', reason);
+      async function loadProfile() {
+        try {
+          const profile = await getProfile();
+          user.value = profile;
+          admin.value = profile.role === 'admin';
+          userInitial.value = (profile.name || 'U').slice(0, 1).toUpperCase();
+        } catch (reason) {
+          console.error('Failed to load profile', reason);
+        }
       }
+
+      function navigate(target) {
+        section.value = target;
+        location.hash = target;
+        if (mobileMenuOpen.value) closeMenu();
+      }
+
+      function openMenu() {
+        mobileMenuOpen.value = true;
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        sidebar.classList.remove('-translate-x-full');
+        sidebar.classList.add('translate-x-0');
+        overlay.classList.remove('hidden');
+        setTimeout(() => {
+          overlay.classList.remove('opacity-0');
+          overlay.classList.add('opacity-100');
+        }, 10);
+      }
+
+      function closeMenu() {
+        mobileMenuOpen.value = false;
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        sidebar.classList.remove('translate-x-0');
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.remove('opacity-100');
+        overlay.classList.add('opacity-0');
+        setTimeout(() => overlay.classList.add('hidden'), 300);
+      }
+
+      function toggleProfile() {
+        profileExpanded.value = !profileExpanded.value;
+        // TODO: Show profile dropdown menu
+      }
+
+      // Initialize
+      loadProfile().catch(console.error);
+      addEventListener('hashchange', () => {
+        section.value = location.hash.slice(1) || 'security';
+        breadcrumbLabel.value = breadcrumbLabels[section.value] || 'Security';
+      });
+
+      return {
+        section,
+        admin,
+        user,
+        mobileMenuOpen,
+        profileExpanded,
+        breadcrumbLabel,
+        userInitial,
+        navigate,
+        openMenu,
+        closeMenu,
+        toggleProfile,
+      };
     }
-
-    function navigate(target) {
-      section.value = target;
-      location.hash = target;
-      if (mobileMenuOpen.value) closeMenu();
-    }
-
-    function openMenu() {
-      mobileMenuOpen.value = true;
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('mobile-overlay');
-      sidebar.classList.remove('-translate-x-full');
-      sidebar.classList.add('translate-x-0');
-      overlay.classList.remove('hidden');
-      setTimeout(() => {
-        overlay.classList.remove('opacity-0');
-        overlay.classList.add('opacity-100');
-      }, 10);
-    }
-
-    function closeMenu() {
-      mobileMenuOpen.value = false;
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('mobile-overlay');
-      sidebar.classList.remove('translate-x-0');
-      sidebar.classList.add('-translate-x-full');
-      overlay.classList.remove('opacity-100');
-      overlay.classList.add('opacity-0');
-      setTimeout(() => overlay.classList.add('hidden'), 300);
-    }
-
-    function toggleProfile() {
-      profileExpanded.value = !profileExpanded.value;
-      // TODO: Show profile dropdown menu
-    }
-
-    // Initialize
-    loadProfile().catch(console.error);
-    addEventListener('hashchange', () => {
-      section.value = location.hash.slice(1) || 'security';
-    });
-
-    return {
-      section,
-      admin,
-      user,
-      mobileMenuOpen,
-      profileExpanded,
-      breadcrumbLabel,
-      userInitial,
-      navigate,
-      openMenu,
-      closeMenu,
-      toggleProfile,
-    };
   </script>
 </template>

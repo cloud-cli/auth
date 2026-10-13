@@ -30,7 +30,9 @@ test('v2 dashboard and its Li3 components are served', async ({ request }) => {
   ]) {
     const response = await request.get(`/ui/${asset}`);
     expect(response.ok(), `/ui/${asset}`).toBeTruthy();
-    expect(await response.text()).toContain('<template component=');
+    const component = await response.text();
+    expect(component).toContain('<template component=');
+    expect(component, `${asset} setup should export a component factory`).toContain('export default function () {');
   }
 });
 

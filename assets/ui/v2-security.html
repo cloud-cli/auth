@@ -75,46 +75,48 @@
     import { ref } from '@li3/web';
     import { getPasskeys, registerPasskey, revokePasskey, generateRecoveryCodes } from '/ui/dashboard.mjs';
 
-    const passkeys = ref([]);
-    const codes = ref('');
+    export default function () {
+      const passkeys = ref([]);
+      const codes = ref('');
 
-    const load = async () => {
-      const keys = await getPasskeys();
-      passkeys.value = keys.filter((key) => !key.revokedAt);
-    };
+      const load = async () => {
+        const keys = await getPasskeys();
+        passkeys.value = keys.filter((key) => !key.revokedAt);
+      };
 
-    const addPasskey = async () => {
-      const label = prompt('Name this passkey', 'My device');
-      if (label) {
-        await registerPasskey(label);
-        await load();
-      }
-    };
+      const addPasskey = async () => {
+        const label = prompt('Name this passkey', 'My device');
+        if (label) {
+          await registerPasskey(label);
+          await load();
+        }
+      };
 
-    const revoke = async (id) => {
-      if (confirm('Revoke this passkey?')) {
-        await revokePasskey(id);
-        await load();
-      }
-    };
+      const revoke = async (id) => {
+        if (confirm('Revoke this passkey?')) {
+          await revokePasskey(id);
+          await load();
+        }
+      };
 
-    const recoveryCodes = async () => {
-      if (confirm('This invalidates any existing recovery codes. Continue?')) {
-        codes.value = (await generateRecoveryCodes()).join('\n');
-      }
-    };
+      const recoveryCodes = async () => {
+        if (confirm('This invalidates any existing recovery codes. Continue?')) {
+          codes.value = (await generateRecoveryCodes()).join('\n');
+        }
+      };
 
-    const openPwa = () => window.open('/pwa/', '_blank');
+      const openPwa = () => window.open('/pwa/', '_blank');
 
-    const formatDate = (dateStr) => {
-      try {
-        return new Date(dateStr).toISOString().replace('T', ' ').slice(0, 19);
-      } catch {
-        return dateStr;
-      }
-    };
+      const formatDate = (dateStr) => {
+        try {
+          return new Date(dateStr).toISOString().replace('T', ' ').slice(0, 19);
+        } catch {
+          return dateStr;
+        }
+      };
 
-    load();
-    return { passkeys, codes, addPasskey, revoke, recoveryCodes, openPwa };
+      load();
+      return { passkeys, codes, addPasskey, revoke, recoveryCodes, openPwa };
+    }
   </script>
 </template>

@@ -92,54 +92,56 @@
     import { ref, templateRef } from '@li3/web';
     import { getAuditEvents, getAuditOptions } from '/ui/dashboard.mjs';
 
-    const audit = ref([]);
-    const apps = ref([]);
-    const events = ref([]);
-    const total = ref(0);
-    const offset = ref(0);
-    const pages = ref(1);
-    const selectedApp = ref('');
-    const selectedEvent = ref('');
+    export default function () {
+      const audit = ref([]);
+      const apps = ref([]);
+      const events = ref([]);
+      const total = ref(0);
+      const offset = ref(0);
+      const pages = ref(1);
+      const selectedApp = ref('');
+      const selectedEvent = ref('');
 
-    const load = async (nextOffset = 0) => {
-      const result = await getAuditEvents({ app: selectedApp.value, event: selectedEvent.value, offset: nextOffset });
-      audit.value = result.items;
-      total.value = result.total;
-      offset.value = result.offset;
-      pages.value = Math.max(1, Math.ceil(result.total / 20));
-    };
+      const load = async (nextOffset = 0) => {
+        const result = await getAuditEvents({ app: selectedApp.value, event: selectedEvent.value, offset: nextOffset });
+        audit.value = result.items;
+        total.value = result.total;
+        offset.value = result.offset;
+        pages.value = Math.max(1, Math.ceil(result.total / 20));
+      };
 
-    const filter = () => load(0);
-    const previous = () => load(Math.max(0, offset.value - 20));
-    const next = () => load(offset.value + 20);
+      const filter = () => load(0);
+      const previous = () => load(Math.max(0, offset.value - 20));
+      const next = () => load(offset.value + 20);
 
-    const formatDate = (dateStr) => {
-      try {
-        return new Date(dateStr).toISOString().replace('T', ' ').slice(0, 19);
-      } catch {
-        return dateStr;
-      }
-    };
+      const formatDate = (dateStr) => {
+        try {
+          return new Date(dateStr).toISOString().replace('T', ' ').slice(0, 19);
+        } catch {
+          return dateStr;
+        }
+      };
 
-    getAuditOptions().then((value) => {
-      apps.value = value.apps;
-      events.value = value.events;
-    });
-    load();
+      getAuditOptions().then((value) => {
+        apps.value = value.apps;
+        events.value = value.events;
+      });
+      load();
 
-    return {
-      audit,
-      apps,
-      events,
-      total,
-      offset,
-      pages,
-      selectedApp,
-      selectedEvent,
-      filter,
-      previous,
-      next,
-      formatDate,
-    };
+      return {
+        audit,
+        apps,
+        events,
+        total,
+        offset,
+        pages,
+        selectedApp,
+        selectedEvent,
+        filter,
+        previous,
+        next,
+        formatDate,
+      };
+    }
   </script>
 </template>

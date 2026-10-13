@@ -71,42 +71,44 @@
     import { ref } from '@li3/web';
     import { getOidcClients, removeOidcClient, regenerateOidcClientSecret, createOidcClient } from '/ui/dashboard.mjs';
 
-    const apps = ref([]);
-    const formOpen = ref(false);
+    export default function () {
+      const apps = ref([]);
+      const formOpen = ref(false);
 
-    const load = async () => {
-      apps.value = (await getOidcClients()).map((app) => ({
-        ...app,
-        secret: '',
-      }));
-    };
+      const load = async () => {
+        apps.value = (await getOidcClients()).map((app) => ({
+          ...app,
+          secret: '',
+        }));
+      };
 
-    const toggleForm = () => {
-      formOpen.value = !formOpen.value;
-    };
+      const toggleForm = () => {
+        formOpen.value = !formOpen.value;
+      };
 
-    const deleteApp = async (id) => {
-      if (!confirm('Remove this OIDC application? This cannot be undone.')) return;
-      try {
-        await removeOidcClient(id);
-        await load();
-      } catch (error) {
-        alert('Could not remove app: ' + error.message);
-      }
-    };
+      const deleteApp = async (id) => {
+        if (!confirm('Remove this OIDC application? This cannot be undone.')) return;
+        try {
+          await removeOidcClient(id);
+          await load();
+        } catch (error) {
+          alert('Could not remove app: ' + error.message);
+        }
+      };
 
-    const regenSecret = async (id) => {
-      if (!confirm('Regenerate this OIDC client secret? The current secret will stop working.')) return;
-      try {
-        const result = await regenerateOidcClientSecret(id);
-        const app = apps.value.find((item) => item.id === id);
-        if (app) app.secret = result.secret;
-      } catch (error) {
-        alert('Could not regenerate secret: ' + error.message);
-      }
-    };
+      const regenSecret = async (id) => {
+        if (!confirm('Regenerate this OIDC client secret? The current secret will stop working.')) return;
+        try {
+          const result = await regenerateOidcClientSecret(id);
+          const app = apps.value.find((item) => item.id === id);
+          if (app) app.secret = result.secret;
+        } catch (error) {
+          alert('Could not regenerate secret: ' + error.message);
+        }
+      };
 
-    load();
-    return { apps, formOpen, toggleForm, deleteApp, regenSecret, load };
+      load();
+      return { apps, formOpen, toggleForm, deleteApp, regenSecret, load };
+    }
   </script>
 </template>

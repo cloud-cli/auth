@@ -105,76 +105,78 @@
   <script setup>
     import { ref } from '@li3/web';
 
-    const users = ref([]);
-    const selectedUser = ref(null);
+    export default function () {
+      const users = ref([]);
+      const selectedUser = ref(null);
 
-    async function loadUsers() {
-      const response = await fetch('/api/v1/admin/users', { credentials: 'include' });
-      if (!response.ok) throw new Error('Could not load users');
-      users.value = await response.json();
-    }
-
-    async function update(user, body) {
-      const response = await fetch('/api/v1/admin/users/' + encodeURIComponent(user.id), {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        alert(error.error || 'Could not update user');
-        return;
+      async function loadUsers() {
+        const response = await fetch('/api/v1/admin/users', { credentials: 'include' });
+        if (!response.ok) throw new Error('Could not load users');
+        users.value = await response.json();
       }
-      await loadUsers();
-    }
 
-    function toggleDisabled(user) {
-      return update(user, { disabled: !user.disabled });
-    }
-
-    function toggleBlocked(user) {
-      return update(user, { blocked: !user.blocked });
-    }
-
-    async function saveUsername(user, event) {
-      event.preventDefault();
-      await update(user, { preferred_username: new FormData(event.target).get('preferred_username') });
-    }
-
-    async function removeUser(user) {
-      if (!confirm(`Permanently delete ${user.email} and all associated data?`)) return;
-      const response = await fetch('/api/v1/admin/users/' + encodeURIComponent(user.id), {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        alert(error.error || 'Could not delete user');
-        return;
+      async function update(user, body) {
+        const response = await fetch('/api/v1/admin/users/' + encodeURIComponent(user.id), {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          alert(error.error || 'Could not update user');
+          return;
+        }
+        await loadUsers();
       }
-      selectedUser.value = null;
-      await loadUsers();
-    }
 
-    function closeUserDetail() {
-      selectedUser.value = null;
-    }
+      function toggleDisabled(user) {
+        return update(user, { disabled: !user.disabled });
+      }
 
-    function selectUser(user) {
-      selectedUser.value = { ...user };
-    }
+      function toggleBlocked(user) {
+        return update(user, { blocked: !user.blocked });
+      }
 
-    loadUsers().catch((error) => alert(error.message));
-    return {
-      users,
-      selectedUser,
-      toggleDisabled,
-      toggleBlocked,
-      saveUsername,
-      removeUser,
-      closeUserDetail,
-      selectUser,
-    };
+      async function saveUsername(user, event) {
+        event.preventDefault();
+        await update(user, { preferred_username: new FormData(event.target).get('preferred_username') });
+      }
+
+      async function removeUser(user) {
+        if (!confirm(`Permanently delete ${user.email} and all associated data?`)) return;
+        const response = await fetch('/api/v1/admin/users/' + encodeURIComponent(user.id), {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          alert(error.error || 'Could not delete user');
+          return;
+        }
+        selectedUser.value = null;
+        await loadUsers();
+      }
+
+      function closeUserDetail() {
+        selectedUser.value = null;
+      }
+
+      function selectUser(user) {
+        selectedUser.value = { ...user };
+      }
+
+      loadUsers().catch((error) => alert(error.message));
+      return {
+        users,
+        selectedUser,
+        toggleDisabled,
+        toggleBlocked,
+        saveUsername,
+        removeUser,
+        closeUserDetail,
+        selectUser,
+      };
+    }
   </script>
 </template>
