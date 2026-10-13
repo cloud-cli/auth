@@ -8,7 +8,7 @@ The project includes three integration modules for different application archite
 
 - [`/index.mjs`](#integrate-a-browser-app-with-indexmjs): the browser client for applications that can navigate to Auth for sign-in.
 - [`/oidc.mjs`](#restore-an-rp-session-from-an-spa-with-oidcmjs): popup helpers for restoring an application's own session without navigating the opener.
-- [`/node.mjs`](#integrate-a-nodejs-service-with-nodemjs): a dependency-free Node.js client for server-side OIDC and shared-session helpers.
+- [`/node.mjs`](#integrate-a-nodejs-service-with-nodemjs): an Auth-specific Node.js API client for sessions, properties, tokens, and administration.
 
 The built-in dashboard and login pages are served by Auth. The OpenAPI 3.1 reference is served at [`/api`](#http-api-and-oidc-reference).
 
@@ -200,130 +200,51 @@ The RP session check happens in the popup at the RP origin. This avoids dependin
 
 ### Integrate a Node.js service with `/node.mjs`
 
-Use `/node.mjs` from a backend or a Node.js HTTP server. It has no npm dependency on Auth: the example below fetches the published module and imports it from a `data:` URL.
+Use the maintained [`openid-client`](https://www.npmjs.com/package/openid-client) package for OIDC discovery, authorization-code/PKCE, callback validation, tokens, UserInfo, and logout. Install it in your application; `/node.mjs` is the Auth-specific API client and intentionally has no package imports so it can be fetched and imported from a `data:` URL.
 
-Register a confidential OIDC client in `/oidc` for a server-side application. Its callback URI must exactly match the URI registered with Auth. Keep its client secret on the server. Download `/node.mjs` into the service and consume its default export with a normal Node.js import. The default instance reads `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` from the environment. `AuthClient` is also exported for explicitly configured instances, and `createAuthClient(options)` remains as a compatibility factory. `AUTH_API_TOKEN` optionally configures the separate fixed-purpose bearer credential used only by `mintApiToken`.
-
-```js
-import client, { AuthClient } from './node.mjs';
-const profile = await client.getProfile(incomingRequest); // forwards only connect.sid
-const isolatedClient = new AuthClient({ clientId: 'other-app', clientSecret: process.env.OTHER_OIDC_SECRET });
+```sh
+npm install openid-client
 ```
 
-Session/profile, properties, `/api/v1/api-tokens/me`, client administration, client-scoped token management, keys, audit, and admin-user methods take the incoming HTTP request as their first argument and forward only its `connect.sid` cookie. Client administration and client-scoped token management require an administrator's session; the caller must already possess the appropriate Auth session, this is not an admin credential exchange. OIDC exchange/refresh uses the OIDC client ID/secret, introspection and downstream-token revocation use HTTP Basic OIDC client credentials, and downstream token minting uses only the optional Auth API Bearer token. These credential types are not interchangeable. `createAuthorizationRequest()` plus `completeAuthorization()` handles the authorization callback; `authorizationUrl()` only returns a redirect URL and discards the state/PKCE transaction, so it is not suitable for a complete login flow. `getLogoutUrl()` constructs a logout redirect URL; the client does not automate browser navigation. The session-token method also forwards the request's `Origin`, which Auth must allow. Interactive WebAuthn, recovery, QR and browser asset endpoints are excluded; ordinary session-backed audit endpoints remain available.
-
-#### Complete minimal HTTP server example
-
-This standalone example shows the complete redirect/callback/session flow using only Node.js built-ins and `/node.mjs`. The `Map` stores are for a single-process demonstration only; replace them with a persistent, expiring store in production.
-
 ```js
-import { createServer } from 'node:http';
-import { randomBytes } from 'node:crypto';
-
-const issuer = 'https://auth.example.com';
-const appOrigin = 'https://inventory.example.com';
-const redirectUri = `${appOrigin}/auth/callback`;
-const source = await (await fetch(`${issuer}/node.mjs`)).text();
-const { default: auth } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
-
-const loginTransactions = new Map(); // Use a shared store with a short TTL in production.
-const appSessions = new Map(); // Use a persistent session store in production.
-
-function setCookie(name, value, maxAge) {
-  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
-}
-
-function redirect(response, location) {
-  response.writeHead(302, { Location: location }).end();
-}
-
-createServer(async (request, response) => {
-  const url = new URL(request.url, appOrigin);
-  const cookies = auth.getCookies(request);
-
-  if (url.pathname === '/login') {
-    const loginId = randomBytes(32).toString('base64url');
-    const login = auth.createAuthorizationRequest({ redirectUri });
-    loginTransactions.set(loginId, { ...login, expiresAt: Date.now() + 5 * 60_000 });
-    response.setHeader('Set-Cookie', setCookie('inventory.login', loginId, 300));
-    return redirect(response, login.url);
-  }
-
-  if (url.pathname === '/auth/callback') {
-    const loginId = cookies['inventory.login'];
-    const login = loginTransactions.get(loginId);
-    loginTransactions.delete(loginId);
-    const clearLoginCookie = 'inventory.login=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
-    if (!login || login.expiresAt < Date.now()) {
-      response.writeHead(400, { 'Set-Cookie': clearLoginCookie }).end('Invalid or expired login state');
-      return;
-    }
-
-    try {
-      const { tokens } = await auth.completeAuthorization({ callbackUrl: url, transaction: login });
-      const user = await auth.getUserInfo(tokens.access_token);
-      const sessionId = randomBytes(32).toString('base64url');
-      appSessions.set(sessionId, user);
-      response.setHeader('Set-Cookie', [clearLoginCookie, setCookie('inventory.sid', sessionId, 7 * 86400)]);
-      return redirect(response, '/');
-    } catch {
-      response.writeHead(401, { 'Set-Cookie': clearLoginCookie }).end('Sign-in failed');
-      return;
-    }
-  }
-
-  if (url.pathname === '/') {
-    const user = appSessions.get(cookies['inventory.sid']);
-    if (!user) return redirect(response, '/login');
-    response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' }).end(`Hello, ${user.name}`);
-    return;
-  }
-
-  response.writeHead(404).end('Not found');
-}).listen(3000);
-```
-
-#### Express version
-
-If the app already uses Express, keep its session middleware and add these two routes. `sessionStore` must be a persistent Express session store in production. `loginTransactions` is a short-lived server-side store keyed by the Express session ID; its `takeOnce()` operation must atomically return and delete the transaction (for example, with Redis `GETDEL`).
-
-```js
-import express from 'express';
-import session from 'express-session';
+import * as oidc from 'openid-client';
 import auth from './node.mjs';
-import { loginTransactions, sessionStore } from './stores.js';
+import express from 'express';
+import { loginTransactions } from './stores.js'; // Persistent short-lived store; takeOnce() must be atomic (e.g. Redis GETDEL).
 
-const app = express();
-const appOrigin = process.env.APP_ORIGIN;
-const redirectUri = `${appOrigin}/auth/callback`;
-
-app.set('trust proxy', 1); // If TLS terminates at a trusted reverse proxy.
-app.use(
-  session({
-    store: sessionStore,
-    secret: process.env.APP_SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { httpOnly: true, secure: true, sameSite: 'lax' },
-  }),
+const config = await oidc.discovery(
+  new URL(process.env.OIDC_ISSUER),
+  process.env.OIDC_CLIENT_ID,
+  process.env.OIDC_CLIENT_SECRET,
 );
-
+const appOrigin = new URL(process.env.APP_ORIGIN).origin;
+const redirectUri = `${appOrigin}/auth/callback`;
+const app = express();
+// Install persistent Express session middleware before these routes. Store the
+// transaction keyed by req.sessionID, bound to the browser session.
 const saveSession = (req) =>
   new Promise((resolve, reject) => {
     req.session.save((error) => (error ? reject(error) : resolve()));
   });
-const regenerateSession = (req) =>
-  new Promise((resolve, reject) => {
-    req.session.regenerate((error) => (error ? reject(error) : resolve()));
-  });
 
 app.get('/login', async (req, res, next) => {
   try {
-    const transaction = auth.createAuthorizationRequest({ redirectUri });
-    req.session.loginStarted = true; // Create/save the browser's session cookie before redirecting.
-    await saveSession(req);
-    await loginTransactions.put(req.sessionID, transaction, { ttlSeconds: 300 });
-    res.redirect(transaction.url);
+    const codeVerifier = oidc.randomPKCECodeVerifier();
+    const state = oidc.randomState();
+    const nonce = oidc.randomNonce();
+    req.session.loginStarted = true;
+    await saveSession(req); // Ensure the browser has the session cookie before redirecting.
+    await loginTransactions.put(req.sessionID, { codeVerifier, state, nonce }, { ttlSeconds: 300 });
+    const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);
+    const authorizationUrl = oidc.buildAuthorizationUrl(config, {
+      redirect_uri: redirectUri,
+      scope: 'openid profile email',
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+      state,
+      nonce,
+    });
+    res.redirect(authorizationUrl.href);
   } catch (error) {
     next(error);
   }
@@ -334,38 +255,76 @@ app.get('/auth/callback', async (req, res, next) => {
     const transaction = await loginTransactions.takeOnce(req.sessionID);
     if (!transaction) return res.sendStatus(400);
 
-    const { claims } = await auth.completeAuthorization({
-      callbackUrl: new URL(req.originalUrl, appOrigin),
-      transaction,
+    const tokens = await oidc.authorizationCodeGrant(config, new URL(req.originalUrl, appOrigin), {
+      pkceCodeVerifier: transaction.codeVerifier,
+      expectedState: transaction.state,
+      expectedNonce: transaction.nonce,
     });
-    await regenerateSession(req); // Prevent session fixation after login.
+    const claims = tokens.claims(); // ID Token signature and OIDC checks were validated by openid-client.
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((error) => (error ? reject(error) : resolve()));
+    }); // Prevent session fixation after authentication.
     req.session.user = { sub: claims.sub, name: claims.name, email: claims.email };
-    await saveSession(req);
     res.redirect('/');
   } catch (error) {
     next(error);
   }
 });
 
-app.get('/', (req, res) => {
-  if (!req.session.user) return res.redirect('/login');
-  res.send(`Hello, ${req.session.user.name || req.session.user.sub}`);
+app.get('/profile', async (req, res, next) => {
+  try {
+    // Auth's shared-session helper is only for requests carrying its connect.sid cookie.
+    const profile = await auth.getProfile(req);
+    if (!profile) return res.sendStatus(401);
+    res.json(profile);
+  } catch (error) {
+    next(error);
+  }
 });
-
-app.listen(3000);
 ```
 
-For sign-in alone, the default `openid profile email` scopes are enough; do not request `offline_access` or persist tokens unless the app needs to call APIs later. `APP_ORIGIN` must be the app's fixed public origin, and its callback URI must exactly match the OIDC client registration.
+Use a persistent session store in production. `loginTransactions` must expire records and atomically consume them once; bind each transaction to the initiating browser's session. `APP_ORIGIN` must be a fixed public origin, and the callback URI must exactly match the client registration. Request `offline_access` only if the app needs refresh tokens; store and rotate those securely using `openid-client`.
 
-Persist login transactions and relying-party sessions in production; do not use in-memory maps across restarts or replicas. Bind the transaction to the initiating browser with a short-lived HTTP-only cookie or server-side session, and validate both `state` and the ID Token `nonce`. Keep the OIDC client secret in a server-side secret manager.
+If you fetch the Auth module, it remains separate from package resolution:
 
-`completeAuthorization()` validates the callback location, saved state, PKCE exchange, ID Token signature and standard claims, authorized party, optional `at_hash`, and nonce. It does not create or persist the login transaction: retrieve it from a short-lived store bound to the initiating browser, verify its expiry, and atomically consume it once before calling the helper. Keep the low-level `exchangeCode()` and `verifyToken()` methods when you need to customize callback processing; prefer a maintained OIDC library if your application needs validation beyond the checks documented here.
+```js
+const source = await (await fetch(`${process.env.OIDC_ISSUER}/node.mjs`)).text();
+const { default: auth } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
+```
 
-For server-to-server renewal, request `offline_access` in `createAuthorizationRequest`, persist the returned refresh token securely with the RP session, and use `auth.refreshToken({ refreshToken })` when its access token expires. Overlapping refresh calls for the same token/options are coalesced within one `AuthClient` instance. This is not a distributed lock: serialize refresh attempts per RP session across multiple instances/processes/replicas and persist each rotated replacement atomically before using it again. Concurrent use of the same refresh token is treated as replay and revokes that token family. The refresh token expires after 30 days and the user must sign in again after that.
+`AuthClient` and `createAuthClient(options)` remain compatibility exports for explicit configuration. The client covers Auth-specific session/profile, properties, session-bound tokens, API-token and Auth API-token management, OIDC client administration, signing keys, audit, and admin-user APIs. Request-taking methods forward only the incoming `connect.sid` cookie; administrative APIs require an existing administrator session. `AUTH_API_TOKEN` is a separate fixed-purpose bearer credential for downstream token operations. `revokeApiToken()` revokes Auth's opaque downstream API token and is distinct from OIDC refresh-token revocation, which belongs to `openid-client`.
 
-The module also exports `getProfile` (`getSessionProfile` is an alias), `getProperty`, `setProperty`, `deleteProperty` (`removeProperty` is an alias), `isSessionAuthenticated`, and `requireSession`. These helpers forward the Auth `connect.sid` cookie from the incoming request and are intended only for sibling subdomains that share `SESSION_DOMAIN`. They cannot authenticate a request from an unrelated domain. `getUserInfo(token)` fetches the OIDC UserInfo document, `introspectToken(token)` validates an opaque API token, `mintApiToken(...)` issues a downstream token with a fixed-purpose Auth API token, and `revokeApiToken(token)` uses the registered OIDC client credentials.
+For Express, use `openid-client` for the login/callback routes and the Auth client for Auth APIs:
 
-See [Share a session across sibling subdomains](#share-a-session-across-sibling-subdomains), [Store user properties](#store-user-properties), and [Issue and validate API tokens](#issue-and-validate-api-tokens) for these workflows.
+```js
+import express from 'express';
+import auth from './node.mjs';
+const app = express();
+app.get('/profile', async (req, res, next) => {
+  try {
+    const profile = await auth.getProfile(req);
+    if (!profile) return res.sendStatus(401);
+    res.json(profile);
+  } catch (error) {
+    next(error);
+  }
+});
+```
+
+With Node's built-in `http` server, pass its incoming request to the same Auth API helpers:
+
+```js
+import { createServer } from 'node:http';
+import auth from './node.mjs';
+
+createServer(async (req, res) => {
+  const profile = await auth.getProfile(req);
+  res.writeHead(profile ? 200 : 401, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(profile));
+}).listen(3000);
+```
+
+These shared-cookie helpers are intended for sibling subdomains configured to share `SESSION_DOMAIN`; unrelated domains should use OIDC and maintain their own relying-party session. The session-token method also forwards the request's `Origin`, which Auth must allow.
 
 ## How-to guides
 
@@ -545,24 +504,24 @@ The complete OpenAPI 3.1 document, schemas, and authentication requirements are 
 
 Useful endpoints:
 
-| Endpoint                                                              | Purpose                                             |
-| --------------------------------------------------------------------- | --------------------------------------------------- |
-| `GET /.well-known/openid-configuration`                               | OIDC provider metadata                              |
-| `GET /.well-known/jwks.json`                                          | Public signing keys                                 |
-| `GET /authorize`                                                      | OIDC authorization-code request                     |
-| `POST /token`                                                         | Exchange an authorization code for tokens           |
-| `GET /userinfo`                                                       | OIDC UserInfo for a valid access token              |
-| `GET /logout`                                                         | RP-initiated logout                                 |
-| `POST /oauth/introspect`                                              | Validate opaque API tokens using client credentials |
-| `POST /api/v1/revoke`                                                 | Revoke opaque API tokens using client credentials   |
-| `GET`, `HEAD`, `DELETE /api/v1/profile`                               | Read, check, or delete the current browser session  |
-| `GET`, `PUT`, `DELETE /api/v1/properties...`                          | Read and manage user properties                     |
-| `POST /api/v1/session/token`                                          | Exchange a browser session for a short-lived JWT    |
-| `GET /api/v1/oidc/clients` and related routes                         | Administrator client management                     |
-| `/api/v1/api-tokens/...` and `/api/v1/auth-api-tokens/...`            | Manage downstream and fixed-purpose API tokens      |
-| `/api/v1/webauthn/...`, `/api/v1/recovery...`, `/api/v1/qr-login/...` | Passkey, recovery, and QR sign-in operations        |
-| `/api/v1/admin/users...`                                              | Administrator user management                       |
-| `/api/v1/audit`                                                       | Authenticated audit history                         |
+| Endpoint                                                              | Purpose                                               |
+| --------------------------------------------------------------------- | ----------------------------------------------------- |
+| `GET /.well-known/openid-configuration`                               | OIDC provider metadata                                |
+| `GET /.well-known/jwks.json`                                          | Public signing keys                                   |
+| `GET /authorize`                                                      | OIDC authorization-code request                       |
+| `POST /token`                                                         | Exchange an authorization code for tokens             |
+| `GET /userinfo`                                                       | OIDC UserInfo for a valid access token                |
+| `GET /logout`                                                         | RP-initiated logout                                   |
+| `POST /oauth/introspect`                                              | Introspect opaque API tokens using client credentials |
+| `POST /api/v1/revoke`                                                 | Revoke opaque API tokens using client credentials     |
+| `GET`, `HEAD`, `DELETE /api/v1/profile`                               | Read, check, or delete the current browser session    |
+| `GET`, `PUT`, `DELETE /api/v1/properties...`                          | Read and manage user properties                       |
+| `POST /api/v1/session/token`                                          | Exchange a browser session for a short-lived JWT      |
+| `GET /api/v1/oidc/clients` and related routes                         | Administrator client management                       |
+| `/api/v1/api-tokens/...` and `/api/v1/auth-api-tokens/...`            | Manage downstream and fixed-purpose API tokens        |
+| `/api/v1/webauthn/...`, `/api/v1/recovery...`, `/api/v1/qr-login/...` | Passkey, recovery, and QR sign-in operations          |
+| `/api/v1/admin/users...`                                              | Administrator user management                         |
+| `/api/v1/audit`                                                       | Authenticated audit history                           |
 
 ### OAuth and OIDC behavior
 
@@ -575,13 +534,13 @@ Useful endpoints:
 
 ### Integration module summary
 
-| Module       | Runtime     | Sign-in model                                         | Main uses                                                                                         |
-| ------------ | ----------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `/index.mjs` | Browser     | Full-page navigation or popup compatibility flow      | Profile, session checks, properties, cached JWTs, authenticated fetch                             |
-| `/oidc.mjs`  | Browser SPA | RP-owned OIDC popup flow without replacing the opener | Nonce-bound completion, RP session confirmation, bounded recovery                                 |
-| `/node.mjs`  | Node.js     | Backend-managed OIDC authorization-code flow          | PKCE, token exchange/verification, UserInfo, introspection, token issuance, shared-cookie helpers |
+| Module       | Runtime     | Sign-in model                                         | Main uses                                                                         |
+| ------------ | ----------- | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `/index.mjs` | Browser     | Full-page navigation or popup compatibility flow      | Profile, session checks, properties, cached JWTs, authenticated fetch             |
+| `/oidc.mjs`  | Browser SPA | RP-owned OIDC popup flow without replacing the opener | Nonce-bound completion, RP session confirmation, bounded recovery                 |
+| `/node.mjs`  | Node.js     | Auth-specific API client                              | Session, properties, API tokens, administration, audit, and shared-cookie helpers |
 
-All three modules are served directly by the Auth origin and can be imported without installing an Auth-specific npm package.
+All three modules are served directly by the Auth origin. The Node module is Auth-specific; install `openid-client` separately for standard OIDC protocol flows.
 
 ## Troubleshooting
 

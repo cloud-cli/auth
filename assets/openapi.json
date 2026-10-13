@@ -1649,7 +1649,7 @@
         "summary": "Serve the Node.js authentication integration module",
         "responses": {
           "200": {
-            "description": "JavaScript ES module"
+            "description": "Auth-specific Node.js API client for sessions, properties, tokens, and administration; use openid-client for standard OIDC protocol flows"
           }
         }
       }
