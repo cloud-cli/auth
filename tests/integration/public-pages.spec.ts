@@ -80,21 +80,23 @@ test('v2 dashboard loads the current profile and opens admin user details', asyn
   try {
     await page.getByRole('button', { name: 'Applications' }).click();
     await page.getByRole('button', { name: 'Add app' }).click();
-    await page.getByPlaceholder('App ID').fill(clientId);
-    await page.getByPlaceholder('https://app.example/callback').fill(`https://${clientId}.example/callback`);
-    await page.getByRole('button', { name: 'Add', exact: true }).first().click();
-    await page.getByPlaceholder('new:scope').fill('profile');
-    await page.getByRole('button', { name: 'Add', exact: true }).last().click();
-    await page.getByRole('button', { name: 'Create app' }).click();
+    const appForm = page.locator('v2-app-form');
+    await appForm.getByPlaceholder('App ID').fill(clientId);
+    await appForm.getByPlaceholder('https://app.example/callback').fill(`https://${clientId}.example/callback`);
+    await appForm.getByRole('button', { name: 'Add', exact: true }).first().click();
+    await appForm.getByPlaceholder('new:scope').fill('profile');
+    await appForm.getByRole('button', { name: 'Add', exact: true }).last().click();
+    await appForm.getByRole('button', { name: 'Create app' }).click();
     await expect(page.getByText('Copy this new client secret now. It is only shown once.')).toBeVisible();
 
     const application = page.locator('details').filter({ hasText: clientId });
     await expect(application).toBeVisible();
+    const applicationRow = page.getByRole('listitem').filter({ hasText: clientId });
     await application.locator('summary').click();
-    await expect(page.getByText('Callback URLs', { exact: true })).toBeVisible();
-    await expect(page.getByText('Post-logout return URLs', { exact: true })).toBeVisible();
-    await expect(page.getByText('Scopes', { exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Tokens' })).toBeVisible();
+    await expect(applicationRow.getByText('Callback URLs', { exact: true })).toBeVisible();
+    await expect(applicationRow.getByText('Post-logout return URLs', { exact: true })).toBeVisible();
+    await expect(applicationRow.getByText('Scopes', { exact: true })).toBeVisible();
+    await expect(applicationRow.getByRole('heading', { name: 'Tokens' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Activity' }).click();
     const auditOptions = await page.evaluate(async () =>
@@ -103,7 +105,7 @@ test('v2 dashboard loads the current profile and opens admin user details', asyn
     if (auditOptions.apps.length && auditOptions.events.length) {
       const app = auditOptions.apps[0];
       const event = auditOptions.events[0];
-      const [appFilter, eventFilter] = page.getByRole('combobox').all();
+      const [appFilter, eventFilter] = await page.getByRole('combobox').all();
       await appFilter.selectOption({ label: app });
       await eventFilter.selectOption({ label: event });
       const filteredResponse = page.waitForResponse((response) => {
