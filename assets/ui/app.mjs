@@ -302,10 +302,15 @@ export default function () {
       const hash = location.hash.slice(1);
       section.value = { oidc: 'applications', 'auth-api-tokens': 'keys' }[hash] || hash || 'security';
     });
-    loadProfile().catch((reason) => setMessage(reason.message, true));
     getAuditEvents()
       .then((value) => (audit.value = value))
       .catch(() => {});
+  }
+  if (
+    page === 'profile' ||
+    (page === 'v2' && (value('signinNonce') || sessionStorage.getItem('auth.popup.signinNonce')))
+  ) {
+    loadProfile().catch((reason) => setMessage(reason.message, true));
   }
   if (page === 'passkey') setTimeout(signIn, 0);
   // The profile document declares the navigation component directly.

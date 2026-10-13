@@ -82,7 +82,7 @@ test('default dashboard loads v2 profile and admin user details', async ({ page 
   await expect(page.getByText('UUID:', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Profile' }).click();
   await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
-  const usernameInput = page.getByLabel('Preferred username');
+  const usernameInput = page.locator('#v2-preferred-username');
   if (await usernameInput.count()) {
     await expect(usernameInput).toBeVisible();
   } else {
@@ -397,11 +397,10 @@ test('admin Users page lists accounts and protects the current administrator', a
     self.preferredUsername = username;
     await page.reload();
   }
-  const details = page.locator('details').filter({ hasText: self.email });
-  await details.locator('summary').click();
-  await expect(details.getByText('Name: John Doe', { exact: true })).toBeVisible();
-  await expect(details.getByText(/Last authenticated:/)).toBeVisible();
-  await expect(details.locator('input[name="preferred_username"]')).toHaveValue(self.preferredUsername || '');
+  await page.getByRole('button', { name: self.email }).click();
+  await expect(page.getByText('Name:').locator('..')).toContainText('John Doe');
+  await expect(page.getByText(/Last authenticated:/)).toBeVisible();
+  await expect(page.locator('input[name="preferred_username"]')).toHaveValue(self.preferredUsername || '');
   const response = await page.evaluate(async (id) => {
     const result = await fetch(`/api/v1/admin/users/${encodeURIComponent(id)}`, {
       method: 'PATCH',
@@ -430,15 +429,15 @@ test('preferred username can be set once and cannot be changed through the API',
   await page.goto('/me');
   await page.getByRole('button', { name: 'Profile' }).click();
   if (!preferredUsername) {
-    await expect(page.getByLabel('Preferred username')).toBeVisible();
+    await expect(page.locator('#v2-preferred-username')).toBeVisible();
     preferredUsername = `test_${Math.random().toString(36).slice(2, 10)}`;
-    await page.getByLabel('Preferred username').fill(preferredUsername);
+    await page.locator('#v2-preferred-username').fill(preferredUsername);
     await page.getByRole('button', { name: 'Save username' }).click();
     await expect(page.locator('#v2-username-status')).toContainText('Username saved.');
-    await expect(page.getByLabel('Preferred username')).toHaveCount(0);
+    await expect(page.locator('#v2-preferred-username')).toHaveCount(0);
     await expect(page.getByText('Saved username:').locator('..')).toContainText(preferredUsername);
   } else {
-    await expect(page.getByLabel('Preferred username')).toHaveCount(0);
+    await expect(page.locator('#v2-preferred-username')).toHaveCount(0);
     await expect(page.getByText('Saved username:').locator('..')).toContainText(preferredUsername);
   }
 
@@ -627,9 +626,9 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   );
   expect(response).toBe(204);
   await page.goto('/');
-  await expect(page.getByText('Passkeys')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
   await page.goto('/me#security');
-  await expect(page.getByText('Passkeys')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
   await page.goto('/me#properties');
   await expect(page.getByRole('heading', { name: 'Properties' })).toBeVisible();
   await page.goto('/me#activity');
@@ -654,7 +653,7 @@ test('v2 dashboard and profile page stay compact at mobile widths', async ({ pag
   );
 
   await page.goto('/me#security');
-  await expect(page.getByText('Passkeys')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
 
   await page.setViewportSize({ width: 360, height: 800 });
   const narrowPageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
@@ -729,8 +728,9 @@ test('authenticated Applications section exposes app and token management', asyn
   const app = page.locator('details').first();
   if (await app.count()) {
     await app.locator('summary').click();
-    await expect(app.getByText('Scopes')).toBeVisible();
-    await expect(app.getByRole('heading', { name: 'Tokens' })).toBeVisible();
+    const appRow = page.getByRole('listitem').filter({ has: app });
+    await expect(appRow.getByText('Scopes')).toBeVisible();
+    await expect(appRow.getByRole('heading', { name: 'Tokens' })).toBeVisible();
   }
 });
 
@@ -766,10 +766,18 @@ test('existing tokens load when an application is opened and only one app list i
     if (new URL(request.url()).pathname === '/api/v1/oidc/clients' && request.method() === 'GET') appListRequests += 1;
   });
   await page.goto('/me#oidc');
-  const app = page.locator('details').filter({ hasText: appId });
-  await app.locator('summary').click();
-  await expect(app.getByText('existing test token')).toBeVisible();
-  expect(appListRequests).toBe(1);
+  try {
+    const app = page.locator('details').filter({ hasText: appId });
+    await app.locator('summary').click();
+    const appRow = page.getByRole('listitem').filter({ hasText: appId });
+    await expect(appRow.getByText('existing test token')).toBeVisible();
+    expect(appListRequests).toBe(1);
+  } finally {
+    await page.evaluate(
+      async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+      appId,
+    );
+  }
 });
 
 test('Applications can create, show, list, revoke, and mark an API token', async ({ page }) => {
@@ -787,32 +795,42 @@ test('Applications can create, show, list, revoke, and mark an API token', async
   );
   await page.goto('/me#oidc');
   await page.getByRole('button', { name: 'Add app' }).click();
-  await page.getByPlaceholder('App ID').fill(appId);
-  await page.getByPlaceholder('https://app.example/callback').first().fill(`https://${appId}.example/callback`);
-  await page.getByRole('button', { name: 'Add', exact: true }).first().click();
-  await page.getByPlaceholder('new:scope').first().fill('read:profile');
-  await page.getByRole('button', { name: 'Add', exact: true }).nth(2).click();
-  await page.getByRole('button', { name: 'Create app' }).click();
+  const appForm = page.locator('v2-app-form');
+  await appForm.getByPlaceholder('App ID').fill(appId);
+  await appForm.getByPlaceholder('https://app.example/callback').fill(`https://${appId}.example/callback`);
+  await appForm.getByRole('button', { name: 'Add', exact: true }).first().click();
+  await appForm.getByPlaceholder('new:scope').fill('read:profile');
+  await appForm.getByRole('button', { name: 'Add', exact: true }).last().click();
+  await appForm.getByRole('button', { name: 'Create app' }).click();
 
-  const app = page.locator('details').filter({ hasText: appId });
-  await app.locator('summary').click();
-  await app.getByPlaceholder('Token label').fill('e2e token');
-  await app.getByLabel('read:profile').check();
-  await app.getByRole('button', { name: 'Generate token' }).click();
-  const generatedTokenBox = app.locator('copy-value-box');
-  await expect(generatedTokenBox).toBeVisible();
-  expect(await generatedTokenBox.getByRole('textbox', { name: 'Value to copy' }).inputValue()).toMatch(/^auth_/);
-  await expect(app.getByText('e2e token')).toBeVisible();
+  try {
+    const app = page.locator('details').filter({ hasText: appId });
+    await app.locator('summary').click();
+    const appRow = page.getByRole('listitem').filter({ hasText: appId });
+    await appRow.getByPlaceholder('Token label').fill('e2e token');
+    await appRow.getByLabel('read:profile').check();
+    await appRow.getByRole('button', { name: 'Generate token' }).click();
+    const generatedTokenBox = appRow.locator('v2-copy-value-box');
+    await expect(generatedTokenBox).toBeVisible();
+    expect(await generatedTokenBox.getByRole('textbox', { name: 'Value to copy' }).inputValue()).toMatch(/^auth_/);
+    await expect(appRow.getByText('e2e token')).toBeVisible();
 
-  await page.reload();
-  const reloadedApp = page.locator('details').filter({ hasText: appId });
-  await reloadedApp.locator('summary').click();
-  await expect(reloadedApp.getByText('e2e token')).toBeVisible();
+    await page.reload();
+    const reloadedApp = page.locator('details').filter({ hasText: appId });
+    await reloadedApp.locator('summary').click();
+    const reloadedAppRow = page.getByRole('listitem').filter({ hasText: appId });
+    await expect(reloadedAppRow.getByText('e2e token')).toBeVisible();
 
-  page.once('dialog', (dialog) => dialog.accept());
-  await reloadedApp.getByRole('button', { name: 'Revoke' }).click();
-  await expect(reloadedApp.getByText(/^Revoked /)).toBeVisible();
-  await expect(reloadedApp.getByText('Active')).toHaveCount(0);
+    page.once('dialog', (dialog) => dialog.accept());
+    await reloadedAppRow.getByRole('button', { name: 'Revoke' }).click();
+    await expect(reloadedAppRow.getByText(/^Revoked /)).toBeVisible();
+    await expect(reloadedAppRow.getByText('Active')).toHaveCount(0);
+  } finally {
+    await page.evaluate(
+      async (id) => fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+      appId,
+    );
+  }
 });
 
 test('Auth API token selector loads clients and supports create, scope expansion, and revoke', async ({
@@ -871,7 +889,7 @@ test('Auth API token selector loads clients and supports create, scope expansion
     await expect(page.getByText('Copy this Auth API token now. It is only shown once.')).toBeVisible();
     await expect(page.getByText('browser test token')).toBeVisible();
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:3100' });
-    const copyBox = page.locator('copy-value-box').last();
+    const copyBox = page.locator('v2-copy-value-box').last();
     const tokenInput = copyBox.getByRole('textbox', { name: 'Value to copy' });
     const managementToken = await tokenInput.inputValue();
     expect(managementToken).toMatch(/^auth_/);
@@ -1106,7 +1124,7 @@ test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
 
     await page.goto('/me#oidc');
     await expect(page.locator('summary').filter({ hasText: appId })).toBeVisible();
-    const card = page.locator('article').filter({ hasText: appId });
+    const card = page.getByRole('listitem').filter({ hasText: appId });
 
     const secretResponsePromise = page.waitForResponse((response) => {
       const url = new URL(response.url());
@@ -1119,7 +1137,7 @@ test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
     const regenerated = await secretResponse.json();
     expect(regenerated.secret).toBeTruthy();
     expect(regenerated.secret).not.toBe(created.secret);
-    const secretBox = card.locator('.bg-emerald-50');
+    const secretBox = card.locator('v2-copy-value-box');
     await expect(secretBox).toBeVisible();
     await expect(secretBox.getByRole('textbox', { name: 'Value to copy' })).toHaveValue(regenerated.secret);
 
@@ -1128,7 +1146,7 @@ test('admin can regenerate and delete OIDC client secret', async ({ page }) => {
       return url.pathname === `/api/v1/oidc/clients/${appId}` && response.request().method() === 'DELETE';
     });
     page.once('dialog', (dialog) => dialog.accept());
-    await card.getByRole('button', { name: 'Delete app' }).click();
+    await card.getByRole('button', { name: 'Delete application' }).click();
     const deleteResponse = await deleteResponsePromise;
     expect(deleteResponse.status()).toBe(204);
     await expect(card).toHaveCount(0);
