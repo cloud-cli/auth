@@ -1,0 +1,145 @@
+<template component="v2-activity">
+  <section class="content-section animate-fade-in">
+    <div class="mb-6 flex items-center gap-3">
+      <lucide-icon icon="list-ordered" size="28" class="text-brand"></lucide-icon>
+      <h2 class="text-xl font-bold text-gray-900 tracking-tight">Authentication history</h2>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+      <div class="relative flex-1">
+        <select
+          class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5 pr-10 shadow-sm outline-none"
+          bind-value="selectedApp"
+          on-change="filter()"
+        >
+          <option value="">All apps</option>
+          <template for="name of apps"><option attr-value="name">{{ name }}</option></template>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+          <lucide-icon icon="chevron-down" size="16"></lucide-icon>
+        </div>
+      </div>
+      <div class="relative flex-1">
+        <select
+          class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5 pr-10 shadow-sm outline-none"
+          bind-value="selectedEvent"
+          on-change="filter()"
+        >
+          <option value="">All events</option>
+          <template for="name of events"><option attr-value="name">{{ name }}</option></template>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+          <lucide-icon icon="chevron-down" size="16"></lucide-icon>
+        </div>
+      </div>
+      <button
+        class="bg-brand hover:bg-brand-hover text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm shrink-0"
+        on-click="filter()"
+      >
+        Filter
+      </button>
+    </div>
+
+    <!-- Log List -->
+    <div class="border border-gray-100 rounded-xl overflow-hidden shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
+      <ul class="divide-y divide-gray-100">
+        <template if="audit.length === 0">
+          <li class="p-8 text-center text-gray-500">No authentication activity yet.</li>
+        </template>
+        <template for="entry of audit">
+          <li
+            class="p-4 hover:bg-gray-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+          >
+            <div>
+              <div class="font-bold text-gray-900 text-sm mb-0.5">{{ entry.app }}</div>
+              <div class="text-xs text-gray-500 font-mono">
+                {{ entry.event }}<template if="entry.redirectUri"> · {{ entry.redirectUri }}</template>
+              </div>
+            </div>
+            <div class="flex flex-col sm:items-end gap-0.5">
+              <span class="text-xs font-bold {{ entry.result === 'success' ? 'text-emerald-600' : 'text-red-600' }}"
+                >{{ entry.result }}</span
+              >
+              <span class="text-xs text-gray-400 font-mono">{{ formatDate(entry.timestamp) }}</span>
+            </div>
+          </li>
+        </template>
+      </ul>
+    </div>
+
+    <!-- Pagination -->
+    <div class="mt-5 flex items-center justify-between border-t border-gray-100 pt-4">
+      <button
+        class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold disabled:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
+        on-click="previous()"
+        :disabled="offset === 0"
+      >
+        Previous
+      </button>
+      <span class="text-sm text-gray-500">{{ Math.floor(offset / 20) + 1 }} / {{ pages }}</span>
+      <button
+        class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold disabled:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
+        on-click="next()"
+        :disabled="offset + 20 >= total"
+      >
+        Next
+      </button>
+    </div>
+  </section>
+
+  <script setup>
+    import { ref, templateRef } from '@li3/web';
+    import { getAuditEvents, getAuditOptions } from '/ui/dashboard.mjs';
+
+    const audit = ref([]);
+    const apps = ref([]);
+    const events = ref([]);
+    const total = ref(0);
+    const offset = ref(0);
+    const pages = ref(1);
+    const selectedApp = ref('');
+    const selectedEvent = ref('');
+
+    const load = async (nextOffset = 0) => {
+      const result = await getAuditEvents({ app: selectedApp.value, event: selectedEvent.value, offset: nextOffset });
+      audit.value = result.items;
+      total.value = result.total;
+      offset.value = result.offset;
+      pages.value = Math.max(1, Math.ceil(result.total / 20));
+    };
+
+    const filter = () => load(0);
+    const previous = () => load(Math.max(0, offset.value - 20));
+    const next = () => load(offset.value + 20);
+
+    const formatDate = (dateStr) => {
+      try {
+        return new Date(dateStr).toISOString().replace('T', ' ').slice(0, 19);
+      } catch {
+        return dateStr;
+      }
+    };
+
+    getAuditOptions().then((value) => {
+      apps.value = value.apps;
+      events.value = value.events;
+    });
+    load();
+
+    return {
+      audit,
+      apps,
+      events,
+      total,
+      offset,
+      pages,
+      selectedApp,
+      selectedEvent,
+      filter,
+      previous,
+      next,
+      formatDate,
+    };
+  </script>
+</template>

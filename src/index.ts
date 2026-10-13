@@ -1151,6 +1151,7 @@ app.get('/userinfo', tokenUser, async (req, res) => {
   res.json(oidcUserInfo(user, req.tokenScopes || []));
 });
 app.get('/me', serveAppEntry);
+app.get('/v2', serveUi('v2.html'));
 app.get('/auth/google', passport.authenticate('google', googleScopes));
 app.get(googleCallback, passport.authenticate('google', googleScopes));
 

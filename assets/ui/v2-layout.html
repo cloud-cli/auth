@@ -1,0 +1,298 @@
+<template component="v2-layout">
+  <div class="h-full w-full flex overflow-hidden">
+    <!-- Sidebar -->
+    <aside
+      id="sidebar"
+      class="w-64 flex-col justify-between p-4 shrink-0 h-full absolute md:relative z-40 bg-app-bg shadow-xl md:shadow-none transition-transform -translate-x-full md:translate-x-0 flex border-r border-gray-200/50"
+    >
+      <div class="flex flex-col gap-6">
+        <!-- Brand Logo -->
+        <div class="flex items-center justify-between mt-2 px-2">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-7 h-7" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path
+                d="M16 4 L26 8 V15 C26 21 16 28 16 28 C16 28 6 21 6 15 V8 L16 4 Z"
+                stroke="#1E3A2F"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M16 12 V18 M16 22 H16.01"
+                stroke="#34D399"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class="text-2xl font-black tracking-tight text-brand"
+              >auth<span class="text-emerald-600">.</span></span
+            >
+          </div>
+          <button
+            id="close-menu-btn"
+            class="md:hidden p-2 text-gray-500 hover:bg-gray-200/50 rounded-lg"
+            aria-label="Close menu"
+            on-click="closeMenu()"
+          >
+            <lucide-icon icon="x" size="20"></lucide-icon>
+          </button>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="flex flex-col gap-1 mt-4" id="nav-menu" role="navigation" aria-label="Main navigation">
+          <div class="px-2 text-xs font-bold text-gray-400 tracking-wider mb-2 uppercase">Management</div>
+
+          <button
+            data-target="security"
+            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+            class-active="section === 'security'"
+            on-click="navigate('security')"
+          >
+            <lucide-icon icon="shield-check" size="20" class-active="section === 'security'"></lucide-icon>
+            <span>Security</span>
+          </button>
+
+          <button
+            data-target="properties"
+            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+            class-active="section === 'properties'"
+            on-click="navigate('properties')"
+          >
+            <lucide-icon icon="tag" size="20" class-active="section === 'properties'"></lucide-icon>
+            <span>Properties</span>
+          </button>
+
+          <template if="admin">
+            <button
+              data-target="applications"
+              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+              class-active="section === 'applications'"
+              on-click="navigate('applications')"
+            >
+              <lucide-icon icon="app-window" size="20" class-active="section === 'applications'"></lucide-icon>
+              <span>Applications</span>
+            </button>
+
+            <button
+              data-target="users"
+              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+              class-active="section === 'users'"
+              on-click="navigate('users')"
+            >
+              <lucide-icon icon="users" size="20" class-active="section === 'users'"></lucide-icon>
+              <span>Users</span>
+            </button>
+
+            <button
+              data-target="keys"
+              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+              class-active="section === 'keys' || section === 'auth-api-tokens'"
+              on-click="navigate('keys')"
+            >
+              <lucide-icon
+                icon="key-round"
+                size="20"
+                class-active="section === 'keys' || section === 'auth-api-tokens'"
+              ></lucide-icon>
+              <span>Keys & tokens</span>
+            </button>
+          </template>
+
+          <button
+            data-target="activity"
+            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+            class-active="section === 'activity'"
+            on-click="navigate('activity')"
+          >
+            <lucide-icon icon="list-ordered" size="20" class-active="section === 'activity'"></lucide-icon>
+            <span>Activity</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="mt-auto px-2 pb-2">
+        <div class="text-[10px] text-gray-400 font-medium">Flow Auth Server v2.4.1</div>
+      </div>
+    </aside>
+
+    <!-- Mobile Menu Overlay Background -->
+    <div
+      id="mobile-overlay"
+      class="fixed inset-0 bg-gray-900/40 z-30 hidden md:hidden backdrop-blur-sm transition-opacity opacity-0"
+      on-click="closeMenu()"
+      aria-hidden="true"
+    ></div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden w-full relative">
+      <!-- Topbar -->
+      <header
+        class="h-16 flex items-center justify-between px-4 md:px-6 shrink-0 border-b border-gray-200/50 lg:border-none"
+      >
+        <div class="flex items-center gap-3">
+          <button
+            id="mobile-menu-btn"
+            class="md:hidden text-gray-700 p-1.5 -ml-2 hover:bg-gray-200/50 rounded-md transition-colors"
+            aria-label="Open menu"
+            on-click="openMenu()"
+          >
+            <lucide-icon icon="menu" size="24"></lucide-icon>
+          </button>
+          <div class="text-sm font-medium text-gray-500 hidden md:block" id="breadcrumb">
+            Management / <span class="text-gray-900 font-semibold" id="breadcrumb-current">{{ breadcrumbLabel }}</span>
+          </div>
+        </div>
+
+        <!-- User Profile -->
+        <div
+          class="flex items-center gap-4 bg-white border border-gray-200 rounded-full pl-1.5 pr-4 py-1.5 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+          on-click="toggleProfile()"
+        >
+          <div
+            class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm shrink-0"
+            aria-hidden="true"
+          >
+            {{ userInitial }}
+          </div>
+          <div class="flex flex-col justify-center hidden sm:flex">
+            <span class="text-sm font-semibold text-gray-900 leading-tight">{{ user.name || 'User' }}</span>
+            <span class="text-[10px] text-gray-500 leading-tight">{{ user.email }}</span>
+          </div>
+          <template if="user.role === 'admin'">
+            <div
+              class="flex items-center gap-1 ml-2 text-yellow-500 bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100"
+              aria-label="Administrator"
+            >
+              <lucide-icon icon="crown" size="12" class="fill-current"></lucide-icon>
+            </div>
+          </template>
+          <lucide-icon icon="chevron-down" size="16" class="text-gray-400 ml-1 shrink-0"></lucide-icon>
+        </div>
+      </header>
+
+      <!-- White Canvas Card -->
+      <div
+        class="bg-white border border-gray-200 rounded-2xl shadow-sm flex-1 overflow-y-auto m-4 mt-0 md:m-6 md:mt-0 p-6 md:p-10 relative"
+      >
+        <div class="max-w-4xl mx-auto h-full relative">
+          <!-- Section Components -->
+          <template if="section === 'security'"><v2-security></v2-security></template>
+          <template if="section === 'properties'"><v2-properties></v2-properties></template>
+          <template if="section === 'applications'"><v2-applications></v2-applications></template>
+          <template if="section === 'users'"><v2-users></v2-users></template>
+          <template if="section === 'keys'"><v2-keys></v2-keys></template>
+          <template if="section === 'activity'"><v2-activity></v2-activity></template>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <link rel="component" href="https://sodium.static.apphor.de/lucide-icon.html" />
+  <style>
+    .animate-fade-in {
+      animation: fadeIn 200ms ease-out;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+  <script setup>
+    import { ref, hook, defineProp } from '@li3/web';
+    import { getProfile, getAuditEvents } from '/ui/dashboard.mjs';
+
+    const page = document.body.dataset.page;
+    const testLoginEnabled = document.body.dataset.testLogin === 'true';
+
+    const section = ref(location.hash.slice(1) || 'security');
+    const admin = ref(false);
+    const user = ref({ name: '', email: '', photo: '', role: '' });
+    const mobileMenuOpen = ref(false);
+    const profileExpanded = ref(false);
+
+    const breadcrumbLabels = {
+      security: 'Security',
+      properties: 'Properties',
+      applications: 'Applications',
+      users: 'Users',
+      keys: 'Keys & tokens',
+      activity: 'Activity',
+    };
+
+    const breadcrumbLabel = hook(() => breadcrumbLabels[section.value] || 'Security');
+
+    const userInitial = hook(() => (user.value.name || 'U').slice(0, 1).toUpperCase());
+
+    async function loadProfile() {
+      try {
+        const profile = await getProfile();
+        user.value = profile;
+        admin.value = profile.role === 'admin';
+      } catch (reason) {
+        console.error('Failed to load profile', reason);
+      }
+    }
+
+    function navigate(target) {
+      section.value = target;
+      location.hash = target;
+      if (mobileMenuOpen.value) closeMenu();
+    }
+
+    function openMenu() {
+      mobileMenuOpen.value = true;
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobile-overlay');
+      sidebar.classList.remove('-translate-x-full');
+      sidebar.classList.add('translate-x-0');
+      overlay.classList.remove('hidden');
+      setTimeout(() => {
+        overlay.classList.remove('opacity-0');
+        overlay.classList.add('opacity-100');
+      }, 10);
+    }
+
+    function closeMenu() {
+      mobileMenuOpen.value = false;
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('mobile-overlay');
+      sidebar.classList.remove('translate-x-0');
+      sidebar.classList.add('-translate-x-full');
+      overlay.classList.remove('opacity-100');
+      overlay.classList.add('opacity-0');
+      setTimeout(() => overlay.classList.add('hidden'), 300);
+    }
+
+    function toggleProfile() {
+      profileExpanded.value = !profileExpanded.value;
+      // TODO: Show profile dropdown menu
+    }
+
+    // Initialize
+    loadProfile().catch(console.error);
+    addEventListener('hashchange', () => {
+      section.value = location.hash.slice(1) || 'security';
+    });
+
+    return {
+      section,
+      admin,
+      user,
+      mobileMenuOpen,
+      profileExpanded,
+      breadcrumbLabel,
+      userInitial,
+      navigate,
+      openMenu,
+      closeMenu,
+      toggleProfile,
+    };
+  </script>
+</template>

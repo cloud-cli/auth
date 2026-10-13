@@ -1,0 +1,235 @@
+<template component="v2-app-form">
+  <form class="mt-3 grid gap-3 rounded-xl bg-brand/5 p-4 border border-brand/10" on-submit.prevent="createApp()">
+    <div class="grid gap-2 sm:grid-cols-2">
+      <input
+        class="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+        placeholder="App ID"
+        bind-value="newId"
+        on-input="setNewId($event.target.value)"
+        required
+      />
+      <label class="flex items-center gap-2 text-sm">
+        <input type="checkbox" bind-checked="isPublic" on-change="setIsPublic($event.target.checked)" />
+        Public/native app (mobile or desktop; no client secret)
+      </label>
+    </div>
+
+    <div class="grid gap-2">
+      <strong class="text-sm">Callback URLs</strong>
+      <template for="uri of newCallbacks">
+        <div class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+          <span class="min-w-0 flex-1 break-all">{{ uri }}</span>
+          <button class="text-red-400 hover:text-red-600" type="button" on-click="removeNewCallback(uri)">
+            Remove
+          </button>
+        </div>
+      </template>
+      <div class="flex gap-2">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+          placeholder="https://app.example/callback"
+          bind-value="newCallbackInput"
+          on-input="setNewCallbackInput($event.target.value)"
+        />
+        <button
+          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand"
+          type="button"
+          on-click="addNewCallback()"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+
+    <div class="grid gap-2">
+      <strong class="text-sm">Post-logout return URLs (optional)</strong>
+      <template for="uri of newLogoutRedirects">
+        <div class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+          <span class="min-w-0 flex-1 break-all">{{ uri }}</span>
+          <button class="text-red-400 hover:text-red-600" type="button" on-click="removeNewLogoutRedirect(uri)">
+            Remove
+          </button>
+        </div>
+      </template>
+      <div class="flex gap-2">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+          placeholder="https://app.example/signed-out"
+          bind-value="newLogoutRedirectInput"
+          on-input="setNewLogoutRedirectInput($event.target.value)"
+        />
+        <button
+          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand"
+          type="button"
+          on-click="addNewLogoutRedirect()"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+
+    <div class="grid gap-2">
+      <strong class="text-sm">Scopes</strong>
+      <div class="flex flex-wrap gap-1">
+        <template for="scope of newScopes">
+          <button
+            class="rounded-full bg-brand/10 px-2 py-1 text-xs text-brand"
+            type="button"
+            on-click="removeNewScope(scope)"
+          >
+            {{ scope }} <span aria-hidden="true">×</span>
+          </button>
+        </template>
+      </div>
+      <div class="flex gap-2">
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+          placeholder="new:scope"
+          bind-value="newScopeInput"
+          on-input="setNewScopeInput($event.target.value)"
+        />
+        <button
+          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand"
+          type="button"
+          on-click="addNewScope()"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+
+    <p class="text-sm text-red-600">{{ formError }}</p>
+    <button class="rounded-lg bg-brand hover:bg-brand-hover px-4 py-2 font-bold text-white">Create app</button>
+  </form>
+
+  <template if="createdSecret">
+    <v2-copy-value-box
+      bind-token="createdSecret"
+      message="Copy this new client secret now. It is only shown once."
+    ></v2-copy-value-box>
+  </template>
+
+  <link rel="component" href="/ui/v2-copy-value.html" />
+  <script setup>
+    import { defineEvent, defineProp, hook, ref } from '@li3/web';
+    import { createOidcClient } from '/ui/dashboard.mjs';
+
+    export default function () {
+      const formOpen = defineProp('formOpen', { default: false });
+      const formError = ref('');
+      const createdSecret = ref('');
+      const newCallbacks = ref([]);
+      const newLogoutRedirects = ref([]);
+      const newScopes = ref([]);
+      const [newId, setNewId] = hook('');
+      const [newCallbackInput, setNewCallbackInput] = hook('');
+      const [newLogoutRedirectInput, setNewLogoutRedirectInput] = hook('');
+      const [newScopeInput, setNewScopeInput] = hook('');
+      const [isPublic, setIsPublic] = hook(false);
+      const onCreated = defineEvent('created');
+
+      const createApp = async () => {
+        formError.value = newCallbacks.value.length ? '' : 'Add at least one secure callback URL.';
+        if (formError.value) return;
+        try {
+          const result = await createOidcClient(
+            newId.value.trim(),
+            newCallbacks.value,
+            newScopes.value,
+            isPublic.value,
+            newLogoutRedirects.value,
+          );
+          createdSecret.value = result.secret || '';
+          formOpen.value = false;
+          newCallbacks.value = [];
+          newLogoutRedirects.value = [];
+          newScopes.value = [];
+          setIsPublic(false);
+          setNewLogoutRedirectInput('');
+          onCreated();
+        } catch (error) {
+          formError.value = error.message;
+        }
+      };
+
+      const addNewCallback = () => {
+        const callback = newCallbackInput.value.trim();
+        if (!validCallback(callback, isPublic.value)) {
+          return (formError.value = 'Use HTTPS, a loopback HTTP URL, or a custom scheme for a public app.');
+        }
+        newCallbacks.value = [...new Set([...newCallbacks.value, callback])];
+        setNewCallbackInput('');
+        formError.value = '';
+      };
+
+      const removeNewCallback = (callback) => {
+        newCallbacks.value = newCallbacks.value.filter((value) => value !== callback);
+      };
+
+      const addNewLogoutRedirect = () => {
+        const uri = newLogoutRedirectInput.value.trim();
+        if (!validCallback(uri, isPublic.value)) {
+          return (formError.value = 'Use HTTPS, a loopback HTTP URL, or a custom scheme for a public app.');
+        }
+        newLogoutRedirects.value = [...new Set([...newLogoutRedirects.value, uri])];
+        setNewLogoutRedirectInput('');
+        formError.value = '';
+      };
+
+      const removeNewLogoutRedirect = (uri) => {
+        newLogoutRedirects.value = newLogoutRedirects.value.filter((value) => value !== uri);
+      };
+
+      const validCallback = (callback, publicClient) => {
+        try {
+          const url = new URL(callback);
+          return (
+            url.protocol === 'https:' ||
+            (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) ||
+            (publicClient && /^[a-z][a-z0-9+.-]*\.[a-z0-9+.-]+:$/i.test(url.protocol))
+          );
+        } catch {
+          return false;
+        }
+      };
+
+      const addNewScope = () => {
+        const scope = newScopeInput.value.trim();
+        if (!/^[a-zA-Z0-9:._-]{1,80}$/.test(scope)) return;
+        newScopes.value = [...new Set([...newScopes.value, scope])];
+        setNewScopeInput('');
+      };
+
+      const removeNewScope = (scope) => {
+        newScopes.value = newScopes.value.filter((value) => value !== scope);
+      };
+
+      return {
+        formOpen,
+        formError,
+        createdSecret,
+        newId,
+        setNewId,
+        newCallbacks,
+        newLogoutRedirects,
+        newScopes,
+        newCallbackInput,
+        setNewCallbackInput,
+        newLogoutRedirectInput,
+        setNewLogoutRedirectInput,
+        newScopeInput,
+        setNewScopeInput,
+        isPublic,
+        setIsPublic,
+        createApp,
+        addNewCallback,
+        removeNewCallback,
+        addNewLogoutRedirect,
+        removeNewLogoutRedirect,
+        validCallback,
+        addNewScope,
+        removeNewScope,
+      };
+    }
+  </script>
+</template>

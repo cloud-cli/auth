@@ -1,0 +1,120 @@
+<template component="v2-properties">
+  <section class="content-section animate-fade-in">
+    <div class="mb-6 flex items-center gap-3">
+      <lucide-icon icon="tag" size="28" class="text-brand"></lucide-icon>
+      <div>
+        <h2 class="text-xl font-bold text-gray-900 tracking-tight">Properties</h2>
+        <p class="text-sm text-gray-500">Private metadata shared with your connected apps.</p>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <template if="properties.length === 0">
+        <div class="py-8 text-center text-gray-500">No properties set yet.</div>
+      </template>
+      <template for="property of properties">
+        <div class="flex items-center gap-3">
+          <div
+            class="w-1/3 min-w-[150px] bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg truncate"
+          >
+            {{ property.key }}
+          </div>
+          <input
+            type="text"
+            class="flex-1 border border-gray-200 text-gray-500 text-sm font-mono px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand bg-white"
+            bind-value="property.value"
+            on-change="save(property)"
+            readonly
+          />
+          <template if="property.key.includes('Secret') || property.key.includes('secret')">
+            <div class="relative">
+              <input
+                type="text"
+                class="flex-1 border border-gray-200 text-gray-500 text-sm font-mono px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand bg-white blur-[3px] hover:blur-none transition-all cursor-pointer"
+                bind-value="property.value"
+                on-change="save(property)"
+                readonly
+              />
+              <button
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand text-sm"
+                on-click="copyValue(property.value)"
+                aria-label="Copy value"
+              >
+                Copy
+              </button>
+            </div>
+          </template>
+          <button
+            class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg border border-transparent hover:border-red-100 transition-colors shrink-0"
+            on-click="remove(property)"
+            aria-label="Remove property"
+          >
+            <lucide-icon icon="trash" size="20"></lucide-icon>
+          </button>
+        </div>
+      </template>
+
+      <!-- Add new property form -->
+      <form class="flex items-center gap-3 pt-2 border-t border-gray-100" on-submit.prevent="add()">
+        <input
+          ref="keyInput"
+          class="w-1/3 min-w-[150px] border border-gray-200 bg-white text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          placeholder="Key"
+          required
+        />
+        <input
+          ref="valueInput"
+          class="flex-1 border border-gray-200 bg-white text-gray-700 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          placeholder="Value"
+        />
+        <button
+          class="bg-brand hover:bg-brand-hover text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm shrink-0"
+          type="submit"
+        >
+          Add
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <script setup>
+    import { ref, templateRef } from '@li3/web';
+    import { deleteProperty, getProperties, setProperty } from '/ui/dashboard.mjs';
+
+    const properties = ref([]);
+    const keyInput = templateRef('keyInput');
+    const valueInput = templateRef('valueInput');
+
+    const load = async () => {
+      properties.value = await getProperties();
+    };
+
+    const save = async (property) => {
+      await setProperty(property.key, property.value);
+    };
+
+    const remove = async (property) => {
+      if (confirm('Remove ' + property.key + '?')) {
+        await deleteProperty(property.key);
+        properties.value = properties.value.filter((item) => item !== property);
+      }
+    };
+
+    const add = async () => {
+      const name = keyInput.value?.value.trim();
+      if (!name) return;
+      await setProperty(name, valueInput.value?.value || '');
+      keyInput.value.value = '';
+      valueInput.value.value = '';
+      await load();
+    };
+
+    const copyValue = async (value) => {
+      await navigator.clipboard.writeText(value);
+      // Could add toast notification here
+    };
+
+    load();
+    return { properties, keyInput, valueInput, save, remove, add, copyValue };
+  </script>
+</template>

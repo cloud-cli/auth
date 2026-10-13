@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#1E3A2F" />
+    <link rel="manifest" href="/ui/manifest.webmanifest" />
+    <title>Flow Auth - Identity & Access</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'app-bg': '#eef2ec',
+              brand: '#1E3A2F',
+              'brand-hover': '#13271f',
+              accent: '#3b714b',
+              'accent-hover': '#2f563b',
+              'text-main': '#1c201e',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+          },
+        },
+      };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script type="importmap">
+      { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      .nav-link.active {
+        background-color: white;
+        border-color: #1e3a2f;
+        color: #1e3a2f;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+      .nav-link.active i {
+        color: #1e3a2f;
+      }
+      .nav-link:not(.active) {
+        color: #4b5563;
+        border-color: transparent;
+      }
+      .nav-link:not(.active):hover {
+        background-color: rgba(229, 231, 235, 0.5);
+        color: #1f2937;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+          animation: none !important;
+        }
+      }
+    </style>
+    <link rel="component" href="/ui/v2-layout.html" />
+    <link rel="component" href="/ui/v2-security.html" />
+    <link rel="component" href="/ui/v2-properties.html" />
+    <link rel="component" href="/ui/v2-applications.html" />
+    <link rel="component" href="/ui/v2-users.html" />
+    <link rel="component" href="/ui/v2-keys.html" />
+    <link rel="component" href="/ui/v2-activity.html" />
+    <link rel="component" href="/ui/v2-copy-value.html" />
+    <script type="module" src="/ui/app.mjs"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/ui/sw.js', { scope: '/' }).catch(() => {});
+      }
+    </script>
+  </head>
+  <body data-page="v2" class="h-screen w-screen flex overflow-hidden bg-app-bg font-sans text-text-main">
+    <template app>
+      <v2-layout></v2-layout>
+      <script setup src="/ui/app.mjs"></script>
+    </template>
+  </body>
+</html>

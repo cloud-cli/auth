@@ -1,0 +1,120 @@
+<template component="v2-security">
+  <section class="content-section animate-fade-in">
+    <div class="mb-8 border-b border-gray-100 pb-8">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div class="flex items-center gap-3">
+          <lucide-icon icon="key-round" size="28" class="text-brand"></lucide-icon>
+          <div>
+            <h2 class="text-xl font-bold text-gray-900 tracking-tight">Passkeys</h2>
+            <p class="text-sm text-gray-500">Add a passkey to sign in without passwords.</p>
+          </div>
+        </div>
+        <button
+          class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0"
+          on-click="addPasskey()"
+        >
+          <lucide-icon icon="plus" size="16"></lucide-icon>Add passkey
+        </button>
+      </div>
+
+      <div class="mt-6 space-y-0 divide-y divide-gray-100">
+        <template if="passkeys.length === 0">
+          <div class="py-4 text-center text-gray-500">No passkeys registered yet.</div>
+        </template>
+        <template for="key of passkeys">
+          <div class="py-4 flex items-center justify-between group">
+            <div>
+              <h3 class="text-sm font-semibold text-gray-900">{{ key.label }}</h3>
+              <p class="text-xs text-gray-500 mt-0.5 font-mono">
+                Last used {{ key.lastUsedAt ? formatDate(key.lastUsedAt) : 'never' }}
+              </p>
+            </div>
+            <button
+              class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+              on-click="revoke(key.credentialId)"
+              aria-label="Revoke passkey"
+            >
+              <lucide-icon icon="trash" size="20"></lucide-icon>
+            </button>
+          </div>
+        </template>
+      </div>
+
+      <button
+        class="mt-4 text-brand font-semibold text-sm flex items-center gap-2 hover:text-brand-hover transition-colors"
+        on-click="openPwa()"
+      >
+        <lucide-icon icon="smartphone" size="18"></lucide-icon>Open phone approval app
+      </button>
+    </div>
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <lucide-icon icon="life-buoy" size="28" class="text-brand"></lucide-icon>
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 tracking-tight">Recovery codes</h2>
+          <p class="text-sm text-gray-500">Generate ten offline backup codes. New codes replace the old set.</p>
+        </div>
+      </div>
+      <button
+        class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0"
+        on-click="recoveryCodes()"
+      >
+        Generate
+      </button>
+    </div>
+
+    <template if="codes">
+      <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <pre class="whitespace-pre-wrap break-words text-sm font-bold text-brand">{{ codes }}</pre>
+      </div>
+    </template>
+  </section>
+
+  <script setup>
+    import { ref } from '@li3/web';
+    import { getPasskeys, registerPasskey, revokePasskey, generateRecoveryCodes } from '/ui/dashboard.mjs';
+
+    const passkeys = ref([]);
+    const codes = ref('');
+
+    const load = async () => {
+      const keys = await getPasskeys();
+      passkeys.value = keys.filter((key) => !key.revokedAt);
+    };
+
+    const addPasskey = async () => {
+      const label = prompt('Name this passkey', 'My device');
+      if (label) {
+        await registerPasskey(label);
+        await load();
+      }
+    };
+
+    const revoke = async (id) => {
+      if (confirm('Revoke this passkey?')) {
+        await revokePasskey(id);
+        await load();
+      }
+    };
+
+    const recoveryCodes = async () => {
+      if (confirm('This invalidates any existing recovery codes. Continue?')) {
+        codes.value = (await generateRecoveryCodes()).join('\n');
+      }
+    };
+
+    const openPwa = () => window.open('/pwa/', '_blank');
+
+    const formatDate = (dateStr) => {
+      try {
+        return new Date(dateStr).toISOString().replace('T', ' ').slice(0, 19);
+      } catch {
+        return dateStr;
+      }
+    };
+
+    load();
+    return { passkeys, codes, addPasskey, revoke, recoveryCodes, openPwa };
+  </script>
+</template>
