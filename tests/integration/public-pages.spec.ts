@@ -11,6 +11,29 @@ test('landing page is available', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
 });
 
+test('v2 dashboard and its Li3 components are served', async ({ request }) => {
+  const pageResponse = await request.get('/v2');
+  expect(pageResponse.ok()).toBeTruthy();
+  const page = await pageResponse.text();
+  expect(page).toContain('<v2-layout></v2-layout>');
+
+  for (const asset of [
+    'v2-layout.html',
+    'v2-security.html',
+    'v2-properties.html',
+    'v2-applications.html',
+    'v2-app-form.html',
+    'v2-users.html',
+    'v2-keys.html',
+    'v2-activity.html',
+    'v2-copy-value.html',
+  ]) {
+    const response = await request.get(`/ui/${asset}`);
+    expect(response.ok(), `/ui/${asset}`).toBeTruthy();
+    expect(await response.text()).toContain('<template component=');
+  }
+});
+
 test('session-dependent app entry is not cached or conditionally revalidated', async ({ request }) => {
   const response = await request.get('/me', { headers: { 'if-none-match': '*' } });
   expect(response.status()).toBe(200);

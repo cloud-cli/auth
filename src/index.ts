@@ -111,6 +111,16 @@ const uiAssets = Object.fromEntries(
     'auth-qr-icon.svg',
     'embed.html',
     'embed.mjs',
+    'v2.html',
+    'v2-layout.html',
+    'v2-security.html',
+    'v2-properties.html',
+    'v2-applications.html',
+    'v2-app-form.html',
+    'v2-users.html',
+    'v2-keys.html',
+    'v2-activity.html',
+    'v2-copy-value.html',
   ].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]),
 );
 
