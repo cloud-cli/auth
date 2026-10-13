@@ -15,7 +15,7 @@ test('v2 dashboard and its Li3 components are served', async ({ request }) => {
   const pageResponse = await request.get('/v2');
   expect(pageResponse.ok()).toBeTruthy();
   const page = await pageResponse.text();
-  expect(page).toContain('<v2-layout></v2-layout>');
+  expect(page).toContain('<v2-layout class="block h-full w-full"></v2-layout>');
 
   for (const asset of [
     'v2-layout.html',
@@ -34,6 +34,28 @@ test('v2 dashboard and its Li3 components are served', async ({ request }) => {
     expect(component).toContain('<template component=');
     expect(component, `${asset} setup should export a component factory`).toContain('export default function () {');
   }
+});
+
+test('v2 dashboard loads the current profile and opens admin user details', async ({ page }) => {
+  test.skip(!testKey, 'Requires a test-enabled deployment');
+  await page.goto('/');
+  await page.evaluate(async (secret) => {
+    await fetch('/__test__/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key: secret }),
+    });
+  }, testKey!);
+
+  await page.goto('/v2');
+  await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
+  const profile = await page.evaluate(async () => (await fetch('/api/v1/profile')).json());
+  await expect(page.locator('header').getByText(profile.name, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Users' }).click();
+  const user = page.getByRole('list').getByText(profile.email, { exact: true });
+  await expect(user).toBeVisible();
+  await user.click();
+  await expect(page.getByText('UUID:', { exact: true })).toBeVisible();
 });
 
 test('session-dependent app entry is not cached or conditionally revalidated', async ({ request }) => {

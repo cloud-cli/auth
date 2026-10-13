@@ -15,24 +15,26 @@
         </template>
         <template for="user of users">
           <li class="p-4 hover:bg-gray-50/80 transition-colors flex items-center gap-2 cursor-pointer group">
-            <lucide-icon
-              icon="chevron-right"
-              size="14"
-              class="text-gray-400 group-hover:text-brand transition-colors shrink-0"
-            ></lucide-icon>
-            <div class="flex-1 min-w-0">
-              <span class="font-semibold text-gray-900 text-sm truncate block">{{ user.email }}</span>
-              <template if="user.disabled">
-                <span class="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded inline-block mt-0.5"
-                  >Suspended</span
-                >
-              </template>
-              <template if="user.blocked">
-                <span class="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded inline-block mt-0.5 ml-1"
-                  >Blocked</span
-                >
-              </template>
-            </div>
+            <button class="flex w-full items-center gap-2 text-left" type="button" on-click="selectUser(user)">
+              <lucide-icon
+                icon="chevron-right"
+                size="14"
+                class="text-gray-400 group-hover:text-brand transition-colors shrink-0"
+              ></lucide-icon>
+              <div class="flex-1 min-w-0">
+                <span class="font-semibold text-gray-900 text-sm truncate block">{{ user.email }}</span>
+                <template if="user.disabled">
+                  <span class="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded inline-block mt-0.5"
+                    >Suspended</span
+                  >
+                </template>
+                <template if="user.blocked">
+                  <span class="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded inline-block mt-0.5 ml-1"
+                    >Blocked</span
+                  >
+                </template>
+              </div>
+            </button>
           </li>
         </template>
       </ul>
