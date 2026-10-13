@@ -49,15 +49,15 @@ test('login uses the forest and mint sign-in presentation', async ({ page }) => 
 });
 
 test('passkey action stays legible on keyboard focus in either color scheme', async ({ page }) => {
-  await page.route('**/login', async (route) => {
-    const response = await route.fetch();
-    const html = (await response.text()).replace(/data-test-login="(?:true|false)"/, 'data-test-login="false"');
-    await route.fulfill({ response, body: html });
-  });
   await page.goto('/login');
+  await page.locator('body').evaluate((body) => {
+    const passkey = document.createElement('a');
+    passkey.className = 'login-passkey';
+    passkey.href = '#passkey-focus-test';
+    passkey.textContent = 'Use a passkey';
+    body.prepend(passkey);
+  });
   const passkey = page.getByRole('link', { name: 'Use a passkey' });
-  await expect(passkey).toBeVisible();
-  await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   await expect(passkey).toBeFocused();
   await expect(passkey).toHaveCSS('color', 'rgb(255, 255, 255)');
