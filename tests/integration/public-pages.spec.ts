@@ -109,6 +109,7 @@ test('PWA has install metadata and scanner UI', async ({ page }) => {
   expect(manifest.start_url).toBe('/me');
   expect(manifest.scope).toBe('/');
   const serviceWorker = await page.request.get('/ui/sw.js');
+  expect(serviceWorker.headers()['content-type']).toContain('javascript');
   expect(serviceWorker.headers()['service-worker-allowed']).toBe('/');
 });
 

@@ -644,7 +644,9 @@ app.post('/api/v1/qr-login/deny', express.json(), protectedRoute, async (req, re
   }
 });
 app.get('/pwa/', serveUi('pwa.html'));
-app.get('/ui/sw.js', (_req, res) => res.type('javascript').set('Service-Worker-Allowed', '/').send(pwaServiceWorker));
+app.get('/ui/sw.js', (_req, res) =>
+  res.set('Content-Type', 'text/javascript').set('Service-Worker-Allowed', '/').send(pwaServiceWorker),
+);
 app.get('/api/v1/webauthn/register/options', protectedRoute, async (req, res) => {
   res.json(await registrationOptions(req.user!.id));
 });
