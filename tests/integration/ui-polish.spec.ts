@@ -21,6 +21,11 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
   await expect(page.locator('#nav-menu')).toBeVisible();
   await expect(page.locator('#sidebar').getByText('auth', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Profile' })).toBeVisible();
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(14, 21, 17)');
+  await expect(page.locator('main > div.bg-white')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
+  await page.goto('/me#profile');
+  await expect(page.locator('.v2-profile-identity')).toHaveCSS('background-color', 'rgb(25, 37, 29)');
 
   for (const [hash, heading] of [
     ['security', 'Passkeys'],

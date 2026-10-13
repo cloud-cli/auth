@@ -3,14 +3,6 @@ import { expect, test } from '@playwright/test';
 const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
 const authOrigin = process.env.INTEGRATION_BASE_URL || 'http://localhost:3000';
 
-// The fixture deliberately uses distinct loopback origins; disable Chromium's local-only
-// private-network restriction so this can test application messaging rather than PNA policy.
-test.use({
-  launchOptions: {
-    args: ['--disable-web-security'],
-  },
-});
-
 test('popup sign-in returns the profile to an allowed consumer and closes itself', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
   const runtimeErrors: string[] = [];
@@ -19,7 +11,7 @@ test('popup sign-in returns the profile to an allowed consumer and closes itself
     if (message.type() === 'error') runtimeErrors.push(message.text());
   });
 
-  const consumerOrigin = 'http://localhost:3101';
+  const consumerOrigin = authOrigin.startsWith('https://') ? 'https://consumer.lab.apphor.de' : 'http://localhost:3101';
   const authModuleUrl = new URL('/index.mjs', authOrigin).href;
   await page.route(`${consumerOrigin}/**`, (route) =>
     route.fulfill({

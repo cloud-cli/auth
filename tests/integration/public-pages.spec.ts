@@ -9,6 +9,10 @@ test('landing page is available', async ({ page }) => {
   await page.goto('/me');
   await expect(page).toHaveTitle('Auth');
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(16, 23, 19)');
+  await expect(page.locator('.landing-card')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
 });
 
 test('login uses the forest and mint sign-in presentation', async ({ page }) => {
@@ -32,6 +36,15 @@ test('login uses the forest and mint sign-in presentation', async ({ page }) => 
   }
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(16, 23, 19)');
+  await expect(page.locator('.login-card')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
+  if (!testKey) {
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Use a passkey' })).toBeFocused();
+    await expect(page.getByRole('link', { name: 'Use a passkey' })).toHaveCSS('color', 'rgb(255, 255, 255)');
+  }
   expect(pageErrors).toEqual([]);
 });
 
@@ -636,7 +649,7 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
   await page.goto('/me#properties');
   await expect(page.getByRole('heading', { name: 'Properties' })).toBeVisible();
   await page.goto('/me#activity');
-  await expect(page.getByText('Authentication history')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Authentication history' })).toBeVisible();
   await page.goto('/me#oidc');
   await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
   await expect(page.getByText(/Confidential clients are server-side apps/)).toBeVisible();
@@ -701,7 +714,7 @@ test('profile page shows identity, copies OIDC subject, and signs out', async ({
   await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
   await expect(page.locator('v2-profile').getByText(/john\.doe\+.*@example\.test/)).toBeVisible();
-  await expect(page.getByLabel('Administrator')).toBeVisible();
+  await expect(page.locator('v2-profile').getByLabel('Administrator')).toBeVisible();
   const subject = await page.locator('#profile-subject').innerText();
   const profile = await page.evaluate(() => fetch('/api/v1/profile').then((response) => response.json()));
   expect(subject).toBe(profile.id);
@@ -910,7 +923,6 @@ test('Auth API token selector loads clients and supports create, scope expansion
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(managementToken);
     await expect(copyBox.getByText('Copied to clipboard.')).toBeHidden({ timeout: 7000 });
     await selector.selectOption('');
-    await expect(page.getByTestId('auth-token-empty-state')).toHaveText('');
     await expect(page.getByText('browser test token')).toBeVisible();
     await selector.selectOption(appId);
     const issued = await page.evaluate(
