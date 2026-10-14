@@ -24,6 +24,9 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
   await expect(page.locator('#sidebar').getByText('auth', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Profile' })).toBeVisible();
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(14, 21, 17)');
+  await expect(page.locator('#sidebar')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(page.locator('main > header')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(page.locator('main > header')).toHaveCSS('border-bottom-width', '0px');
   await expect(page.locator('#sidebar .nav-link.active')).toHaveCSS('background-color', 'rgb(28, 42, 32)');
   await expect(page.locator('#sidebar .nav-link.active')).toHaveCSS('color', 'rgb(215, 237, 200)');
   await expect(page.locator('main > div.bg-white')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
