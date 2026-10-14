@@ -2,8 +2,26 @@ import { expect, test } from '@playwright/test';
 
 const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
 
+async function allowLocalLi3Imports(page: import('@playwright/test').Page) {
+  const baseURL = process.env.INTEGRATION_BASE_URL || 'http://127.0.0.1:3000';
+  if (new URL(baseURL).hostname !== '127.0.0.1') {
+    return;
+  }
+
+  await page.route('https://cdn.li3.dev/**', async (route) => {
+    const response = await route.fetch({
+      headers: { ...route.request().headers(), origin: 'https://auth.lab.apphor.de' },
+    });
+    await route.fulfill({
+      response,
+      headers: { ...response.headers(), 'access-control-allow-origin': '*' },
+    });
+  });
+}
+
 test('v2 navigation, profile, and dashboard sections render cleanly', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
+  await allowLocalLi3Imports(page);
   await page.goto('/');
   const login = await page.evaluate(
     async (secret) =>
@@ -28,8 +46,12 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
   await expect(page.locator('main > header')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('main > header')).toHaveCSS('border-bottom-width', '0px');
   const securityNavLink = page.locator('#sidebar button[data-target="security"]');
+  const profileNavLink = page.locator('#sidebar button[data-target="profile"]');
+  await expect(profileNavLink).toHaveCSS('box-shadow', 'none');
   await expect(securityNavLink).toHaveCSS('background-color', 'rgb(28, 42, 32)');
   await expect(securityNavLink).toHaveCSS('color', 'rgb(215, 237, 200)');
+  await profileNavLink.hover();
+  await expect(profileNavLink).toHaveCSS('box-shadow', 'none');
   await securityNavLink.hover();
   await expect(securityNavLink).toHaveCSS('background-color', 'rgb(28, 42, 32)');
   await expect(securityNavLink).toHaveCSS('border-top-color', 'rgb(65, 107, 72)');
@@ -43,6 +65,7 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
   await expect(securityNavLink).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await expect(securityNavLink).toHaveCSS('border-top-color', 'rgb(30, 58, 47)');
   await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await page.mouse.move(0, 0);
   await expect(page.locator('main > div.bg-white')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
   await expect(page.locator('#theme-toggle')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
   await page.goto('/me#profile');
@@ -63,6 +86,7 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
 
 test('theme toggle follows system preference and persists explicit choice', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
+  await allowLocalLi3Imports(page);
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
   const login = await page.evaluate(

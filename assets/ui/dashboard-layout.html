@@ -49,13 +49,13 @@
           <button
             data-target="security"
             class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-            bind-class={ 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : section === 'security' }
+            bind-class="{ 'bg-white': section === 'security', 'border-nav-active': section === 'security', 'text-nav-active': section === 'security', 'shadow-sm': section === 'security', 'hover:!bg-white': section === 'security', 'hover:!border-nav-active': section === 'security', 'hover:!text-nav-active': section === 'security', 'dark:bg-nav-active-dark-bg': section === 'security', 'dark:border-nav-active-dark-border': section === 'security', 'dark:text-nav-active-dark-text': section === 'security', 'dark:hover:!bg-nav-active-dark-bg': section === 'security', 'dark:hover:!border-nav-active-dark-border': section === 'security', 'dark:hover:!text-nav-active-dark-text': section === 'security' }"
             on-click="navigate('security')"
           >
             <lucide-icon
               icon="shield-check"
               size="20"
-              bind-class={ 'dark:text-nav-active-dark-icon' : section === 'security' }
+              bind-class="{ 'dark:text-nav-active-dark-icon' : section === 'security' }"
             ></lucide-icon>
             <span>Security</span>
           </button>
@@ -63,13 +63,13 @@
           <button
             data-target="profile"
             class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-            bind-class={ 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : section === 'profile' }
+            bind-class="{ 'bg-white': section === 'profile', 'border-nav-active': section === 'profile', 'text-nav-active': section === 'profile', 'shadow-sm': section === 'profile', 'hover:!bg-white': section === 'profile', 'hover:!border-nav-active': section === 'profile', 'hover:!text-nav-active': section === 'profile', 'dark:bg-nav-active-dark-bg': section === 'profile', 'dark:border-nav-active-dark-border': section === 'profile', 'dark:text-nav-active-dark-text': section === 'profile', 'dark:hover:!bg-nav-active-dark-bg': section === 'profile', 'dark:hover:!border-nav-active-dark-border': section === 'profile', 'dark:hover:!text-nav-active-dark-text': section === 'profile' }"
             on-click="navigate('profile')"
           >
             <lucide-icon
               icon="user-round"
               size="20"
-              bind-class={ 'dark:text-nav-active-dark-icon' : section === 'profile' }
+              bind-class="{ 'dark:text-nav-active-dark-icon' : section === 'profile' }"
             ></lucide-icon>
             <span>Profile</span>
           </button>
@@ -77,13 +77,13 @@
           <button
             data-target="properties"
             class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-            bind-class={ 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : section === 'properties' }
+            bind-class="{ 'bg-white': section === 'properties', 'border-nav-active': section === 'properties', 'text-nav-active': section === 'properties', 'shadow-sm': section === 'properties', 'hover:!bg-white': section === 'properties', 'hover:!border-nav-active': section === 'properties', 'hover:!text-nav-active': section === 'properties', 'dark:bg-nav-active-dark-bg': section === 'properties', 'dark:border-nav-active-dark-border': section === 'properties', 'dark:text-nav-active-dark-text': section === 'properties', 'dark:hover:!bg-nav-active-dark-bg': section === 'properties', 'dark:hover:!border-nav-active-dark-border': section === 'properties', 'dark:hover:!text-nav-active-dark-text': section === 'properties' }"
             on-click="navigate('properties')"
           >
             <lucide-icon
               icon="tag"
               size="20"
-              bind-class={ 'dark:text-nav-active-dark-icon' : section === 'properties' }
+              bind-class="{ 'dark:text-nav-active-dark-icon' : section === 'properties' }"
             ></lucide-icon>
             <span>Properties</span>
           </button>
@@ -92,13 +92,13 @@
             <button
               data-target="applications"
               class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-              bind-class={ 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : section === 'applications' }
+              bind-class="{ 'bg-white': section === 'applications', 'border-nav-active': section === 'applications', 'text-nav-active': section === 'applications', 'shadow-sm': section === 'applications', 'hover:!bg-white': section === 'applications', 'hover:!border-nav-active': section === 'applications', 'hover:!text-nav-active': section === 'applications', 'dark:bg-nav-active-dark-bg': section === 'applications', 'dark:border-nav-active-dark-border': section === 'applications', 'dark:text-nav-active-dark-text': section === 'applications', 'dark:hover:!bg-nav-active-dark-bg': section === 'applications', 'dark:hover:!border-nav-active-dark-border': section === 'applications', 'dark:hover:!text-nav-active-dark-text': section === 'applications' }"
               on-click="navigate('applications')"
             >
               <lucide-icon
                 icon="app-window"
                 size="20"
-                bind-class={ 'dark:text-nav-active-dark-icon' : section === 'applications' }
+                bind-class="{ 'dark:text-nav-active-dark-icon' : section === 'applications' }"
               ></lucide-icon>
               <span>Applications</span>
             </button>
@@ -106,13 +106,13 @@
             <button
               data-target="users"
               class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-              bind-class={ 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : section === 'users' }
+              bind-class="{ 'bg-white': section === 'users', 'border-nav-active': section === 'users', 'text-nav-active': section === 'users', 'shadow-sm': section === 'users', 'hover:!bg-white': section === 'users', 'hover:!border-nav-active': section === 'users', 'hover:!text-nav-active': section === 'users', 'dark:bg-nav-active-dark-bg': section === 'users', 'dark:border-nav-active-dark-border': section === 'users', 'dark:text-nav-active-dark-text': section === 'users', 'dark:hover:!bg-nav-active-dark-bg': section === 'users', 'dark:hover:!border-nav-active-dark-border': section === 'users', 'dark:hover:!text-nav-active-dark-text': section === 'users' }"
               on-click="navigate('users')"
             >
               <lucide-icon
                 icon="users"
                 size="20"
-                bind-class={ 'dark:text-nav-active-dark-icon' : section === 'users' }
+                bind-class="{ 'dark:text-nav-active-dark-icon' : section === 'users' }"
               ></lucide-icon>
               <span>Users</span>
             </button>
@@ -120,13 +120,13 @@
             <button
               data-target="keys"
               class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-              bind-class={ 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : section === 'keys' || section === 'auth-api-tokens' }
+              bind-class="{ 'bg-white': section === 'keys' || section === 'auth-api-tokens', 'border-nav-active': section === 'keys' || section === 'auth-api-tokens', 'text-nav-active': section === 'keys' || section === 'auth-api-tokens', 'shadow-sm': section === 'keys' || section === 'auth-api-tokens', 'hover:!bg-white': section === 'keys' || section === 'auth-api-tokens', 'hover:!border-nav-active': section === 'keys' || section === 'auth-api-tokens', 'hover:!text-nav-active': section === 'keys' || section === 'auth-api-tokens', 'dark:bg-nav-active-dark-bg': section === 'keys' || section === 'auth-api-tokens', 'dark:border-nav-active-dark-border': section === 'keys' || section === 'auth-api-tokens', 'dark:text-nav-active-dark-text': section === 'keys' || section === 'auth-api-tokens', 'dark:hover:!bg-nav-active-dark-bg': section === 'keys' || section === 'auth-api-tokens', 'dark:hover:!border-nav-active-dark-border': section === 'keys' || section === 'auth-api-tokens', 'dark:hover:!text-nav-active-dark-text': section === 'keys' || section === 'auth-api-tokens' }"
               on-click="navigate('keys')"
             >
               <lucide-icon
                 icon="key-round"
                 size="20"
-                bind-class={ 'dark:text-nav-active-dark-icon' : section === 'keys' || section === 'auth-api-tokens' }
+                bind-class="{ 'dark:text-nav-active-dark-icon' : section === 'keys' || section === 'auth-api-tokens' }"
               ></lucide-icon>
               <span>Keys & tokens</span>
             </button>
@@ -135,13 +135,13 @@
           <button
             data-target="activity"
             class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-            bind-class={ 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : section === 'activity' }
+            bind-class="{ 'bg-white': section === 'activity', 'border-nav-active': section === 'activity', 'text-nav-active': section === 'activity', 'shadow-sm': section === 'activity', 'hover:!bg-white': section === 'activity', 'hover:!border-nav-active': section === 'activity', 'hover:!text-nav-active': section === 'activity', 'dark:bg-nav-active-dark-bg': section === 'activity', 'dark:border-nav-active-dark-border': section === 'activity', 'dark:text-nav-active-dark-text': section === 'activity', 'dark:hover:!bg-nav-active-dark-bg': section === 'activity', 'dark:hover:!border-nav-active-dark-border': section === 'activity', 'dark:hover:!text-nav-active-dark-text': section === 'activity' }"
             on-click="navigate('activity')"
           >
             <lucide-icon
               icon="list-ordered"
               size="20"
-              bind-class={ 'dark:text-nav-active-dark-icon' : section === 'activity' }
+              bind-class="{ 'dark:text-nav-active-dark-icon' : section === 'activity' }"
             ></lucide-icon>
             <span>Activity</span>
           </button>

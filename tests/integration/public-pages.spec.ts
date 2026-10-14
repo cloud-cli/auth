@@ -80,17 +80,17 @@ test('legacy v2 route is removed while dashboard components remain available', a
   expect(page).not.toContain('Management /');
 
   for (const asset of [
-    'v2-layout.html',
-    'v2-security.html',
-    'v2-properties.html',
-    'v2-applications.html',
-    'v2-app-editor.html',
-    'v2-app-form.html',
-    'v2-users.html',
-    'v2-keys.html',
-    'v2-activity.html',
-    'v2-profile.html',
-    'v2-copy-value.html',
+    'dashboard-layout.html',
+    'dashboard-security.html',
+    'dashboard-properties.html',
+    'dashboard-applications.html',
+    'dashboard-app-editor.html',
+    'dashboard-app-form.html',
+    'dashboard-users.html',
+    'dashboard-keys.html',
+    'dashboard-activity.html',
+    'dashboard-profile.html',
+    'dashboard-copy-value.html',
   ]) {
     const response = await request.get(`/ui/${asset}`);
     expect(response.ok(), `/ui/${asset}`).toBeTruthy();
@@ -99,7 +99,7 @@ test('legacy v2 route is removed while dashboard components remain available', a
     expect(component, `${asset} setup should export a component factory`).toContain('export default function () {');
   }
 
-  const layout = await request.get('/ui/v2-layout.html').then((response) => response.text());
+  const layout = await request.get('/ui/dashboard-layout.html').then((response) => response.text());
   expect(layout).not.toContain('Flow Auth Server v2.4.1');
   expect(layout).not.toContain('border-r border-gray-200/50');
 });
