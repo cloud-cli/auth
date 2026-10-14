@@ -146,30 +146,41 @@
           </button>
         </div>
 
-        <!-- User Profile -->
-        <div
-          class="flex items-center gap-4 bg-white border border-gray-200 rounded-full pl-1.5 pr-4 py-1.5 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-          on-click="toggleProfile()"
-        >
-          <div
-            class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm shrink-0"
-            aria-hidden="true"
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            id="theme-toggle"
+            class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            aria-label="Switch to dark theme"
+            title="Switch theme"
+            on-click="toggleTheme()"
           >
-            {{ userInitial }}
-          </div>
-          <div class="flex flex-col justify-center hidden sm:flex">
-            <span class="text-sm font-semibold text-gray-900 leading-tight">{{ user.name || 'User' }}</span>
-            <span class="text-[10px] text-gray-500 leading-tight">{{ user.email }}</span>
-          </div>
-          <template if="user.role === 'admin'">
+            <template if="darkTheme"><lucide-icon icon="sun" size="18" aria-hidden="true"></lucide-icon></template>
+            <template if="!darkTheme"><lucide-icon icon="moon" size="18" aria-hidden="true"></lucide-icon></template>
+          </button>
+          <!-- User Profile -->
+          <div
+            class="flex items-center gap-4 bg-white border border-gray-200 rounded-full pl-1.5 pr-4 py-1.5 shadow-sm"
+          >
             <div
-              class="flex items-center gap-1 ml-2 text-yellow-500 bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100"
-              aria-label="Administrator"
+              class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm shrink-0"
+              aria-hidden="true"
             >
-              <lucide-icon icon="crown" size="12" class="fill-current"></lucide-icon>
+              {{ userInitial }}
             </div>
-          </template>
-          <lucide-icon icon="chevron-down" size="16" class="text-gray-400 ml-1 shrink-0"></lucide-icon>
+            <div class="flex flex-col justify-center hidden sm:flex">
+              <span class="text-sm font-semibold text-gray-900 leading-tight">{{ user.name || 'User' }}</span>
+              <span class="text-[10px] text-gray-500 leading-tight">{{ user.email }}</span>
+            </div>
+            <template if="user.role === 'admin'">
+              <div
+                class="flex items-center gap-1 ml-2 text-yellow-500 bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100"
+                aria-label="Administrator"
+              >
+                <lucide-icon icon="crown" size="12" class="fill-current"></lucide-icon>
+              </div>
+            </template>
+          </div>
         </div>
       </header>
 
@@ -218,7 +229,12 @@
       const admin = ref(false);
       const user = ref({ name: '', email: '', photo: '', role: '' });
       const mobileMenuOpen = ref(false);
-      const profileExpanded = ref(false);
+      const darkTheme = ref(document.documentElement.dataset.theme === 'dark');
+
+      function updateThemeToggleLabel() {
+        const button = document.getElementById('theme-toggle');
+        if (button) button.setAttribute('aria-label', `Switch to ${darkTheme.value ? 'light' : 'dark'} theme`);
+      }
 
       const userInitial = ref('U');
 
@@ -263,13 +279,17 @@
         setTimeout(() => overlay.classList.add('hidden'), 300);
       }
 
-      function toggleProfile() {
-        profileExpanded.value = !profileExpanded.value;
-        // TODO: Show profile dropdown menu
+      function toggleTheme() {
+        darkTheme.value = !darkTheme.value;
+        const theme = darkTheme.value ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem('auth-theme', theme);
+        updateThemeToggleLabel();
       }
 
       // Initialize
       loadProfile().catch(console.error);
+      updateThemeToggleLabel();
       addEventListener('hashchange', () => {
         section.value = sectionForHash(location.hash.slice(1));
       });
@@ -279,12 +299,12 @@
         admin,
         user,
         mobileMenuOpen,
-        profileExpanded,
+        darkTheme,
         userInitial,
         navigate,
         openMenu,
         closeMenu,
-        toggleProfile,
+        toggleTheme,
       };
     }
   </script>

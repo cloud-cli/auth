@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#eef2ec" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0e1511" media="(prefers-color-scheme: dark)" />
+    <script>
+      const savedTheme = localStorage.getItem('auth-theme');
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+      document.documentElement.dataset.theme =
+        savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : systemTheme.matches ? 'dark' : 'light';
+      systemTheme.addEventListener('change', (event) => {
+        const savedPreference = localStorage.getItem('auth-theme');
+        if (savedPreference !== 'dark' && savedPreference !== 'light') {
+          document.documentElement.dataset.theme = event.matches ? 'dark' : 'light';
+        }
+      });
+    </script>
     <link rel="manifest" href="/ui/manifest.webmanifest" />
     <title>Flow Auth - Identity & Access</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -71,7 +83,7 @@
           animation: none !important;
         }
       }
-      @media (prefers-color-scheme: dark) {
+      :root[data-theme='dark'] {
         body {
           background: #0e1511 !important;
           color: #e8efe9 !important;

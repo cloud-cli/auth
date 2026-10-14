@@ -69,8 +69,11 @@ test('passkey action stays legible on keyboard focus in either color scheme', as
   await expect(passkey).toHaveCSS('outline-color', 'rgb(200, 230, 168)');
 });
 
-test('v2 dashboard and its Li3 components are served', async ({ request }) => {
-  const pageResponse = await request.get('/v2');
+test('legacy v2 route is removed while dashboard components remain available', async ({ request }) => {
+  const legacyRoute = await request.get('/v2');
+  expect(legacyRoute.status()).toBe(404);
+
+  const pageResponse = await request.get('/ui/v2.html');
   expect(pageResponse.ok()).toBeTruthy();
   const page = await pageResponse.text();
   expect(page).toContain('<v2-layout class="block h-full w-full"></v2-layout>');
