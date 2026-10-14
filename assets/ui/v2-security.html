@@ -3,14 +3,14 @@
     <div class="mb-8 border-b border-gray-100 pb-8 dark:border-[#2d3a31]">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
         <div class="flex items-center gap-3">
-          <lucide-icon icon="key-round" size="28" class="text-brand dark:text-[#c8e6a8]"></lucide-icon>
+          <lucide-icon icon="key-round" size="28" class="text-brand dark:text-[#768863]"></lucide-icon>
           <div>
-            <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Passkeys</h2>
+            <h2 class="text-xl font-bold text-brand tracking-tight dark:text-[#eef3ef]">Passkeys</h2>
             <p class="text-sm text-gray-500 dark:text-[#aab7ad]">Add a passkey to sign in without passwords.</p>
           </div>
         </div>
         <button
-          class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#376d46]"
+          class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#376d46] dark:hover:bg-[#2f563b]"
           on-click="addPasskey()"
         >
           <lucide-icon icon="plus" size="16"></lucide-icon>Add passkey
@@ -24,7 +24,7 @@
         <template for="key of passkeys">
           <div class="py-4 flex items-center justify-between group">
             <div>
-              <h3 class="text-sm font-semibold text-gray-900 dark:text-[#eef3ef]">{{ key.label }}</h3>
+              <h3 class="text-sm font-semibold text-brand dark:text-[#eef3ef]">{{ key.label }}</h3>
               <p class="text-xs text-gray-500 mt-0.5 font-mono dark:text-[#aab7ad]">
                 Last used {{ formatLastUsed(key.lastUsedAt) }}
               </p>
@@ -41,7 +41,7 @@
       </div>
 
       <button
-        class="mt-4 text-brand font-semibold text-sm flex items-center gap-2 hover:text-brand-hover transition-colors dark:text-[#c8e6a8]"
+        class="mt-4 text-brand font-semibold text-sm flex items-center gap-2 hover:text-brand-hover transition-colors dark:text-[#768863]"
         on-click="openPwa()"
       >
         <lucide-icon icon="smartphone" size="18"></lucide-icon>Open phone approval app
@@ -50,16 +50,16 @@
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <lucide-icon icon="life-buoy" size="28" class="text-brand dark:text-[#c8e6a8]"></lucide-icon>
+        <lucide-icon icon="life-buoy" size="28" class="text-brand dark:text-[#768863]"></lucide-icon>
         <div>
-          <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Recovery codes</h2>
+          <h2 class="text-xl font-bold text-brand tracking-tight dark:text-[#eef3ef]">Recovery codes</h2>
           <p class="text-sm text-gray-500 dark:text-[#aab7ad]">
             Generate ten offline backup codes. New codes replace the old set.
           </p>
         </div>
       </div>
       <button
-        class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#17211b] dark:border-[#2d3a31] dark:hover:bg-[#243128] dark:text-[#aab7ad]"
+        class="bg-white border border-gray-300 hover:bg-gray-50 text-brand px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#17211b] dark:border-[#2d3a31] dark:hover:bg-[#243128] dark:text-[#aab7ad]"
         on-click="recoveryCodes()"
       >
         Generate
@@ -68,7 +68,7 @@
 
     <template if="codes">
       <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg dark:bg-[#1c2820] dark:border-[#2d3a31]">
-        <pre class="whitespace-pre-wrap break-words text-sm font-bold text-brand dark:text-[#c8e6a8]">{{ codes }}</pre>
+        <pre class="whitespace-pre-wrap break-words text-sm font-bold text-brand dark:text-[#768863]">{{ codes }}</pre>
       </div>
     </template>
   </section>

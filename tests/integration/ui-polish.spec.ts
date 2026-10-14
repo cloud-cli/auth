@@ -27,8 +27,11 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
   await expect(page.locator('#sidebar')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('main > header')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('main > header')).toHaveCSS('border-bottom-width', '0px');
-  await expect(page.locator('#sidebar .nav-link.active')).toHaveCSS('background-color', 'rgb(28, 42, 32)');
-  await expect(page.locator('#sidebar .nav-link.active')).toHaveCSS('color', 'rgb(215, 237, 200)');
+  const securityNavLink = page.locator('#sidebar button[data-target="security"]');
+  await expect(securityNavLink).toHaveCSS('background-color', 'rgb(28, 42, 32)');
+  await expect(securityNavLink).toHaveCSS('color', 'rgb(215, 237, 200)');
+  await page.getByRole('button', { name: 'Add passkey' }).hover();
+  await expect(page.getByRole('button', { name: 'Add passkey' })).toHaveCSS('background-color', 'rgb(47, 86, 59)');
   await expect(page.locator('main > div.bg-white')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
   await expect(page.locator('#theme-toggle')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
   await page.goto('/me#profile');

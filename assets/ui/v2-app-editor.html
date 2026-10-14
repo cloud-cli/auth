@@ -18,7 +18,7 @@
 <link rel="component" href="/ui/v2-copy-value.html" />
 
 <template component="v2-callback-editor"
-  ><div class="mt-5 rounded-xl bg-brand/5 p-3 text-sm dark:bg-[#c8e6a8]/[0.06]">
+  ><div class="mt-5 rounded-xl bg-brand/5 p-3 text-sm dark:bg-[#768863]/[0.06]">
     <strong>Callback URLs</strong>
     <template for="uri of app.redirectUris"
       ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 dark:bg-[#17211b]">
@@ -38,7 +38,7 @@
           on-input="setCallbackInput($event.target.value)"
           placeholder="https://app.example/callback"
           required
-        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-[#c8e6a8]">
+        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-[#768863]">
           Add
         </button>
       </form>
@@ -89,7 +89,7 @@
 >
 
 <template component="v2-logout-redirect-editor"
-  ><div class="mt-4 rounded-xl bg-brand/5 p-3 text-sm dark:bg-[#c8e6a8]/[0.06]">
+  ><div class="mt-4 rounded-xl bg-brand/5 p-3 text-sm dark:bg-[#768863]/[0.06]">
     <strong>Post-logout return URLs</strong>
     <template for="uri of app.postLogoutRedirectUris || []"
       ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 dark:bg-[#17211b]">
@@ -109,7 +109,7 @@
           on-input="setRedirectInput($event.target.value)"
           placeholder="https://app.example/signed-out"
           required
-        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-[#c8e6a8]">
+        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-[#768863]">
           Add
         </button>
       </form>
@@ -168,14 +168,14 @@
       <template for="scope of app.scopes"
         ><template if="admin"
           ><button
-            class="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-[#c8e6a8]/10 dark:text-[#c8e6a8]"
+            class="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-[#768863]/10 dark:text-[#768863]"
             type="button"
             on-click="removeScope(scope)"
           >
             <span>{{ scope }}</span><span aria-hidden="true">x</span>
           </button></template
         ><template if="!admin"
-          ><span class="rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-[#c8e6a8]/10 dark:text-[#c8e6a8]"
+          ><span class="rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-[#768863]/10 dark:text-[#768863]"
             >{{ scope }}</span
           ></template
         ></template
@@ -190,7 +190,7 @@
           on-input="setScopeInput($event.target.value)"
         />
         <button
-          class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white dark:bg-[#376d46]"
+          class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white dark:bg-[#376d46] dark:hover:bg-[#2f563b]"
           type="button"
           on-click="addScope($event)"
         >
@@ -229,7 +229,7 @@
 <template component="v2-token-editor"
   ><div>
     <h3 class="font-bold">Tokens</h3>
-    <div class="mt-2 grid gap-2 rounded-lg bg-brand/5 p-2 dark:bg-[#c8e6a8]/[0.06]">
+    <div class="mt-2 grid gap-2 rounded-lg bg-brand/5 p-2 dark:bg-[#768863]/[0.06]">
       <input
         class="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
         bind-value="tokenLabel"
@@ -240,7 +240,7 @@
       <div class="grid gap-1">
         <template for="scope of app.scopes"
           ><label
-            class="flex items-center gap-2 rounded-lg border border-brand/20 bg-white px-2 py-1 text-xs text-brand dark:border-[#c8e6a8]/25 dark:bg-[#17211b] dark:text-[#c8e6a8]"
+            class="flex items-center gap-2 rounded-lg border border-brand/20 bg-white px-2 py-1 text-xs text-brand dark:border-[#768863]/25 dark:bg-[#17211b] dark:text-[#768863]"
           >
             <input
               class="mr-1 accent-brand dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
@@ -253,7 +253,7 @@
       </div>
       <p class="text-xs text-red-600 dark:text-[#ffb8ae]">{{ tokenError }}</p>
       <button
-        class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white dark:bg-[#376d46]"
+        class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white dark:bg-[#376d46] dark:hover:bg-[#2f563b]"
         type="button"
         on-click="createToken()"
       >

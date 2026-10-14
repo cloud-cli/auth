@@ -1,9 +1,9 @@
 <template component="v2-properties">
   <section class="content-section animate-fade-in">
     <div class="mb-6 flex items-center gap-3">
-      <lucide-icon icon="tag" size="28" class="text-brand dark:text-[#c8e6a8]"></lucide-icon>
+      <lucide-icon icon="tag" size="28" class="text-brand dark:text-[#768863]"></lucide-icon>
       <div>
-        <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Properties</h2>
+        <h2 class="text-xl font-bold text-brand tracking-tight dark:text-[#eef3ef]">Properties</h2>
         <p class="text-sm text-gray-500 dark:text-[#aab7ad]">Private metadata shared with your connected apps.</p>
       </div>
     </div>
@@ -15,7 +15,7 @@
       <template for="property of properties">
         <div class="flex items-center gap-3">
           <div
-            class="w-1/3 min-w-[150px] bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg truncate dark:bg-[#1c2820] dark:border-[#2d3a31] dark:text-[#aab7ad]"
+            class="w-1/3 min-w-[150px] bg-gray-50 border border-gray-200 text-brand text-sm font-medium px-4 py-2.5 rounded-lg truncate dark:bg-[#1c2820] dark:border-[#2d3a31] dark:text-[#aab7ad]"
           >
             {{ property.key }}
           </div>
@@ -54,17 +54,17 @@
       >
         <input
           ref="keyInput"
-          class="w-1/3 min-w-[150px] border border-gray-200 bg-white text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="w-1/3 min-w-[150px] border border-gray-200 bg-white text-brand text-sm font-medium px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
           placeholder="Key"
           required
         />
         <input
           ref="valueInput"
-          class="flex-1 border border-gray-200 bg-white text-gray-700 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="flex-1 border border-gray-200 bg-white text-brand text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
           placeholder="Value"
         />
         <button
-          class="bg-brand hover:bg-brand-hover text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm shrink-0 dark:bg-[#376d46]"
+          class="bg-brand hover:bg-brand-hover text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm shrink-0 dark:bg-[#376d46] dark:hover:bg-[#2f563b]"
           type="submit"
         >
           Add
