@@ -8,12 +8,15 @@
     <script>
       const savedTheme = localStorage.getItem('auth-theme');
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
-      document.documentElement.dataset.theme =
+      const initialTheme =
         savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : systemTheme.matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = initialTheme;
+      document.documentElement.classList.toggle('dark', initialTheme === 'dark');
       systemTheme.addEventListener('change', (event) => {
         const savedPreference = localStorage.getItem('auth-theme');
         if (savedPreference !== 'dark' && savedPreference !== 'light') {
           document.documentElement.dataset.theme = event.matches ? 'dark' : 'light';
+          document.documentElement.classList.toggle('dark', event.matches);
         }
       });
     </script>
@@ -22,6 +25,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             colors: {
@@ -67,181 +71,12 @@
       .nav-link.active i {
         color: #1e3a2f;
       }
-      .nav-link:not(.active) {
-        color: #4b5563;
-        border-color: transparent;
-      }
-      .nav-link:not(.active):hover {
-        background-color: rgba(229, 231, 235, 0.5);
-        color: #1f2937;
-      }
       @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
         *::after {
           transition: none !important;
           animation: none !important;
-        }
-      }
-      :root[data-theme='dark'] {
-        body {
-          background: #0e1511 !important;
-          color: #e8efe9 !important;
-          color-scheme: dark;
-        }
-        #sidebar,
-        main > header {
-          background-color: #111a14 !important;
-        }
-        .bg-app-bg {
-          background-color: #0e1511 !important;
-        }
-        .bg-white,
-        .bg-white\/60,
-        .bg-white\/70 {
-          background-color: #17211b !important;
-        }
-        .bg-gray-50,
-        .bg-gray-50\/50,
-        .bg-gray-50\/80,
-        .bg-slate-50,
-        .bg-gray-100 {
-          background-color: #1c2820 !important;
-        }
-        .hover\:bg-gray-50:hover,
-        .hover\:bg-gray-50\/80:hover {
-          background-color: #243128 !important;
-        }
-        .bg-brand {
-          background-color: #376d46 !important;
-          color: #f2f7f2 !important;
-        }
-        .bg-brand\/5 {
-          background-color: rgba(200, 230, 168, 0.06) !important;
-        }
-        .bg-brand\/10 {
-          background-color: rgba(200, 230, 168, 0.1) !important;
-        }
-        .text-brand,
-        .text-accent {
-          color: #c8e6a8 !important;
-        }
-        .text-gray-900,
-        .text-gray-800,
-        .text-slate-900,
-        .text-slate-800 {
-          color: #eef3ef !important;
-        }
-        .text-gray-700,
-        .text-gray-600,
-        .text-gray-500,
-        .text-gray-400,
-        .text-slate-700,
-        .text-slate-600,
-        .text-slate-500,
-        .text-slate-400 {
-          color: #aab7ad !important;
-        }
-        .border-gray-100,
-        .border-gray-200,
-        .border-gray-200\/50,
-        .border-gray-300,
-        .border-slate-100,
-        .border-slate-200,
-        .border-slate-300,
-        .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-        .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
-          border-color: #2d3a31 !important;
-        }
-        .border-brand\/20 {
-          border-color: rgba(200, 230, 168, 0.24) !important;
-        }
-        .nav-link.active {
-          background-color: #1c2a20 !important;
-          border-color: #416b48 !important;
-          color: #d7edc8 !important;
-        }
-        .nav-link.active lucide-icon {
-          color: #c8e6a8 !important;
-        }
-        .nav-link:not(.active) {
-          color: #aab7ad !important;
-        }
-        .nav-link:not(.active):hover {
-          background-color: #1b2720 !important;
-          color: #edf3ee !important;
-        }
-        .shadow-sm,
-        .shadow-md,
-        .shadow-xl,
-        .shadow-2xl {
-          --tw-shadow-color: rgba(0, 0, 0, 0.22) !important;
-        }
-        .bg-emerald-50,
-        .bg-emerald-50\/50 {
-          background-color: #1d3022 !important;
-        }
-        .text-emerald-950,
-        .text-emerald-800,
-        .text-emerald-700,
-        .text-emerald-600 {
-          color: #c5e8c5 !important;
-        }
-        .border-emerald-300,
-        .border-emerald-200 {
-          border-color: #345a3d !important;
-        }
-        .bg-red-50 {
-          background-color: #36211f !important;
-        }
-        .text-red-800,
-        .text-red-700,
-        .text-red-600 {
-          color: #ffb8ae !important;
-        }
-        .border-red-200,
-        .border-red-300 {
-          border-color: #68403a !important;
-        }
-        .bg-amber-50,
-        .bg-yellow-50 {
-          background-color: #302918 !important;
-        }
-        .text-amber-600,
-        .text-yellow-500 {
-          color: #f1d38e !important;
-        }
-        .border-amber-100,
-        .border-yellow-100 {
-          border-color: #51462c !important;
-        }
-        input,
-        select,
-        textarea {
-          background-color: #17211b;
-          color: #edf3ee;
-        }
-        input::placeholder,
-        textarea::placeholder {
-          color: #87948a;
-        }
-        .v2-profile-identity {
-          background-color: #19251d !important;
-          border-color: #2d3a31 !important;
-        }
-        .v2-profile-admin {
-          background-color: #273523 !important;
-          border-color: #435538 !important;
-          color: #d4e8bc !important;
-        }
-        .v2-profile-copy:hover {
-          background-color: #243429 !important;
-        }
-        ::-webkit-scrollbar-thumb {
-          background: #344239;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-          background: #4a5b4e;
         }
       }
     </style>
@@ -261,7 +96,10 @@
       }
     </script>
   </head>
-  <body data-page="v2" class="h-screen w-screen flex overflow-hidden bg-app-bg font-sans text-text-main">
+  <body
+    data-page="v2"
+    class="h-screen w-screen flex overflow-hidden bg-app-bg font-sans text-text-main dark:bg-[#0e1511] dark:text-[#e8efe9] dark:scheme-dark"
+  >
     <template app>
       <v2-layout class="block h-full w-full"></v2-layout>
       <script setup src="/ui/app.mjs"></script>

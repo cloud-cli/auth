@@ -18,12 +18,16 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
 
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/me');
+  await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
   await expect(page.locator('#nav-menu')).toBeVisible();
   await expect(page.locator('#sidebar').getByText('auth', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Profile' })).toBeVisible();
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(14, 21, 17)');
+  await expect(page.locator('#sidebar .nav-link.active')).toHaveCSS('background-color', 'rgb(28, 42, 32)');
+  await expect(page.locator('#sidebar .nav-link.active')).toHaveCSS('color', 'rgb(215, 237, 200)');
   await expect(page.locator('main > div.bg-white')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
+  await expect(page.locator('#theme-toggle')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
   await page.goto('/me#profile');
   await expect(page.locator('.v2-profile-identity')).toHaveCSS('background-color', 'rgb(25, 37, 29)');
 
@@ -57,6 +61,7 @@ test('theme toggle follows system preference and persists explicit choice', asyn
 
   await page.goto('/me');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(14, 21, 17)');
   const toggle = page.getByRole('button', { name: 'Switch to light theme' });
   await expect(toggle).toBeVisible();
@@ -64,19 +69,24 @@ test('theme toggle follows system preference and persists explicit choice', asyn
 
   await toggle.click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('html')).not.toHaveClass(/dark/);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(238, 242, 236)');
   await expect(page.getByRole('button', { name: 'Switch to dark theme' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('auth-theme'))).toBe('light');
 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('html')).not.toHaveClass(/dark/);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(238, 242, 236)');
   await page.getByRole('button', { name: 'Switch to dark theme' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(14, 21, 17)');
   await page.evaluate(() => localStorage.removeItem('auth-theme'));
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.getByRole('button', { name: 'Switch to dark theme' })).toBeVisible();
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByRole('button', { name: 'Switch to light theme' })).toBeVisible();
 });

@@ -1,18 +1,18 @@
 <template component="v2-profile">
   <section class="content-section animate-fade-in max-w-3xl">
     <div class="mb-8 flex items-center gap-3">
-      <lucide-icon icon="user-round" size="28" class="text-brand"></lucide-icon>
+      <lucide-icon icon="user-round" size="28" class="text-brand dark:text-[#c8e6a8]"></lucide-icon>
       <div>
-        <h2 class="text-xl font-bold tracking-tight text-gray-900">Your profile</h2>
-        <p class="text-sm text-gray-500">Manage your account details and sign-in identity.</p>
+        <h2 class="text-xl font-bold tracking-tight text-gray-900 dark:text-[#eef3ef]">Your profile</h2>
+        <p class="text-sm text-gray-500 dark:text-[#aab7ad]">Manage your account details and sign-in identity.</p>
       </div>
     </div>
 
     <div
-      class="v2-profile-identity mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-[#f8faf7] p-5 sm:flex-row sm:items-center"
+      class="v2-profile-identity mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-[#f8faf7] p-5 sm:flex-row sm:items-center dark:bg-[#19251d] dark:border-[#2d3a31]"
     >
       <div
-        class="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-brand text-xl font-bold text-white"
+        class="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-brand text-xl font-bold text-white dark:bg-[#376d46]"
         aria-hidden="true"
       >
         {{ initial }}
@@ -25,22 +25,26 @@
         /></template>
       </div>
       <div class="min-w-0 flex-1">
-        <h3 class="break-words text-lg font-bold text-gray-900">{{ user.name || 'Loading profile…' }}</h3>
-        <p class="break-all text-sm text-gray-500">{{ user.email }}</p>
+        <h3 class="break-words text-lg font-bold text-gray-900 dark:text-[#eef3ef]">
+          {{ user.name || 'Loading profile…' }}
+        </h3>
+        <p class="break-all text-sm text-gray-500 dark:text-[#aab7ad]">{{ user.email }}</p>
       </div>
       <template if="user.role === 'admin'"
         ><span
-          class="v2-profile-admin inline-flex w-fit items-center gap-1.5 rounded-full border border-[#dce9ca] bg-[#edf5e4] px-3 py-1 text-xs font-semibold text-[#385642]"
+          class="v2-profile-admin dark:bg-[#273523] dark:border-[#435538] dark:text-[#d4e8bc] inline-flex w-fit items-center gap-1.5 rounded-full border border-[#dce9ca] bg-[#edf5e4] px-3 py-1 text-xs font-semibold text-[#385642]"
           aria-label="Administrator"
           ><lucide-icon icon="crown" size="14"></lucide-icon>Administrator</span
         ></template
       >
     </div>
 
-    <div class="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white px-5">
+    <div
+      class="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white px-5 dark:divide-[#2d3a31] dark:border-[#2d3a31] dark:bg-[#17211b]"
+    >
       <section class="py-5" aria-labelledby="preferred-heading">
-        <h3 id="preferred-heading" class="text-sm font-bold text-gray-900">Preferred username</h3>
-        <p class="mt-1 text-sm text-gray-500">
+        <h3 id="preferred-heading" class="text-sm font-bold text-gray-900 dark:text-[#eef3ef]">Preferred username</h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-[#aab7ad]">
           Choose a username using letters, numbers, underscores, or hyphens. It must start and end with a letter or
           number and be at most 30 characters.
         </p>
@@ -55,21 +59,23 @@
               pattern="[A-Za-z0-9]([A-Za-z0-9_-]{0,28}[A-Za-z0-9])?"
               required
               autocomplete="username"
-              class="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              class="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
               aria-describedby="v2-username-status"
             />
             <button
               type="submit"
               bind-disabled.bool="saving"
-              class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:opacity-60"
+              class="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:opacity-60 dark:bg-[#376d46]"
             >
               {{ saving ? 'Saving…' : 'Save username' }}
             </button>
           </form></template
         >
-        <p id="v2-username-status" class="mt-2 text-sm text-gray-500" role="status">{{ usernameMessage }}</p>
+        <p id="v2-username-status" class="mt-2 text-sm text-gray-500 dark:text-[#aab7ad]" role="status">
+          {{ usernameMessage }}
+        </p>
         <template if="user.preferred_username"
-          ><p class="mt-3 text-sm text-gray-600">
+          ><p class="mt-3 text-sm text-gray-600 dark:text-[#aab7ad]">
             Saved username:
             <code class="break-all font-mono font-semibold">{{ user.preferred_username }}</code>
           </p></template
@@ -79,37 +85,39 @@
       <section class="py-5" aria-labelledby="subject-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="min-w-0 flex-1">
-            <h3 id="subject-heading" class="text-sm font-bold text-gray-900">OIDC subject</h3>
-            <code id="profile-subject" class="mt-2 block break-all font-mono text-sm text-gray-600">{{ user.id }}</code>
+            <h3 id="subject-heading" class="text-sm font-bold text-gray-900 dark:text-[#eef3ef]">OIDC subject</h3>
+            <code id="profile-subject" class="mt-2 block break-all font-mono text-sm text-gray-600 dark:text-[#aab7ad]"
+              >{{ user.id }}</code
+            >
           </div>
           <button
             type="button"
             on-click="copySubject()"
-            class="v2-profile-copy rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-brand hover:bg-[#f2f7ed]"
+            class="v2-profile-copy rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-brand hover:bg-[#f2f7ed] dark:border-[#2d3a31] dark:text-[#c8e6a8]"
             aria-label="Copy OIDC subject"
           >
             Copy
           </button>
         </div>
-        <p class="mt-2 text-sm text-gray-500" role="status">{{ copyMessage }}</p>
+        <p class="mt-2 text-sm text-gray-500 dark:text-[#aab7ad]" role="status">{{ copyMessage }}</p>
       </section>
 
       <section class="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 class="text-sm font-bold text-gray-900">Sign out</h3>
-          <p class="mt-1 text-sm text-gray-500">End your current session on this device.</p>
+          <h3 class="text-sm font-bold text-gray-900 dark:text-[#eef3ef]">Sign out</h3>
+          <p class="mt-1 text-sm text-gray-500 dark:text-[#aab7ad]">End your current session on this device.</p>
         </div>
         <button
           type="button"
           on-click="signOut()"
           bind-disabled.bool="signingOut"
-          class="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+          class="rounded-lg border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60 dark:border-[#68403a] dark:text-[#ffb8ae]"
         >
           {{ signingOut ? 'Signing out…' : 'Sign out' }}
         </button>
       </section>
     </div>
-    <p class="mt-4 text-sm text-red-700" role="alert">{{ error }}</p>
+    <p class="mt-4 text-sm text-red-700 dark:text-[#ffb8ae]" role="alert">{{ error }}</p>
   </section>
 
   <script setup>

@@ -1,35 +1,35 @@
 <template component="v2-properties">
   <section class="content-section animate-fade-in">
     <div class="mb-6 flex items-center gap-3">
-      <lucide-icon icon="tag" size="28" class="text-brand"></lucide-icon>
+      <lucide-icon icon="tag" size="28" class="text-brand dark:text-[#c8e6a8]"></lucide-icon>
       <div>
-        <h2 class="text-xl font-bold text-gray-900 tracking-tight">Properties</h2>
-        <p class="text-sm text-gray-500">Private metadata shared with your connected apps.</p>
+        <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Properties</h2>
+        <p class="text-sm text-gray-500 dark:text-[#aab7ad]">Private metadata shared with your connected apps.</p>
       </div>
     </div>
 
     <div class="space-y-3">
       <template if="properties.length === 0">
-        <div class="py-8 text-center text-gray-500">No properties set yet.</div>
+        <div class="py-8 text-center text-gray-500 dark:text-[#aab7ad]">No properties set yet.</div>
       </template>
       <template for="property of properties">
         <div class="flex items-center gap-3">
           <div
-            class="w-1/3 min-w-[150px] bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg truncate"
+            class="w-1/3 min-w-[150px] bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg truncate dark:bg-[#1c2820] dark:border-[#2d3a31] dark:text-[#aab7ad]"
           >
             {{ property.key }}
           </div>
           <div class="relative min-w-0 flex-1">
             <input
               type="text"
-              class="w-full border border-gray-200 text-gray-500 text-sm font-mono px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand bg-white"
+              class="w-full border border-gray-200 text-gray-500 text-sm font-mono px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand bg-white dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
               bind-value="property.value"
               on-change="save(property)"
               readonly
             />
             <template if="property.key.includes('Secret') || property.key.includes('secret')">
               <button
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:text-[#aab7ad]"
                 on-click="copyValue(property.value)"
                 aria-label="Copy value"
               >
@@ -38,7 +38,7 @@
             </template>
           </div>
           <button
-            class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg border border-transparent hover:border-red-100 transition-colors shrink-0"
+            class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg border border-transparent hover:border-red-100 transition-colors shrink-0 dark:text-[#ffb8ae]"
             on-click="remove(property)"
             aria-label="Remove property"
           >
@@ -48,20 +48,23 @@
       </template>
 
       <!-- Add new property form -->
-      <form class="flex items-center gap-3 pt-2 border-t border-gray-100" on-submit.prevent="add()">
+      <form
+        class="flex items-center gap-3 pt-2 border-t border-gray-100 dark:border-[#2d3a31]"
+        on-submit.prevent="add()"
+      >
         <input
           ref="keyInput"
-          class="w-1/3 min-w-[150px] border border-gray-200 bg-white text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          class="w-1/3 min-w-[150px] border border-gray-200 bg-white text-gray-700 text-sm font-medium px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
           placeholder="Key"
           required
         />
         <input
           ref="valueInput"
-          class="flex-1 border border-gray-200 bg-white text-gray-700 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          class="flex-1 border border-gray-200 bg-white text-gray-700 text-sm px-4 py-2.5 rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
           placeholder="Value"
         />
         <button
-          class="bg-brand hover:bg-brand-hover text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm shrink-0"
+          class="bg-brand hover:bg-brand-hover text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm shrink-0 dark:bg-[#376d46]"
           type="submit"
         >
           Add

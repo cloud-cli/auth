@@ -3,7 +3,7 @@
     <!-- Sidebar -->
     <aside
       id="sidebar"
-      class="w-64 flex-col justify-between p-4 shrink-0 h-full absolute md:relative z-40 bg-app-bg shadow-xl md:shadow-none transition-transform -translate-x-full md:translate-x-0 flex"
+      class="w-64 flex-col justify-between p-4 shrink-0 h-full absolute md:relative z-40 bg-app-bg dark:bg-[#111a14] shadow-xl md:shadow-none transition-transform -translate-x-full md:translate-x-0 flex"
     >
       <div class="flex flex-col gap-6">
         <!-- Brand Logo -->
@@ -26,11 +26,13 @@
                 stroke-linejoin="round"
               />
             </svg>
-            <span class="text-2xl font-black tracking-tight text-brand">auth<span class="text-[#c8e6a8]">.</span></span>
+            <span class="text-2xl font-black tracking-tight text-brand dark:text-[#c8e6a8]"
+              >auth<span class="text-[#c8e6a8]">.</span></span
+            >
           </div>
           <button
             id="close-menu-btn"
-            class="md:hidden p-2 text-gray-500 hover:bg-gray-200/50 rounded-lg"
+            class="md:hidden p-2 text-gray-500 hover:bg-gray-200/50 rounded-lg dark:text-[#aab7ad] dark:hover:bg-[#1b2720]"
             aria-label="Close menu"
             on-click="closeMenu()"
           >
@@ -40,11 +42,13 @@
 
         <!-- Navigation Links -->
         <nav class="flex flex-col gap-1 mt-4" id="nav-menu" role="navigation" aria-label="Main navigation">
-          <div class="px-2 text-xs font-bold text-gray-400 tracking-wider mb-2 uppercase">Management</div>
+          <div class="px-2 text-xs font-bold text-gray-400 tracking-wider mb-2 uppercase dark:text-[#aab7ad]">
+            Management
+          </div>
 
           <button
             data-target="security"
-            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
             class-active="section === 'security'"
             on-click="navigate('security')"
           >
@@ -54,7 +58,7 @@
 
           <button
             data-target="profile"
-            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
             class-active="section === 'profile'"
             on-click="navigate('profile')"
           >
@@ -64,7 +68,7 @@
 
           <button
             data-target="properties"
-            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
             class-active="section === 'properties'"
             on-click="navigate('properties')"
           >
@@ -75,7 +79,7 @@
           <template if="admin">
             <button
               data-target="applications"
-              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
               class-active="section === 'applications'"
               on-click="navigate('applications')"
             >
@@ -85,7 +89,7 @@
 
             <button
               data-target="users"
-              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
               class-active="section === 'users'"
               on-click="navigate('users')"
             >
@@ -95,7 +99,7 @@
 
             <button
               data-target="keys"
-              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
               class-active="section === 'keys' || section === 'auth-api-tokens'"
               on-click="navigate('keys')"
             >
@@ -110,7 +114,7 @@
 
           <button
             data-target="activity"
-            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full"
+            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
             class-active="section === 'activity'"
             on-click="navigate('activity')"
           >
@@ -133,12 +137,12 @@
     <main class="flex-1 flex flex-col h-full overflow-hidden w-full relative">
       <!-- Topbar -->
       <header
-        class="h-16 flex items-center justify-between px-4 md:px-6 shrink-0 border-b border-gray-200/50 lg:border-none"
+        class="h-16 flex items-center justify-between px-4 md:px-6 shrink-0 border-b border-gray-200/50 lg:border-none dark:bg-[#111a14] dark:border-[#2d3a31]"
       >
         <div class="flex items-center gap-3">
           <button
             id="mobile-menu-btn"
-            class="md:hidden text-gray-700 p-1.5 -ml-2 hover:bg-gray-200/50 rounded-md transition-colors"
+            class="md:hidden text-gray-700 p-1.5 -ml-2 hover:bg-gray-200/50 rounded-md transition-colors dark:text-[#aab7ad] dark:hover:bg-[#1b2720]"
             aria-label="Open menu"
             on-click="openMenu()"
           >
@@ -150,7 +154,7 @@
           <button
             type="button"
             id="theme-toggle"
-            class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#aab7ad] dark:hover:bg-[#243128]"
             aria-label="Switch to dark theme"
             attr-aria-label="darkTheme ? 'Switch to light theme' : 'Switch to dark theme'"
             title="Switch theme"
@@ -161,21 +165,23 @@
           </button>
           <!-- User Profile -->
           <div
-            class="flex items-center gap-4 bg-white border border-gray-200 rounded-full pl-1.5 pr-4 py-1.5 shadow-sm"
+            class="flex items-center gap-4 bg-white border border-gray-200 rounded-full pl-1.5 pr-4 py-1.5 shadow-sm dark:bg-[#17211b] dark:border-[#2d3a31]"
           >
             <div
-              class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm shrink-0"
+              class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm shrink-0 dark:bg-[#376d46]"
               aria-hidden="true"
             >
               {{ userInitial }}
             </div>
             <div class="flex flex-col justify-center hidden sm:flex">
-              <span class="text-sm font-semibold text-gray-900 leading-tight">{{ user.name || 'User' }}</span>
-              <span class="text-[10px] text-gray-500 leading-tight">{{ user.email }}</span>
+              <span class="text-sm font-semibold text-gray-900 leading-tight dark:text-[#eef3ef]"
+                >{{ user.name || 'User' }}</span
+              >
+              <span class="text-[10px] text-gray-500 leading-tight dark:text-[#aab7ad]">{{ user.email }}</span>
             </div>
             <template if="user.role === 'admin'">
               <div
-                class="flex items-center gap-1 ml-2 text-yellow-500 bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100"
+                class="flex items-center gap-1 ml-2 text-yellow-500 bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100 dark:text-[#f1d38e] dark:bg-[#302918] dark:border-[#51462c]"
                 aria-label="Administrator"
               >
                 <lucide-icon icon="crown" size="12" class="fill-current"></lucide-icon>
@@ -187,7 +193,7 @@
 
       <!-- White Canvas Card -->
       <div
-        class="bg-white border border-gray-200 rounded-2xl shadow-sm flex-1 overflow-y-auto m-4 mt-4 md:m-6 md:mt-0 p-6 md:p-10 relative"
+        class="bg-white border border-gray-200 rounded-2xl shadow-sm flex-1 overflow-y-auto m-4 mt-4 md:m-6 md:mt-0 p-6 md:p-10 relative dark:bg-[#17211b] dark:border-[#2d3a31]"
       >
         <div class="max-w-4xl mx-auto h-full relative">
           <!-- Section Components -->
@@ -207,6 +213,14 @@
   <style>
     .animate-fade-in {
       animation: fadeIn 200ms ease-out;
+    }
+    .dark .nav-link.active {
+      background-color: #1c2a20;
+      border-color: #416b48;
+      color: #d7edc8;
+    }
+    .dark .nav-link.active lucide-icon {
+      color: #c8e6a8;
     }
     @keyframes fadeIn {
       from {
@@ -231,6 +245,12 @@
       const user = ref({ name: '', email: '', photo: '', role: '' });
       const mobileMenuOpen = ref(false);
       const darkTheme = ref(document.documentElement.dataset.theme === 'dark');
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+        const savedPreference = localStorage.getItem('auth-theme');
+        if (savedPreference !== 'dark' && savedPreference !== 'light') {
+          darkTheme.value = event.matches;
+        }
+      });
 
       const userInitial = ref('U');
 
@@ -279,6 +299,7 @@
         darkTheme.value = !darkTheme.value;
         const theme = darkTheme.value ? 'dark' : 'light';
         document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle('dark', darkTheme.value);
         localStorage.setItem('auth-theme', theme);
       }
 
