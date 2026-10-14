@@ -48,65 +48,79 @@
 
           <button
             data-target="security"
-            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-            class-active="section === 'security'"
+            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee] {{ section === 'security' ? 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : '' }}"
             on-click="navigate('security')"
           >
-            <lucide-icon icon="shield-check" size="20" class-active="section === 'security'"></lucide-icon>
+            <lucide-icon
+              icon="shield-check"
+              size="20"
+              class="{{ section === 'security' ? 'dark:text-nav-active-dark-icon' : '' }}"
+            ></lucide-icon>
             <span>Security</span>
           </button>
 
           <button
             data-target="profile"
-            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-            class-active="section === 'profile'"
+            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee] {{ section === 'profile' ? 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : '' }}"
             on-click="navigate('profile')"
           >
-            <lucide-icon icon="user-round" size="20" class-active="section === 'profile'"></lucide-icon>
+            <lucide-icon
+              icon="user-round"
+              size="20"
+              class="{{ section === 'profile' ? 'dark:text-nav-active-dark-icon' : '' }}"
+            ></lucide-icon>
             <span>Profile</span>
           </button>
 
           <button
             data-target="properties"
-            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-            class-active="section === 'properties'"
+            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee] {{ section === 'properties' ? 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : '' }}"
             on-click="navigate('properties')"
           >
-            <lucide-icon icon="tag" size="20" class-active="section === 'properties'"></lucide-icon>
+            <lucide-icon
+              icon="tag"
+              size="20"
+              class="{{ section === 'properties' ? 'dark:text-nav-active-dark-icon' : '' }}"
+            ></lucide-icon>
             <span>Properties</span>
           </button>
 
           <template if="admin">
             <button
               data-target="applications"
-              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-              class-active="section === 'applications'"
+              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee] {{ section === 'applications' ? 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : '' }}"
               on-click="navigate('applications')"
             >
-              <lucide-icon icon="app-window" size="20" class-active="section === 'applications'"></lucide-icon>
+              <lucide-icon
+                icon="app-window"
+                size="20"
+                class="{{ section === 'applications' ? 'dark:text-nav-active-dark-icon' : '' }}"
+              ></lucide-icon>
               <span>Applications</span>
             </button>
 
             <button
               data-target="users"
-              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-              class-active="section === 'users'"
+              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee] {{ section === 'users' ? 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : '' }}"
               on-click="navigate('users')"
             >
-              <lucide-icon icon="users" size="20" class-active="section === 'users'"></lucide-icon>
+              <lucide-icon
+                icon="users"
+                size="20"
+                class="{{ section === 'users' ? 'dark:text-nav-active-dark-icon' : '' }}"
+              ></lucide-icon>
               <span>Users</span>
             </button>
 
             <button
               data-target="keys"
-              class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-              class-active="section === 'keys' || section === 'auth-api-tokens'"
+              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee] {{ section === 'keys' || section === 'auth-api-tokens' ? 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : '' }}"
               on-click="navigate('keys')"
             >
               <lucide-icon
                 icon="key-round"
                 size="20"
-                class-active="section === 'keys' || section === 'auth-api-tokens'"
+                class="{{ section === 'keys' || section === 'auth-api-tokens' ? 'dark:text-nav-active-dark-icon' : '' }}"
               ></lucide-icon>
               <span>Keys & tokens</span>
             </button>
@@ -114,11 +128,14 @@
 
           <button
             data-target="activity"
-            class="nav-link px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-            class-active="section === 'activity'"
+            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee] {{ section === 'activity' ? 'bg-white border-nav-active text-nav-active shadow-sm hover:!bg-white hover:!border-nav-active hover:!text-nav-active dark:bg-nav-active-dark-bg dark:border-nav-active-dark-border dark:text-nav-active-dark-text dark:hover:!bg-nav-active-dark-bg dark:hover:!border-nav-active-dark-border dark:hover:!text-nav-active-dark-text' : '' }}"
             on-click="navigate('activity')"
           >
-            <lucide-icon icon="list-ordered" size="20" class-active="section === 'activity'"></lucide-icon>
+            <lucide-icon
+              icon="list-ordered"
+              size="20"
+              class="{{ section === 'activity' ? 'dark:text-nav-active-dark-icon' : '' }}"
+            ></lucide-icon>
             <span>Activity</span>
           </button>
         </nav>
@@ -211,14 +228,6 @@
   <style>
     .animate-fade-in {
       animation: fadeIn 200ms ease-out;
-    }
-    .dark .nav-link.active {
-      background-color: #1c2a20;
-      border-color: #416b48;
-      color: #d7edc8;
-    }
-    .dark .nav-link.active lucide-icon {
-      color: #c8e6a8;
     }
     @keyframes fadeIn {
       from {
