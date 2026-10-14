@@ -152,6 +152,7 @@
             id="theme-toggle"
             class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             aria-label="Switch to dark theme"
+            attr-aria-label="darkTheme ? 'Switch to light theme' : 'Switch to dark theme'"
             title="Switch theme"
             on-click="toggleTheme()"
           >
@@ -231,11 +232,6 @@
       const mobileMenuOpen = ref(false);
       const darkTheme = ref(document.documentElement.dataset.theme === 'dark');
 
-      function updateThemeToggleLabel() {
-        const button = document.getElementById('theme-toggle');
-        if (button) button.setAttribute('aria-label', `Switch to ${darkTheme.value ? 'light' : 'dark'} theme`);
-      }
-
       const userInitial = ref('U');
 
       async function loadProfile() {
@@ -284,12 +280,10 @@
         const theme = darkTheme.value ? 'dark' : 'light';
         document.documentElement.dataset.theme = theme;
         localStorage.setItem('auth-theme', theme);
-        updateThemeToggleLabel();
       }
 
       // Initialize
       loadProfile().catch(console.error);
-      updateThemeToggleLabel();
       addEventListener('hashchange', () => {
         section.value = sectionForHash(location.hash.slice(1));
       });
