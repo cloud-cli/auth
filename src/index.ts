@@ -70,6 +70,7 @@ import {
   revokePresentedApiToken,
   verifyAuthApiToken,
 } from './api-tokens.js';
+import { parseBasicClientCredentials } from './oauth-client-auth.js';
 import {
   approveQrLogin,
   completeQrLogin,
@@ -825,11 +826,10 @@ app.delete('/api/v1/api-tokens/:clientId/:tokenId', adminRoute, async (req, res)
   res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
 app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (req, res) => {
-  const authorization = req.get('authorization') || '';
-  const [clientId, clientSecret] = authorization.startsWith('Basic ')
-    ? Buffer.from(authorization.slice(6), 'base64').toString().split(':')
-    : ['', ''];
-  const result = await introspectApiToken(String(req.body?.token || ''), clientId, clientSecret);
+  const credentials = parseBasicClientCredentials(req.get('authorization') || '');
+  const result = credentials
+    ? await introspectApiToken(String(req.body?.token || ''), credentials.clientId, credentials.clientSecret)
+    : null;
   res
     .set('Cache-Control', 'no-store')
     .set('X-Token-Expires-At', String(result?.exp || 0))
@@ -1116,19 +1116,14 @@ app.get('/logout', async (req, res) => {
   });
 });
 app.post('/api/v1/revoke', express.urlencoded({ extended: false }), async (req, res) => {
-  const authHeader = req.get('authorization') || '';
-  const decodedCredentials = authHeader.startsWith('Basic ')
-    ? Buffer.from(authHeader.slice(6), 'base64').toString()
-    : '';
-  const separator = decodedCredentials.indexOf(':');
-  const clientId = separator < 0 ? '' : decodedCredentials.slice(0, separator);
-  const clientSecret = separator < 0 ? '' : decodedCredentials.slice(separator + 1);
-  const client = await getClient(clientId);
-  if (!client || !(await verifyClientSecret(client, clientSecret))) {
+  const credentials = parseBasicClientCredentials(req.get('authorization') || '');
+  if (!credentials) return res.status(401).json({ error: 'invalid_client' });
+  const client = await getClient(credentials.clientId);
+  if (!client || !(await verifyClientSecret(client, credentials.clientSecret))) {
     return res.status(401).json({ error: 'invalid_client' });
   }
   const token = typeof req.body?.token === 'string' ? req.body.token : '';
-  if (token) await revokePresentedApiToken(token, clientId);
+  if (token) await revokePresentedApiToken(token, credentials.clientId);
   res.sendStatus(200);
 });
 app.get('/.well-known/jwks.json', async (_req, res) => {
