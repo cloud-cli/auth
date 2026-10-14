@@ -30,11 +30,11 @@
           extend: {
             colors: {
               'app-bg': '#eef2ec',
-              brand: '#263d32',
+              brand: '#1E3A2F',
               'brand-hover': '#13271f',
               accent: '#3b714b',
               'accent-hover': '#2f563b',
-              'text-main': '#263d32',
+              'text-main': '#1c201e',
             },
             fontFamily: {
               sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -61,6 +61,15 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8;
+      }
+      .nav-link.active {
+        background-color: white;
+        border-color: #1e3a2f;
+        color: #1e3a2f;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      }
+      .nav-link.active i {
+        color: #1e3a2f;
       }
       @media (prefers-reduced-motion: reduce) {
         *,

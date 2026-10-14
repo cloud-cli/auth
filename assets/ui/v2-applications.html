@@ -2,7 +2,7 @@
   <section class="content-section animate-fade-in">
     <div class="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
       <div>
-        <h2 class="text-xl font-bold text-brand tracking-tight dark:text-[#eef3ef]">Applications</h2>
+        <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Applications</h2>
         <p class="text-sm text-gray-500 mt-1 max-w-2xl dark:text-[#aab7ad]">
           Confidential clients are server-side apps that can keep a client secret. Public/native clients run on phones
           or desktops and use PKCE without a secret.
@@ -10,7 +10,7 @@
       </div>
       <template if="admin">
         <button
-          class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#376d46] dark:hover:bg-[#2f563b]"
+          class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#376d46]"
           on-click="toggleForm()"
         >
           <lucide-icon icon="plus" size="16"></lucide-icon>Add app
@@ -41,7 +41,7 @@
                     size="14"
                     class="text-gray-400 shrink-0 dark:text-[#aab7ad]"
                   ></lucide-icon>
-                  <span class="font-semibold text-brand text-sm truncate dark:text-[#eef3ef]">{{ app.id }}</span>
+                  <span class="font-semibold text-gray-900 text-sm truncate dark:text-[#eef3ef]">{{ app.id }}</span>
                   <span class="text-gray-400 text-sm dark:text-[#aab7ad]">&middot;</span>
                   <span class="text-gray-500 text-sm font-medium dark:text-[#aab7ad]"
                     >{{ app.isPublic ? 'Public client' : 'Confidential client' }}</span

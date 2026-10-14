@@ -3,8 +3,8 @@
     <!-- Signing Keys -->
     <div class="mb-10 border-b border-gray-100 pb-8 dark:border-[#2d3a31]">
       <div class="flex items-center gap-3 mb-2">
-        <lucide-icon icon="key-round" size="28" class="text-brand dark:text-[#768863]"></lucide-icon>
-        <h2 class="text-xl font-bold text-brand tracking-tight dark:text-[#eef3ef]">Signing keys</h2>
+        <lucide-icon icon="key-round" size="28" class="text-brand dark:text-[#c8e6a8]"></lucide-icon>
+        <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Signing keys</h2>
       </div>
       <p class="text-sm text-gray-500 mb-6 dark:text-[#aab7ad]">Rotate signing keys without changing OIDC clients.</p>
 
@@ -12,7 +12,7 @@
         class="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg mb-4 dark:bg-[#1c2820] dark:border-[#2d3a31]"
       >
         <template for="key of keys">
-          <span class="font-mono text-sm text-brand dark:text-[#eef3ef]">{{ key.kid }}</span>
+          <span class="font-mono text-sm text-gray-800 dark:text-[#eef3ef]">{{ key.kid }}</span>
           <span
             class="text-xs font-semibold uppercase tracking-wider text-green-600 bg-green-100 px-2 py-0.5 rounded-full dark:text-[#c5e8c5] dark:bg-[#1d3022]"
             >{{ key.status }}</span
@@ -30,7 +30,7 @@
 
     <!-- Auth API Tokens -->
     <div>
-      <h2 class="text-xl font-bold text-brand tracking-tight mb-2 dark:text-[#eef3ef]">Auth API tokens</h2>
+      <h2 class="text-xl font-bold text-gray-900 tracking-tight mb-2 dark:text-[#eef3ef]">Auth API tokens</h2>
       <p class="text-sm text-gray-500 mb-6 dark:text-[#aab7ad]">
         Machine tokens for a registered client to call Auth's scoped API. These are not sign-in tokens and do not grant
         dashboard access.
@@ -38,7 +38,7 @@
 
       <div class="relative mb-8">
         <select
-          class="w-full appearance-none bg-white border border-gray-300 text-brand text-sm rounded-lg focus:ring-brand focus:border-brand block p-3 pr-10 shadow-sm cursor-pointer outline-none dark:bg-[#17211b] dark:border-[#2d3a31] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-3 pr-10 shadow-sm cursor-pointer outline-none dark:bg-[#17211b] dark:border-[#2d3a31] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
           bind-value="selectedClient"
           on-change="selectClient($event.target.value)"
         >
@@ -52,7 +52,7 @@
         </div>
       </div>
 
-      <h3 class="text-sm font-bold text-brand mb-4 dark:text-[#eef3ef]">Previously minted tokens across all apps</h3>
+      <h3 class="text-sm font-bold text-gray-800 mb-4 dark:text-[#eef3ef]">Previously minted tokens across all apps</h3>
 
       <template if="createdToken">
         <v2-copy-value-box
@@ -71,7 +71,7 @@
         </template>
         <template for="entry of visibleTokens">
           <div class="flex justify-between items-start mb-1">
-            <h4 class="font-bold text-brand dark:text-[#eef3ef]">{{ entry.token.label }}</h4>
+            <h4 class="font-bold text-gray-900 dark:text-[#eef3ef]">{{ entry.token.label }}</h4>
             <div class="flex items-center gap-4">
               <button
                 class="text-red-600 hover:text-red-800 text-sm font-semibold transition-colors dark:text-[#ffb8ae]"
@@ -88,7 +88,7 @@
               >
             </div>
           </div>
-          <div class="text-sm font-medium text-accent mb-1 dark:text-[#768863]">App: {{ entry.appId }}</div>
+          <div class="text-sm font-medium text-accent mb-1 dark:text-[#c8e6a8]">App: {{ entry.appId }}</div>
           <div class="text-xs text-gray-500 font-mono dark:text-[#aab7ad]">
             {{ entry.token.scopes.join(', ') }} · expires {{ entry.token.expiresAt }}
           </div>
@@ -97,7 +97,7 @@
 
       <template if="selectedClient">
         <form
-          class="mt-6 grid gap-3 rounded-xl bg-brand/5 p-4 border border-brand/10 dark:bg-[#768863]/[0.06]"
+          class="mt-6 grid gap-3 rounded-xl bg-brand/5 p-4 border border-brand/10 dark:bg-[#c8e6a8]/[0.06]"
           on-submit.prevent="createToken()"
         >
           <input
@@ -107,13 +107,13 @@
             placeholder="Token label"
             required
           />
-          <p class="rounded-lg bg-brand/5 p-3 text-sm text-brand dark:bg-[#768863]/[0.06] dark:text-[#aab7ad]">
+          <p class="rounded-lg bg-brand/5 p-3 text-sm text-gray-600 dark:bg-[#c8e6a8]/[0.06] dark:text-[#aab7ad]">
             This token has one fixed permission: mint scoped API tokens and append downstream scopes for this client.
             Existing scopes cannot be removed with this token; other clients and administrative operations are not
             available to it.
           </p>
           <button
-            class="rounded-lg bg-brand hover:bg-brand-hover px-4 py-2 font-bold text-white dark:bg-[#376d46] dark:hover:bg-[#2f563b]"
+            class="rounded-lg bg-brand hover:bg-brand-hover px-4 py-2 font-bold text-white dark:bg-[#376d46]"
             type="button"
             on-click="createToken()"
           >
