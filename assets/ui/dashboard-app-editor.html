@@ -252,13 +252,15 @@
         >
       </div>
       <p class="text-xs text-red-600 dark:text-[#ffb8ae]">{{ tokenError }}</p>
-      <button
-        class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white dark:bg-[#376d46]"
-        type="button"
-        on-click="createToken()"
-      >
-        Generate token
-      </button>
+      <div class="flex justify-end">
+        <button
+          class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-hover dark:bg-[#376d46]"
+          type="button"
+          on-click="createToken()"
+        >
+          Generate token
+        </button>
+      </div>
     </div>
     <template if="createdToken"
       ><v2-copy-value-box
