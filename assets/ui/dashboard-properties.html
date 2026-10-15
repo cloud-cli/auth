@@ -27,15 +27,6 @@
               on-change="save(property)"
               readonly
             />
-            <template if="property.key.includes('Secret') || property.key.includes('secret')">
-              <button
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:text-[#aab7ad]"
-                on-click="copyValue(property.value)"
-                aria-label="Copy value"
-              >
-                Copy
-              </button>
-            </template>
           </div>
           <button
             class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2.5 rounded-lg border border-transparent hover:border-red-100 transition-colors shrink-0 dark:text-[#ffb8ae]"
@@ -106,13 +97,8 @@
         await load();
       };
 
-      const copyValue = async (value) => {
-        await navigator.clipboard.writeText(value);
-        // Could add toast notification here
-      };
-
       load();
-      return { properties, keyInput, valueInput, save, remove, add, copyValue };
+      return { properties, keyInput, valueInput, save, remove, add };
     }
   </script>
 </template>

@@ -39,9 +39,11 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
   await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
   await expect(page.locator('#nav-menu')).toBeVisible();
+  await expect(page.locator('#nav-menu').getByText('Management', { exact: true })).toHaveCount(0);
   await expect(page.locator('#sidebar').getByText('auth', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Profile' })).toBeVisible();
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(14, 21, 17)');
+  await expect(page.locator('main')).toHaveCSS('padding-top', '16px');
   await expect(page.locator('#sidebar')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('main > header')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(page.locator('main > header')).toHaveCSS('border-bottom-width', '0px');
@@ -61,6 +63,8 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
   await expect(securityNavLink).toHaveCSS('border-top-color', 'rgb(30, 58, 47)');
   await expect(securityNavLink).toHaveCSS('color', 'rgb(30, 58, 47)');
   await expect(securityNavLink.locator('lucide-icon')).toHaveCSS('color', 'rgb(30, 58, 47)');
+  await profileNavLink.hover();
+  await expect(profileNavLink).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await securityNavLink.hover();
   await expect(securityNavLink).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await expect(securityNavLink).toHaveCSS('border-top-color', 'rgb(30, 58, 47)');

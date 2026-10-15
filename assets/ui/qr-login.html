@@ -29,7 +29,9 @@
         <p class="text-slate-500">Open Auth on your phone and scan this one-time code.</p>
         <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet/10 to-emerald-100 p-4">
           <img class="w-full rounded-2xl" attr-src="qr" alt="Login QR code" />
-          <div class="qr-scan absolute inset-x-4 top-4 h-1 bg-rose-400 shadow-lg shadow-rose-400"></div>
+          <div
+            class="absolute inset-x-4 top-4 h-1 animate-[qr-scan_2.4s_ease-in-out_infinite] bg-rose-400 shadow-lg shadow-rose-400"
+          ></div>
         </div>
         <p class="font-semibold text-emerald-600">{{ status }}</p>
         <a class="font-semibold text-violet" attr-href="pwaUrl">Open Auth PWA</a>

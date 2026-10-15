@@ -2,7 +2,25 @@ import { test, expect } from '@playwright/test';
 
 const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
 
+async function allowLocalLi3Imports(page: import('@playwright/test').Page) {
+  const baseURL = process.env.INTEGRATION_BASE_URL || 'http://127.0.0.1:3000';
+  if (new URL(baseURL).hostname !== '127.0.0.1') {
+    return;
+  }
+
+  await page.route('https://cdn.li3.dev/**', async (route) => {
+    const response = await route.fetch({
+      headers: { ...route.request().headers(), origin: 'https://auth.lab.apphor.de' },
+    });
+    await route.fulfill({
+      response,
+      headers: { ...response.headers(), 'access-control-allow-origin': '*' },
+    });
+  });
+}
+
 test('landing page is available', async ({ page }) => {
+  await allowLocalLi3Imports(page);
   await page.goto('/');
   await expect(page).toHaveTitle('Auth');
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
@@ -12,10 +30,11 @@ test('landing page is available', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(16, 23, 19)');
-  await expect(page.locator('.landing-card')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
+  await expect(page.getByTestId('landing-card')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
 });
 
 test('login uses the forest and mint sign-in presentation', async ({ page }) => {
+  await allowLocalLi3Imports(page);
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/login');
@@ -38,7 +57,7 @@ test('login uses the forest and mint sign-in presentation', async ({ page }) => 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(16, 23, 19)');
-  await expect(page.locator('.login-card')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
+  await expect(page.getByTestId('login-card')).toHaveCSS('background-color', 'rgb(23, 33, 27)');
   if (!testKey) {
     await page.keyboard.press('Tab');
     await page.keyboard.press('Tab');
@@ -49,10 +68,12 @@ test('login uses the forest and mint sign-in presentation', async ({ page }) => 
 });
 
 test('passkey action stays legible on keyboard focus in either color scheme', async ({ page }) => {
+  await allowLocalLi3Imports(page);
   await page.goto('/login');
   await page.locator('body').evaluate((body) => {
     const passkey = document.createElement('a');
-    passkey.className = 'login-passkey';
+    passkey.className =
+      'flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-4 font-bold text-accent transition hover:bg-[#1a2a22] hover:shadow-md focus-visible:bg-[#376d46] focus-visible:text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-accent focus-visible:ring-2 focus-visible:ring-accent dark:focus-visible:outline-[#c8e6a8]';
     passkey.href = '#passkey-focus-test';
     passkey.textContent = 'Use a passkey';
     body.prepend(passkey);
@@ -106,6 +127,7 @@ test('legacy v2 route is removed while dashboard components remain available', a
 
 test('default dashboard loads v2 profile and admin user details', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
+  await allowLocalLi3Imports(page);
   await page.goto('/');
   await page.evaluate(async (secret) => {
     await fetch('/__test__/login', {
@@ -146,6 +168,7 @@ test('default dashboard loads v2 profile and admin user details', async ({ page 
   const propertyRow = page.locator('div.flex.items-center.gap-3').filter({ hasText: propertyKey });
   const propertyValue = propertyRow.locator('input[readonly]');
   await expect(propertyValue).toHaveValue('v2-e2e-value');
+  await expect(propertyRow.getByRole('button', { name: 'Copy value' })).toHaveCount(0);
   expect(await propertyValue.evaluate((input) => getComputedStyle(input).filter)).toBe('none');
   page.once('dialog', (dialog) => dialog.accept());
   await propertyRow.getByRole('button', { name: 'Remove property' }).click();
@@ -655,6 +678,7 @@ test('test users can access application and token management', async ({ page }) 
 
 test('test-only session can access the dashboard sections', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
+  await allowLocalLi3Imports(page);
   await page.goto('/');
   const response = await page.evaluate(
     async (secret) =>
@@ -681,6 +705,7 @@ test('test-only session can access the dashboard sections', async ({ page }) => 
 
 test('v2 dashboard and profile page stay compact at mobile widths', async ({ page }) => {
   test.skip(!testKey, 'Requires a test-enabled deployment');
+  await allowLocalLi3Imports(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.evaluate(

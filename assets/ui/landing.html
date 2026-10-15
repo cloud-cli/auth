@@ -30,19 +30,11 @@
         color: #263d32;
         font-family: Inter, system-ui, sans-serif;
       }
-      .landing-card {
-        background: radial-gradient(circle at 100% 0%, rgba(200, 230, 168, 0.4), transparent 50%);
-      }
       @media (prefers-color-scheme: dark) {
         body {
           background: #101713 !important;
           color: #edf3ee;
           color-scheme: dark;
-        }
-        .landing-card {
-          background-color: #17211b !important;
-          background-image: radial-gradient(circle at 100% 0%, rgba(200, 230, 168, 0.12), transparent 52%);
-          border-color: #2b3a30 !important;
         }
         .text-brand {
           color: #d5edc2 !important;
@@ -56,10 +48,6 @@
         }
         .border-slate-200 {
           border-color: #344239 !important;
-        }
-        .landing-card a:focus-visible {
-          outline: 2px solid #c8e6a8 !important;
-          outline-offset: 3px;
         }
       }
     </style>
@@ -93,7 +81,8 @@
           </p>
         </section>
         <section
-          class="landing-card relative mx-auto grid w-full max-w-md gap-4 overflow-hidden rounded-[2rem] border border-white/70 bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] sm:p-10"
+          data-testid="landing-card"
+          class="relative mx-auto grid w-full max-w-md gap-4 overflow-hidden rounded-[2rem] border border-white/70 bg-white bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.4),transparent_50%)] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] sm:p-10 dark:border-[#2b3a30] dark:bg-[#17211b] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.12),transparent_52%)]"
         >
           <h2 class="text-2xl font-extrabold tracking-tight">Ready when you are.</h2>
           <p class="text-sm font-medium text-slate-500">

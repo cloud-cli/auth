@@ -41,14 +41,10 @@
         </div>
 
         <!-- Navigation Links -->
-        <nav class="flex flex-col gap-1 mt-4" id="nav-menu" role="navigation" aria-label="Main navigation">
-          <div class="px-2 text-xs font-bold text-gray-400 tracking-wider mb-2 uppercase dark:text-[#aab7ad]">
-            Management
-          </div>
-
+        <nav class="flex flex-col gap-1" id="nav-menu" role="navigation" aria-label="Main navigation">
           <button
             data-target="security"
-            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
+            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-white hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
             bind-class="{ 'bg-white': section === 'security', 'border-nav-active': section === 'security', 'text-nav-active': section === 'security', 'shadow-sm': section === 'security', 'hover:!bg-white': section === 'security', 'hover:!border-nav-active': section === 'security', 'hover:!text-nav-active': section === 'security', 'dark:bg-nav-active-dark-bg': section === 'security', 'dark:border-nav-active-dark-border': section === 'security', 'dark:text-nav-active-dark-text': section === 'security', 'dark:hover:!bg-nav-active-dark-bg': section === 'security', 'dark:hover:!border-nav-active-dark-border': section === 'security', 'dark:hover:!text-nav-active-dark-text': section === 'security' }"
             on-click="navigate('security')"
           >
@@ -62,7 +58,7 @@
 
           <button
             data-target="profile"
-            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
+            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-white hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
             bind-class="{ 'bg-white': section === 'profile', 'border-nav-active': section === 'profile', 'text-nav-active': section === 'profile', 'shadow-sm': section === 'profile', 'hover:!bg-white': section === 'profile', 'hover:!border-nav-active': section === 'profile', 'hover:!text-nav-active': section === 'profile', 'dark:bg-nav-active-dark-bg': section === 'profile', 'dark:border-nav-active-dark-border': section === 'profile', 'dark:text-nav-active-dark-text': section === 'profile', 'dark:hover:!bg-nav-active-dark-bg': section === 'profile', 'dark:hover:!border-nav-active-dark-border': section === 'profile', 'dark:hover:!text-nav-active-dark-text': section === 'profile' }"
             on-click="navigate('profile')"
           >
@@ -76,7 +72,7 @@
 
           <button
             data-target="properties"
-            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
+            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-white hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
             bind-class="{ 'bg-white': section === 'properties', 'border-nav-active': section === 'properties', 'text-nav-active': section === 'properties', 'shadow-sm': section === 'properties', 'hover:!bg-white': section === 'properties', 'hover:!border-nav-active': section === 'properties', 'hover:!text-nav-active': section === 'properties', 'dark:bg-nav-active-dark-bg': section === 'properties', 'dark:border-nav-active-dark-border': section === 'properties', 'dark:text-nav-active-dark-text': section === 'properties', 'dark:hover:!bg-nav-active-dark-bg': section === 'properties', 'dark:hover:!border-nav-active-dark-border': section === 'properties', 'dark:hover:!text-nav-active-dark-text': section === 'properties' }"
             on-click="navigate('properties')"
           >
@@ -91,7 +87,7 @@
           <template if="admin">
             <button
               data-target="applications"
-              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
+              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-white hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
               bind-class="{ 'bg-white': section === 'applications', 'border-nav-active': section === 'applications', 'text-nav-active': section === 'applications', 'shadow-sm': section === 'applications', 'hover:!bg-white': section === 'applications', 'hover:!border-nav-active': section === 'applications', 'hover:!text-nav-active': section === 'applications', 'dark:bg-nav-active-dark-bg': section === 'applications', 'dark:border-nav-active-dark-border': section === 'applications', 'dark:text-nav-active-dark-text': section === 'applications', 'dark:hover:!bg-nav-active-dark-bg': section === 'applications', 'dark:hover:!border-nav-active-dark-border': section === 'applications', 'dark:hover:!text-nav-active-dark-text': section === 'applications' }"
               on-click="navigate('applications')"
             >
@@ -105,7 +101,7 @@
 
             <button
               data-target="users"
-              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
+              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-white hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
               bind-class="{ 'bg-white': section === 'users', 'border-nav-active': section === 'users', 'text-nav-active': section === 'users', 'shadow-sm': section === 'users', 'hover:!bg-white': section === 'users', 'hover:!border-nav-active': section === 'users', 'hover:!text-nav-active': section === 'users', 'dark:bg-nav-active-dark-bg': section === 'users', 'dark:border-nav-active-dark-border': section === 'users', 'dark:text-nav-active-dark-text': section === 'users', 'dark:hover:!bg-nav-active-dark-bg': section === 'users', 'dark:hover:!border-nav-active-dark-border': section === 'users', 'dark:hover:!text-nav-active-dark-text': section === 'users' }"
               on-click="navigate('users')"
             >
@@ -119,7 +115,7 @@
 
             <button
               data-target="keys"
-              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
+              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-white hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
               bind-class="{ 'bg-white': section === 'keys' || section === 'auth-api-tokens', 'border-nav-active': section === 'keys' || section === 'auth-api-tokens', 'text-nav-active': section === 'keys' || section === 'auth-api-tokens', 'shadow-sm': section === 'keys' || section === 'auth-api-tokens', 'hover:!bg-white': section === 'keys' || section === 'auth-api-tokens', 'hover:!border-nav-active': section === 'keys' || section === 'auth-api-tokens', 'hover:!text-nav-active': section === 'keys' || section === 'auth-api-tokens', 'dark:bg-nav-active-dark-bg': section === 'keys' || section === 'auth-api-tokens', 'dark:border-nav-active-dark-border': section === 'keys' || section === 'auth-api-tokens', 'dark:text-nav-active-dark-text': section === 'keys' || section === 'auth-api-tokens', 'dark:hover:!bg-nav-active-dark-bg': section === 'keys' || section === 'auth-api-tokens', 'dark:hover:!border-nav-active-dark-border': section === 'keys' || section === 'auth-api-tokens', 'dark:hover:!text-nav-active-dark-text': section === 'keys' || section === 'auth-api-tokens' }"
               on-click="navigate('keys')"
             >
@@ -134,7 +130,7 @@
 
           <button
             data-target="activity"
-            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-gray-200/50 hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
+            class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-white hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
             bind-class="{ 'bg-white': section === 'activity', 'border-nav-active': section === 'activity', 'text-nav-active': section === 'activity', 'shadow-sm': section === 'activity', 'hover:!bg-white': section === 'activity', 'hover:!border-nav-active': section === 'activity', 'hover:!text-nav-active': section === 'activity', 'dark:bg-nav-active-dark-bg': section === 'activity', 'dark:border-nav-active-dark-border': section === 'activity', 'dark:text-nav-active-dark-text': section === 'activity', 'dark:hover:!bg-nav-active-dark-bg': section === 'activity', 'dark:hover:!border-nav-active-dark-border': section === 'activity', 'dark:hover:!text-nav-active-dark-text': section === 'activity' }"
             on-click="navigate('activity')"
           >
@@ -158,7 +154,7 @@
     ></div>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden w-full relative">
+    <main class="flex-1 flex flex-col h-full overflow-hidden w-full relative pt-4">
       <!-- Topbar -->
       <header class="h-16 flex items-center justify-between px-4 md:px-6 shrink-0 dark:bg-transparent">
         <div class="flex items-center gap-3">
@@ -215,18 +211,16 @@
 
       <!-- White Canvas Card -->
       <div
-        class="bg-white border border-gray-200 rounded-2xl shadow-sm flex-1 overflow-y-auto m-4 mt-4 md:m-6 md:mt-0 p-6 md:p-10 relative dark:bg-[#17211b] dark:border-[#2d3a31]"
+        class="bg-white border border-gray-200 rounded-2xl shadow-sm flex-1 overflow-y-auto m-4 sm:ml-4 md:m-6 md:mt-0 p-6 pb-12 md:p-10 md:pb-16 relative dark:bg-[#17211b] dark:border-[#2d3a31]"
       >
-        <div class="h-full relative">
-          <!-- Section Components -->
-          <template if="section === 'security'"><v2-security></v2-security></template>
-          <template if="section === 'profile'"><v2-profile></v2-profile></template>
-          <template if="section === 'properties'"><v2-properties></v2-properties></template>
-          <template if="section === 'applications'"><v2-applications></v2-applications></template>
-          <template if="section === 'users'"><v2-users></v2-users></template>
-          <template if="section === 'keys'"><v2-keys></v2-keys></template>
-          <template if="section === 'activity'"><v2-activity></v2-activity></template>
-        </div>
+        <!-- Section Components -->
+        <template if="section === 'security'"><v2-security></v2-security></template>
+        <template if="section === 'profile'"><v2-profile></v2-profile></template>
+        <template if="section === 'properties'"><v2-properties></v2-properties></template>
+        <template if="section === 'applications'"><v2-applications></v2-applications></template>
+        <template if="section === 'users'"><v2-users></v2-users></template>
+        <template if="section === 'keys'"><v2-keys></v2-keys></template>
+        <template if="section === 'activity'"><v2-activity></v2-activity></template>
       </div>
     </main>
   </div>

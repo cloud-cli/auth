@@ -30,50 +30,11 @@
         color: #263d32;
         font-family: Inter, system-ui, sans-serif;
       }
-      .card-glow {
-        background: radial-gradient(circle at 100% 0%, rgba(200, 230, 168, 0.4), transparent 50%);
-      }
-      .login-passkey:focus-visible {
-        background-color: #376d46 !important;
-        color: #fff !important;
-        outline: 3px solid #c8e6a8;
-        outline-offset: 3px;
-      }
       @media (prefers-color-scheme: dark) {
         body {
           background: #101713 !important;
           color: #edf3ee;
           color-scheme: dark;
-        }
-        .login-card {
-          background-color: #17211b !important;
-          border-color: #2b3a30 !important;
-        }
-        .card-glow {
-          background-image: radial-gradient(circle at 100% 0%, rgba(200, 230, 168, 0.12), transparent 52%);
-        }
-        .login-google {
-          background-color: #202b24 !important;
-          border-color: #3a4940 !important;
-          color: #edf3ee !important;
-        }
-        .login-google:hover {
-          background-color: #29372f !important;
-        }
-        .login-card a:focus-visible,
-        .login-card summary:focus-visible {
-          outline-color: #c8e6a8 !important;
-        }
-        .login-hero-copy {
-          color: #aab8ad !important;
-        }
-        .login-alt-primary {
-          background-color: #2b4432 !important;
-          color: #d9f0c9 !important;
-        }
-        .login-alt-secondary {
-          background-color: #26312a !important;
-          color: #d2d9d3 !important;
         }
         .text-brand {
           color: #d5edc2 !important;
@@ -134,14 +95,15 @@
             A single auth for every app.
           </h1>
           <p
-            class="login-hero-copy mx-auto mt-6 max-w-lg text-lg font-medium leading-relaxed text-[#4b6b5a] md:mx-0 md:text-xl"
+            class="mx-auto mt-6 max-w-lg text-lg font-medium leading-relaxed text-[#4b6b5a] md:mx-0 md:text-xl dark:text-[#aab8ad]"
           >
             Simple, cross-device and secure. Keep things moving.
           </p>
         </section>
         <div class="mx-auto w-full max-w-md">
           <section
-            class="login-card card-glow relative grid gap-3 overflow-hidden rounded-[2rem] border border-white/70 bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] sm:p-10"
+            data-testid="login-card"
+            class="relative grid gap-3 overflow-hidden rounded-[2rem] border border-white/70 bg-white bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.4),transparent_50%)] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] sm:p-10 dark:border-[#2b3a30] dark:bg-[#17211b] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.12),transparent_52%)]"
           >
             <div class="mb-2">
               <h2 class="text-2xl font-extrabold tracking-tight">Welcome back</h2>
@@ -151,7 +113,7 @@
             <template if="!testLoginEnabled"
               ><div class="grid gap-3">
                 <a
-                  class="login-google group flex min-h-12 items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 font-bold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  class="group flex min-h-12 items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 font-bold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-[#3a4940] dark:bg-[#202b24] dark:text-[#edf3ee] dark:hover:bg-[#29372f] dark:focus-visible:outline-[#c8e6a8]"
                   href="/auth/google"
                   ><img
                     class="h-5 w-5 transition-transform group-hover:scale-105"
@@ -159,7 +121,7 @@
                     alt=""
                   />Continue with Google</a
                 ><a
-                  class="login-passkey flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-4 font-bold text-accent transition hover:bg-[#1a2a22] hover:shadow-md focus-visible:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent focus-visible:ring-2 focus-visible:ring-accent"
+                  class="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-4 font-bold text-accent transition hover:bg-[#1a2a22] hover:shadow-md focus-visible:bg-[#376d46] focus-visible:text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-accent focus-visible:ring-2 focus-visible:ring-accent dark:focus-visible:outline-[#c8e6a8]"
                   attr-href="passkeyUrl"
                   ><svg
                     class="h-5 w-5"
@@ -225,7 +187,7 @@
                     class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
                     attr-href="qrUrl"
                     ><span
-                      class="login-alt-primary grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/30 text-brand transition-transform group-hover:scale-105"
+                      class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/30 text-brand transition-transform group-hover:scale-105 dark:bg-[#2b4432] dark:text-[#d9f0c9]"
                       ><svg
                         class="h-5 w-5"
                         viewBox="0 0 24 24"
@@ -246,7 +208,7 @@
                     class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
                     attr-href="recoveryUrl"
                     ><span
-                      class="login-alt-secondary grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-600 transition-transform group-hover:scale-105"
+                      class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-600 transition-transform group-hover:scale-105 dark:bg-[#26312a] dark:text-[#d2d9d3]"
                       ><svg
                         class="h-5 w-5"
                         viewBox="0 0 24 24"
