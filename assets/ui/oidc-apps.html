@@ -610,8 +610,8 @@
               Active
             </p></template
           >
-          <template if="!token.revokedAt">
-            <div class="mt-2 flex flex-wrap gap-2" hidden="false" bind-hidden.bool="editingToken === token.tokenId">
+          <template if="!token.revokedAt && editingToken !== token.tokenId">
+            <div class="mt-2 flex flex-wrap gap-2">
               <button
                 class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 type="button"
@@ -627,11 +627,9 @@
                 Revoke token
               </button>
             </div>
-            <div
-              class="mt-2 grid gap-2 rounded-lg border border-slate-200 p-2"
-              hidden="true"
-              bind-hidden.bool="editingToken !== token.tokenId"
-            >
+          </template>
+          <template if="editingToken === token.tokenId">
+            <div class="mt-2 grid gap-2 rounded-lg border border-slate-200 p-2">
               <p class="text-xs font-semibold text-slate-600">Token scopes</p>
               <template for="scope of app.scopes"
                 ><label class="flex items-center gap-2 text-xs"
@@ -673,10 +671,10 @@
         createdToken = ref(''),
         tokenScopes = ref([]),
         tokenError = ref(''),
-        editingToken = ref(''),
         editScopes = ref([]),
         editError = ref(''),
-        [tokenLabel, setTokenLabel] = hook('');
+        [tokenLabel, setTokenLabel] = hook(''),
+        [editingToken, setEditingToken] = hook('');
       const load = async () => {
         if (!app.value?.id) return;
         app.value.tokens = await getApiTokens(app.value.id);
@@ -688,7 +686,7 @@
           : [...tokenScopes.value, scope];
       };
       const startEditScopes = (token) => {
-        editingToken.value = token.tokenId;
+        setEditingToken(token.tokenId);
         editScopes.value = [...token.scopes];
         editError.value = '';
       };
@@ -698,7 +696,7 @@
           : [...editScopes.value, scope];
       };
       const cancelEditScopes = () => {
-        editingToken.value = '';
+        setEditingToken('');
         editScopes.value = [];
         editError.value = '';
       };
