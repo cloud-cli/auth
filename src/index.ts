@@ -1,7 +1,7 @@
 import express from 'express';
 import { createHash, timingSafeEqual } from 'crypto';
 import { readFileSync } from 'fs';
-import migrate from '../db/migrations/008_oidc_refresh_tokens.js';
+import migrate from '../db/migrations/009_api_token_hints.js';
 import {
   findByEmail,
   findByUserId,

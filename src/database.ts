@@ -48,6 +48,7 @@ export type OidcClient = {
 };
 export type ApiToken = {
   tokenHash: string;
+  tokenHint: string;
   userId: string;
   clientId: string;
   scopes: string[];
@@ -123,6 +124,7 @@ const tableColumns: Record<string, Record<string, string>> = {
   },
   auth_api_token: {
     tokenHash: 'token_hash',
+    tokenHint: 'token_hint',
     userId: 'user_id',
     clientId: 'client_id',
     scopes: 'scopes',

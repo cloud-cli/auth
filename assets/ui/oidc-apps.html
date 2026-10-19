@@ -598,6 +598,7 @@
       <template for="token of app.tokens"
         ><article class="rounded-lg border border-slate-100 p-2 text-sm">
           <strong>{{ token.label }}</strong>
+          <p class="font-mono text-xs text-slate-500">{{ token.tokenHint || 'ID unavailable' }}</p>
           <p class="text-slate-600">Created {{ token.createdAt }}</p>
           <p class="break-words text-slate-600">Scopes: {{ token.scopes.join(', ') }}</p>
           <template if="token.revokedAt"

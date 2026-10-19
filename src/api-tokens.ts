@@ -15,10 +15,12 @@ export async function createApiToken(userId: string, clientId: string, label: st
   const allowed = new Set(client.scopes || []);
   if (!scopes.length || scopes.some((scope) => !allowed.has(scope))) throw new Error('Invalid token scope');
   const token = 'auth_' + randomBytes(32).toString('base64url');
+  const tokenHint = `${token.slice(0, 3)}...${token.slice(-3)}`;
   await run(
-    'INSERT OR REPLACE INTO auth_api_token (token_hash, user_id, client_id, scopes, label, created_at, expires_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT OR REPLACE INTO auth_api_token (token_hash, token_hint, user_id, client_id, scopes, label, created_at, expires_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       hash(token),
+      tokenHint,
       userId,
       clientId,
       json(scopes),
@@ -29,19 +31,21 @@ export async function createApiToken(userId: string, clientId: string, label: st
       '',
     ],
   );
-  return { token, expiresAt: new Date(Date.now() + ttl).toISOString() };
+  return { token, tokenHint, expiresAt: new Date(Date.now() + ttl).toISOString() };
 }
 
 export async function createAuthApiToken(clientId: string, label: string) {
   const client = await getClient(clientId);
   if (!client) throw new Error('Unknown OIDC client');
   const token = 'auth_' + randomBytes(32).toString('base64url');
+  const tokenHint = `${token.slice(0, 3)}...${token.slice(-3)}`;
   const createdAt = new Date().toISOString();
   const expiresAt = new Date(Date.now() + ttl).toISOString();
   await run(
-    'INSERT INTO auth_api_token (token_hash, user_id, client_id, scopes, label, created_at, expires_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO auth_api_token (token_hash, token_hint, user_id, client_id, scopes, label, created_at, expires_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       hash(token),
+      tokenHint,
       clientId,
       clientId,
       json([authTokenManagementScope]),
@@ -52,15 +56,16 @@ export async function createAuthApiToken(clientId: string, label: string) {
       '',
     ],
   );
-  return { token, expiresAt };
+  return { token, tokenHint, expiresAt };
 }
 
 export async function listAuthApiTokens(clientId: string) {
   const tokens = await rows<ApiToken>('auth_api_token', 'user_id = ? AND client_id = ?', [clientId, clientId]);
   return tokens
     .filter((token) => token.scopes.length === 1 && token.scopes[0] === authTokenManagementScope)
-    .map(({ tokenHash, label, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
+    .map(({ tokenHash, tokenHint, label, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
       tokenId: tokenHash,
+      tokenHint,
       label,
       scopes: [authTokenManagementScope],
       createdAt,
@@ -104,8 +109,9 @@ export async function listApiTokens(userId: string, clientId?: string) {
   const filter = clientId ? 'user_id = ? AND client_id = ?' : 'user_id = ?';
   const params = clientId ? [userId, clientId] : [userId];
   const tokens = await rows<ApiToken>('auth_api_token', filter, params);
-  return tokens.map(({ tokenHash, label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
+  return tokens.map(({ tokenHash, tokenHint, label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
     tokenId: tokenHash,
+    tokenHint,
     label,
     scopes: clientId ? scopes.filter((scope) => allowedScopes.has(scope)) : scopes,
     createdAt,
