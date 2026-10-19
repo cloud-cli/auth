@@ -648,6 +648,15 @@
                 </div>
               </details>
               <button
+                class="rounded-md border border-slate-300 p-2 text-slate-600 hover:bg-slate-50"
+                type="button"
+                on-click="rotateToken(token)"
+                aria-label="Rotate token"
+                title="Generate a replacement with the same label and scopes"
+              >
+                <lucide-icon icon="refresh-cw" size="16"></lucide-icon>
+              </button>
+              <button
                 class="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                 type="button"
                 on-click="revokeToken(token)"
@@ -733,6 +742,24 @@
           await load();
         }
       };
+      const rotateToken = async (token) => {
+        if (!confirm(`Generate a replacement for "${token.label}" with the same scopes and revoke this token?`)) return;
+        try {
+          const result = await createApiToken(app.value.id, token.label, token.scopes);
+          createdToken.value = result.token;
+          try {
+            await revokeApiToken(app.value.id, token.tokenId);
+          } catch {
+            tokenError.value = 'Replacement created, but the old token could not be revoked. Revoke it manually.';
+            await load();
+            return;
+          }
+          tokenError.value = '';
+          await load();
+        } catch (error) {
+          tokenError.value = error.message || 'Could not rotate token.';
+        }
+      };
       return {
         app,
         createdToken,
@@ -749,6 +776,7 @@
         saveScopes,
         createToken,
         revokeToken,
+        rotateToken,
       };
     }
   </script></template
