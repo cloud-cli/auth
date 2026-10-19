@@ -690,18 +690,21 @@
           : [...editScopes.value, scope];
       };
       const cancelEditScopes = (event) => {
-        event?.currentTarget?.closest('details')?.removeAttribute('open');
+        event?.target?.closest('details')?.removeAttribute('open');
         editScopes.value = [];
         editError.value = '';
       };
       const saveScopes = async (token, event) => {
+        const scopeEditor = event?.target?.closest('details');
         if (!editScopes.value.length) {
           editError.value = 'Choose at least one scope.';
           return;
         }
         try {
           await updateApiTokenScopes(app.value.id, token.tokenId, editScopes.value);
-          cancelEditScopes(event);
+          scopeEditor?.removeAttribute('open');
+          editScopes.value = [];
+          editError.value = '';
           await load();
         } catch (error) {
           editError.value = error.message || 'Could not update token scopes.';
