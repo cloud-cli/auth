@@ -610,15 +610,42 @@
               Active
             </p></template
           >
-          <template if="!token.revokedAt && editingToken !== token.tokenId">
-            <div class="mt-2 flex flex-wrap gap-2">
-              <button
-                class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                type="button"
-                on-click="startEditScopes(token)"
-              >
-                Edit scopes
-              </button>
+          <template if="!token.revokedAt">
+            <div class="mt-2 flex flex-wrap items-start gap-2">
+              <details class="min-w-0 flex-1 rounded-md border border-slate-200 p-2">
+                <summary class="cursor-pointer text-xs font-semibold text-slate-700" on-click="startEditScopes(token)">
+                  Edit scopes
+                </summary>
+                <div class="mt-2 grid gap-2">
+                  <p class="text-xs font-semibold text-slate-600">Token scopes</p>
+                  <template for="scope of app.scopes"
+                    ><label class="flex items-center gap-2 text-xs"
+                      ><input
+                        type="checkbox"
+                        attr-checked.bool="editScopes.includes(scope)"
+                        on-change="toggleEditScope(scope)"
+                      />{{ scope }}</label
+                    ></template
+                  >
+                  <p class="text-xs text-rose-600">{{ editError }}</p>
+                  <div class="flex gap-2">
+                    <button
+                      class="rounded-md bg-violet px-3 py-1.5 text-xs font-semibold text-white"
+                      type="button"
+                      on-click="saveScopes(token, $event)"
+                    >
+                      Save scopes
+                    </button>
+                    <button
+                      class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
+                      type="button"
+                      on-click="cancelEditScopes($event)"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </details>
               <button
                 class="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                 type="button"
@@ -626,37 +653,6 @@
               >
                 Revoke token
               </button>
-            </div>
-          </template>
-          <template if="editingToken === token.tokenId">
-            <div class="mt-2 grid gap-2 rounded-lg border border-slate-200 p-2">
-              <p class="text-xs font-semibold text-slate-600">Token scopes</p>
-              <template for="scope of app.scopes"
-                ><label class="flex items-center gap-2 text-xs"
-                  ><input
-                    type="checkbox"
-                    attr-checked.bool="editScopes.includes(scope)"
-                    on-change="toggleEditScope(scope)"
-                  />{{ scope }}</label
-                ></template
-              >
-              <p class="text-xs text-rose-600">{{ editError }}</p>
-              <div class="flex gap-2">
-                <button
-                  class="rounded-md bg-violet px-3 py-1.5 text-xs font-semibold text-white"
-                  type="button"
-                  on-click="saveScopes(token)"
-                >
-                  Save scopes
-                </button>
-                <button
-                  class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
-                  type="button"
-                  on-click="cancelEditScopes()"
-                >
-                  Cancel
-                </button>
-              </div>
             </div>
           </template>
         </article></template
@@ -673,8 +669,7 @@
         tokenError = ref(''),
         editScopes = ref([]),
         editError = ref(''),
-        [tokenLabel, setTokenLabel] = hook(''),
-        [editingToken, setEditingToken] = hook('');
+        [tokenLabel, setTokenLabel] = hook('');
       const load = async () => {
         if (!app.value?.id) return;
         app.value.tokens = await getApiTokens(app.value.id);
@@ -686,7 +681,6 @@
           : [...tokenScopes.value, scope];
       };
       const startEditScopes = (token) => {
-        setEditingToken(token.tokenId);
         editScopes.value = [...token.scopes];
         editError.value = '';
       };
@@ -695,19 +689,19 @@
           ? editScopes.value.filter((value) => value !== scope)
           : [...editScopes.value, scope];
       };
-      const cancelEditScopes = () => {
-        setEditingToken('');
+      const cancelEditScopes = (event) => {
+        event?.currentTarget?.closest('details')?.removeAttribute('open');
         editScopes.value = [];
         editError.value = '';
       };
-      const saveScopes = async (token) => {
+      const saveScopes = async (token, event) => {
         if (!editScopes.value.length) {
           editError.value = 'Choose at least one scope.';
           return;
         }
         try {
           await updateApiTokenScopes(app.value.id, token.tokenId, editScopes.value);
-          cancelEditScopes();
+          cancelEditScopes(event);
           await load();
         } catch (error) {
           editError.value = error.message || 'Could not update token scopes.';
@@ -740,7 +734,6 @@
         createdToken,
         tokenScopes,
         tokenError,
-        editingToken,
         editScopes,
         editError,
         tokenLabel,

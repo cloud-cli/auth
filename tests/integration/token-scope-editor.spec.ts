@@ -49,17 +49,18 @@ test('token scope editor opens, cancels, and saves on the Auth Lab deployment', 
     await appDetails.locator('summary').click();
 
     const tokenCard = page.locator('article').filter({ hasText: 'scope editor test' });
-    await tokenCard.getByRole('button', { name: 'Edit scopes' }).click();
-    await expect(tokenCard.getByText('Token scopes')).toBeVisible();
+    const scopeEditor = tokenCard.locator('details');
+    await scopeEditor.locator('summary').click();
+    await expect(scopeEditor).toHaveAttribute('open', '');
     await tokenCard.getByRole('button', { name: 'Cancel' }).click();
-    await expect(tokenCard.getByText('Token scopes')).toBeHidden();
+    await expect(scopeEditor).not.toHaveAttribute('open', '');
 
-    await tokenCard.getByRole('button', { name: 'Edit scopes' }).click();
-    await expect(tokenCard.getByText('Token scopes')).toBeVisible();
+    await scopeEditor.locator('summary').click();
+    await expect(scopeEditor).toHaveAttribute('open', '');
     await tokenCard.getByLabel('artifacts:read').uncheck();
     await tokenCard.getByRole('button', { name: 'Save scopes' }).click();
     await expect(tokenCard.getByText('Scopes: workflows:read', { exact: true })).toBeVisible();
-    await expect(tokenCard.getByText('Token scopes')).toBeHidden();
+    await expect(scopeEditor).not.toHaveAttribute('open', '');
   } finally {
     if (clientCreated) {
       await page.evaluate(async (id) => {
