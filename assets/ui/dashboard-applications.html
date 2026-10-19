@@ -42,9 +42,15 @@
                     class="text-gray-400 shrink-0 dark:text-[#aab7ad]"
                   ></lucide-icon>
                   <span class="font-semibold text-gray-900 text-sm truncate dark:text-[#eef3ef]">{{ app.id }}</span>
-                  <span class="text-gray-400 text-sm dark:text-[#aab7ad]">&middot;</span>
-                  <span class="text-gray-500 text-sm font-medium dark:text-[#aab7ad]"
-                    >{{ app.isPublic ? 'Public client' : 'Confidential client' }}</span
+                  <lucide-icon
+                    attr-icon="app.isPublic ? 'smartphone' : 'monitor'"
+                    size="16"
+                    class="text-gray-500 shrink-0 dark:text-[#aab7ad]"
+                    aria-hidden="true"
+                    attr-title="app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)'"
+                  ></lucide-icon>
+                  <span class="sr-only"
+                    >{{ app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)' }}</span
                   >
                 </summary>
               </details>

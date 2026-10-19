@@ -68,6 +68,7 @@ import {
   listAuthApiTokens,
   revokeApiToken,
   revokePresentedApiToken,
+  updateApiTokenScopes,
   verifyAuthApiToken,
 } from './api-tokens.js';
 import { parseBasicClientCredentials } from './oauth-client-auth.js';
@@ -825,6 +826,18 @@ app.post('/api/v1/api-tokens/:clientId/scopes', express.json(), async (req, res)
 app.delete('/api/v1/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
   res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
+app.put('/api/v1/api-tokens/:clientId/:tokenId/scopes', express.json(), adminRoute, async (req, res) => {
+  const scopes = req.body?.scopes;
+  if (!Array.isArray(scopes) || scopes.some((scope) => typeof scope !== 'string')) {
+    return res.status(400).json({ error: 'Invalid token scope' });
+  }
+  try {
+    const updated = await updateApiTokenScopes(req.user!.id, req.params.clientId, req.params.tokenId, scopes);
+    res.sendStatus(updated ? 204 : 404);
+  } catch (error) {
+    res.status(400).json({ error: String(error) });
+  }
+});
 app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (req, res) => {
   const credentials = parseBasicClientCredentials(req.get('authorization') || '');
   const result = credentials

@@ -284,6 +284,25 @@ export async function revokeApiToken(clientId, tokenId) {
   if (!response.ok) throw new Error('Could not revoke API token');
 }
 
+export async function updateApiTokenScopes(clientId, tokenId, scopes) {
+  const response = await fetch(
+    new URL(
+      '/api/v1/api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(tokenId) + '/scopes',
+      authDomain,
+    ),
+    {
+      credentials: 'include',
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scopes }),
+    },
+  );
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.error || 'Could not update API token scopes');
+  }
+}
+
 export async function getAuthApiTokens(clientId) {
   const response = await fetch(new URL('/api/v1/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',

@@ -38,7 +38,17 @@
             </div>
             <details on-toggle="loadTokens(app)">
               <summary class="cursor-pointer pr-20 text-sm font-bold">
-                {{ app.id }} · {{ app.isPublic ? 'Public client' : 'Confidential client' }}
+                {{ app.id }}
+                <lucide-icon
+                  attr-icon="app.isPublic ? 'smartphone' : 'monitor'"
+                  size="16"
+                  class="ml-1 inline-block align-text-bottom text-slate-500"
+                  aria-hidden="true"
+                  attr-title="app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)'"
+                ></lucide-icon>
+                <span class="sr-only"
+                  >{{ app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)' }}</span
+                >
               </summary>
               <app-editor bind-app="app" bind-admin="admin"></app-editor>
             </details>
@@ -590,23 +600,80 @@
           <strong>{{ token.label }}</strong>
           <p class="text-slate-600">Created {{ token.createdAt }}</p>
           <p class="break-words text-slate-600">Scopes: {{ token.scopes.join(', ') }}</p>
-          <template if="token.revokedAt"><p class="text-rose-600">Revoked {{ token.revokedAt }}</p></template>
-          <template if="!token.revokedAt"><p class="text-emerald-600">Active</p></template>
-          <template if="!token.revokedAt"
-            ><button class="mt-1 text-rose-600" type="button" on-click="revokeToken(token)">Revoke</button></template
+          <template if="token.revokedAt"
+            ><p class="mt-2 inline-flex rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
+              Revoked {{ token.revokedAt }}
+            </p></template
           >
+          <template if="!token.revokedAt"
+            ><p class="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+              Active
+            </p></template
+          >
+          <template if="!token.revokedAt && editingToken !== token.tokenId">
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                type="button"
+                on-click="startEditScopes(token)"
+              >
+                Edit scopes
+              </button>
+              <button
+                class="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                type="button"
+                on-click="revokeToken(token)"
+              >
+                Revoke token
+              </button>
+            </div>
+          </template>
+          <template if="editingToken === token.tokenId">
+            <div class="mt-2 grid gap-2 rounded-lg border border-slate-200 p-2">
+              <p class="text-xs font-semibold text-slate-600">Token scopes</p>
+              <template for="scope of app.scopes"
+                ><label class="flex items-center gap-2 text-xs"
+                  ><input
+                    type="checkbox"
+                    attr-checked.bool="editScopes.includes(scope)"
+                    on-change="toggleEditScope(scope)"
+                  />{{ scope }}</label
+                ></template
+              >
+              <p class="text-xs text-rose-600">{{ editError }}</p>
+              <div class="flex gap-2">
+                <button
+                  class="rounded-md bg-violet px-3 py-1.5 text-xs font-semibold text-white"
+                  type="button"
+                  on-click="saveScopes(token)"
+                >
+                  Save scopes
+                </button>
+                <button
+                  class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold"
+                  type="button"
+                  on-click="cancelEditScopes()"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </template>
         </article></template
       >
     </div>
   </div>
   <script setup>
     import { defineProp, hook, ref } from '@li3/web';
-    import { createApiToken, getApiTokens, revokeApiToken } from '/ui/dashboard.mjs';
+    import { createApiToken, getApiTokens, revokeApiToken, updateApiTokenScopes } from '/ui/dashboard.mjs';
     export default function () {
       const app = defineProp('app'),
         createdToken = ref(''),
         tokenScopes = ref([]),
         tokenError = ref(''),
+        editingToken = ref(''),
+        editScopes = ref([]),
+        editError = ref(''),
         [tokenLabel, setTokenLabel] = hook('');
       const load = async () => {
         if (!app.value?.id) return;
@@ -617,6 +684,34 @@
         tokenScopes.value = tokenScopes.value.includes(scope)
           ? tokenScopes.value.filter((value) => value !== scope)
           : [...tokenScopes.value, scope];
+      };
+      const startEditScopes = (token) => {
+        editingToken.value = token.tokenId;
+        editScopes.value = [...token.scopes];
+        editError.value = '';
+      };
+      const toggleEditScope = (scope) => {
+        editScopes.value = editScopes.value.includes(scope)
+          ? editScopes.value.filter((value) => value !== scope)
+          : [...editScopes.value, scope];
+      };
+      const cancelEditScopes = () => {
+        editingToken.value = '';
+        editScopes.value = [];
+        editError.value = '';
+      };
+      const saveScopes = async (token) => {
+        if (!editScopes.value.length) {
+          editError.value = 'Choose at least one scope.';
+          return;
+        }
+        try {
+          await updateApiTokenScopes(app.value.id, token.tokenId, editScopes.value);
+          cancelEditScopes();
+          await load();
+        } catch (error) {
+          editError.value = error.message || 'Could not update token scopes.';
+        }
       };
       const createToken = async () => {
         if (!tokenScopes.value.length) {
@@ -645,9 +740,16 @@
         createdToken,
         tokenScopes,
         tokenError,
+        editingToken,
+        editScopes,
+        editError,
         tokenLabel,
         setTokenLabel,
         toggleTokenScope,
+        startEditScopes,
+        toggleEditScope,
+        cancelEditScopes,
+        saveScopes,
         createToken,
         revokeToken,
       };

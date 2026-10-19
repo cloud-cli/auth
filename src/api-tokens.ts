@@ -132,6 +132,26 @@ export async function revokeApiToken(userId: string, clientId: string, tokenId: 
   return true;
 }
 
+export async function updateApiTokenScopes(userId: string, clientId: string, tokenId: string, scopes: string[]) {
+  const client = await getClient(clientId);
+  if (!client) return false;
+  const allowed = new Set(client.scopes || []);
+  if (!scopes.length || scopes.some((scope) => !allowed.has(scope))) throw new Error('Invalid token scope');
+  const tokens = await rows<ApiToken>(
+    'auth_api_token',
+    'user_id = ? AND client_id = ? AND token_hash = ? AND revoked_at = ?',
+    [userId, clientId, tokenId, ''],
+  );
+  if (!tokens[0]) return false;
+  await run('UPDATE auth_api_token SET scopes = ? WHERE user_id = ? AND client_id = ? AND token_hash = ?', [
+    json([...new Set(scopes)]),
+    userId,
+    clientId,
+    tokenId,
+  ]);
+  return true;
+}
+
 export async function revokePresentedApiToken(token: string, clientId: string) {
   const tokenHash = hash(token);
   const tokens = await rows<ApiToken>('auth_api_token', 'token_hash = ? AND client_id = ?', [tokenHash, clientId]);
