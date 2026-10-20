@@ -105,20 +105,30 @@ export async function verifyAuthApiToken(token: string, clientId: string) {
 }
 
 export async function listApiTokens(userId: string, clientId?: string) {
-  const allowedScopes = clientId ? new Set((await getClient(clientId))?.scopes || []) : new Set();
   const filter = clientId ? 'user_id = ? AND client_id = ?' : 'user_id = ?';
   const params = clientId ? [userId, clientId] : [userId];
   const tokens = await rows<ApiToken>('auth_api_token', filter, params);
-  return tokens.map(({ tokenHash, tokenHint, label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt }) => ({
-    tokenId: tokenHash,
-    tokenHint,
-    label,
-    scopes: clientId ? scopes.filter((scope) => allowedScopes.has(scope)) : scopes,
-    createdAt,
-    expiresAt,
-    lastUsedAt,
-    revokedAt,
-  }));
+  const mapped = await Promise.all(
+    tokens.map(
+      async ({ tokenHash, tokenHint, label, scopes, createdAt, expiresAt, lastUsedAt, revokedAt, clientId }) => {
+        const client = await getClient(clientId);
+        const allowedScopes = new Set(client?.scopes || []);
+        return {
+          tokenId: tokenHash,
+          clientId,
+          clientName: client?.name || clientId,
+          tokenHint,
+          label,
+          scopes: clientId ? scopes.filter((scope) => allowedScopes.has(scope)) : scopes,
+          createdAt,
+          expiresAt,
+          lastUsedAt,
+          revokedAt,
+        };
+      },
+    ),
+  );
+  return mapped.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
 }
 
 export async function revokeApiToken(userId: string, clientId: string, tokenId: string) {
@@ -176,11 +186,14 @@ export async function introspectApiToken(token: string, clientId: string, client
   const tokens = await rows<ApiToken>('auth_api_token', 'token_hash = ? AND client_id = ?', [hash(token), clientId]);
   const item = tokens[0];
   if (!item || item.revokedAt || Date.parse(item.expiresAt) <= Date.now()) return { active: false };
-  const account = await all<{ disabled: number; blocked: number }>(
-    'SELECT u.disabled, EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = u.profile_id) AS blocked FROM auth_user u WHERE u.user_id = ?',
+  const account = await all<{ disabled: number; blocked: number; role: string }>(
+    'SELECT u.disabled, u.role, EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = u.profile_id) AS blocked FROM auth_user u WHERE u.user_id = ?',
     [item.userId],
   );
   if (account[0] && (account[0].disabled || account[0].blocked)) return { active: false };
+  if (!client.availableToUsers && item.userId !== client.ownerUserId && account[0]?.role !== 'admin') {
+    return { active: false };
+  }
   const allowed = new Set(client.scopes || []);
   const scopes = item.scopes.filter((scope) => allowed.has(scope));
   if (!scopes.length) return { active: false };

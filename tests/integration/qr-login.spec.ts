@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { createAgentFixture, deleteAgentFixture, signInAsAgent, type AgentFixture } from './agent-fixture.js';
 
-const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
-
-test('phone approval completes QR sign-in on a fresh laptop session', async ({ browser }) => {
-  test.skip(!testKey, 'Requires a test-enabled deployment');
+test('Agent accounts cannot approve QR sign-ins', async ({ browser }) => {
   const baseURL = process.env.INTEGRATION_BASE_URL || 'http://127.0.0.1:3000';
   const laptopContext = await browser.newContext({ baseURL });
   const phoneContext = await browser.newContext({ baseURL });
+  let phone: Page | undefined;
+  let fixture: AgentFixture | null = null;
 
   try {
     const laptop = await laptopContext.newPage();
@@ -19,17 +20,13 @@ test('phone approval completes QR sign-in on a fresh laptop session', async ({ b
     const transaction = new URL(pwaUrl!).searchParams.get('transaction');
     expect(transaction).toBeTruthy();
 
-    const phone = await phoneContext.newPage();
-    await phone.goto('/');
-    const loginStatus = await phone.evaluate(async (key) => {
-      const response = await fetch('/__test__/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ key }),
-      });
-      return response.status;
-    }, testKey);
-    expect(loginStatus).toBe(204);
+    phone = await phoneContext.newPage();
+    fixture = await createAgentFixture(phone);
+    if (!fixture) {
+      test.skip(true, 'Requires a deployment built with test fixture routes');
+      return;
+    }
+    await signInAsAgent(phone, fixture);
 
     const approvalStatus = await phone.evaluate(async (token) => {
       const response = await fetch('/api/v1/qr-login/approve', {
@@ -39,11 +36,10 @@ test('phone approval completes QR sign-in on a fresh laptop session', async ({ b
       });
       return response.status;
     }, transaction);
-    expect(approvalStatus).toBe(204);
-
-    await expect(laptop).toHaveURL(/\/me$/, { timeout: 10_000 });
-    await expect(laptop.getByRole('heading', { name: 'Passkeys' })).toBeVisible();
+    expect(approvalStatus).toBe(403);
+    await expect(laptop.getByText('Waiting for approval on your phone...')).toBeVisible();
   } finally {
+    if (phone && fixture) await deleteAgentFixture(phone, fixture);
     await laptopContext.close();
     await phoneContext.close();
   }

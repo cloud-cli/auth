@@ -58,11 +58,6 @@
         .text-accent {
           color: #e0f4cf !important;
         }
-        #test-key {
-          background-color: #202b24;
-          border-color: #3a4940;
-          color: #f0f5f1;
-        }
         .bg-red-50 {
           background-color: #382322 !important;
           color: #ffd1cc !important;
@@ -70,7 +65,7 @@
       }
     </style>
   </head>
-  <body data-page="login" data-test-login="__TEST_LOGIN_ENABLED__" class="min-h-dvh bg-app-bg text-brand">
+  <body data-page="login" class="min-h-dvh bg-app-bg text-brand">
     <template app
       ><div class="absolute left-6 top-6 flex items-center gap-2.5 md:left-10 md:top-10">
         <svg
@@ -110,123 +105,132 @@
               <p class="mt-2 text-sm font-medium text-gray-500">Choose how to continue:</p>
             </div>
             <div data-auth-error></div>
-            <template if="!testLoginEnabled"
-              ><div class="grid gap-3">
+            <div class="grid gap-3">
+              <a
+                class="group flex min-h-12 items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 font-bold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-[#3a4940] dark:bg-[#202b24] dark:text-[#edf3ee] dark:hover:bg-[#29372f] dark:focus-visible:outline-[#c8e6a8]"
+                href="/auth/google"
+                ><img class="h-5 w-5 transition-transform group-hover:scale-105" src="/ui/google.svg" alt="" />Continue
+                with Google</a
+              ><a
+                class="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-4 font-bold text-accent transition hover:bg-[#1a2a22] hover:shadow-md focus-visible:bg-[#376d46] focus-visible:text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-accent focus-visible:ring-2 focus-visible:ring-accent dark:focus-visible:outline-[#c8e6a8]"
+                attr-href="passkeyUrl"
+                ><svg
+                  class="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 18v-3" />
+                  <circle cx="12" cy="10" r="2.5" />
+                  <path d="M5.6 16.5a9 9 0 1 1 12.8 0M8.3 13.7a5.2 5.2 0 1 1 7.4 0" />
+                </svg>
+                Use a passkey</a
+              >
+            </div>
+            <details class="mt-3 border-t border-gray-100 pt-4">
+              <summary
+                class="group flex w-fit cursor-pointer list-none items-center gap-1.5 text-sm font-bold text-gray-400 transition hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                Try another way
+                <svg
+                  class="h-4 w-4 transition-transform group-open:rotate-180"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path d="m5 7.5 5 5 5-5" />
+                </svg>
+              </summary>
+              <div class="mt-3 grid gap-2">
                 <a
-                  class="group flex min-h-12 items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 font-bold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-[#3a4940] dark:bg-[#202b24] dark:text-[#edf3ee] dark:hover:bg-[#29372f] dark:focus-visible:outline-[#c8e6a8]"
-                  href="/auth/google"
-                  ><img
-                    class="h-5 w-5 transition-transform group-hover:scale-105"
-                    src="/ui/google.svg"
-                    alt=""
-                  />Continue with Google</a
+                  class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+                  attr-href="qrUrl"
+                  ><span
+                    class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/30 text-brand transition-transform group-hover:scale-105 dark:bg-[#2b4432] dark:text-[#d9f0c9]"
+                    ><svg
+                      class="h-5 w-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      aria-hidden="true"
+                    >
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                      <path d="M14 14h3v3h-3zM20 14v2m-3 2h4v3h-4z" /></svg></span
+                  ><span
+                    ><span class="block text-sm font-bold text-gray-800">Scan QR code</span
+                    ><span class="block text-xs font-medium text-gray-500">Approve from another device</span></span
+                  ></a
                 ><a
-                  class="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-4 font-bold text-accent transition hover:bg-[#1a2a22] hover:shadow-md focus-visible:bg-[#376d46] focus-visible:text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-accent focus-visible:ring-2 focus-visible:ring-accent dark:focus-visible:outline-[#c8e6a8]"
-                  attr-href="passkeyUrl"
-                  ><svg
-                    class="h-5 w-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 18v-3" />
-                    <circle cx="12" cy="10" r="2.5" />
-                    <path d="M5.6 16.5a9 9 0 1 1 12.8 0M8.3 13.7a5.2 5.2 0 1 1 7.4 0" />
-                  </svg>
-                  Use a passkey</a
+                  class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+                  attr-href="recoveryUrl"
+                  ><span
+                    class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-600 transition-transform group-hover:scale-105 dark:bg-[#26312a] dark:text-[#d2d9d3]"
+                    ><svg
+                      class="h-5 w-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      aria-hidden="true"
+                    >
+                      <rect x="4" y="3" width="16" height="18" rx="2" />
+                      <path d="M8 7h8M8 11h8M8 15h2m3 0h3" /></svg></span
+                  ><span
+                    ><span class="block text-sm font-bold text-gray-800">Use a recovery code</span
+                    ><span class="block text-xs font-medium text-gray-500">Enter an offline backup code</span></span
+                  ></a
                 >
-              </div></template
-            >
-            <template if="testLoginEnabled"
-              ><p class="text-sm text-gray-500">Use the test API key for this environment:</p>
-              <form class="grid gap-3" on-submit.prevent="testLogin()">
-                <label class="grid gap-1 text-sm font-semibold" for="test-key">Test API key</label>
-                <input
-                  id="test-key"
-                  type="password"
-                  autocomplete="off"
-                  required
-                  attr-value="testKey"
-                  on-input="setTestKey($event.target.value)"
-                  class="min-h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-brand"
-                />
-                <button
-                  type="submit"
-                  class="flex min-h-12 items-center justify-center rounded-xl bg-brand px-4 font-bold text-accent shadow-lg"
-                >
-                  Sign in
-                </button>
-                <p template if="message" class="text-sm" attr-class="error ? 'text-rose-600' : 'text-emerald-700'">
-                  {{ message }}
-                </p>
-              </form></template
-            >
-            <template if="!testLoginEnabled"
-              ><details class="mt-3 border-t border-gray-100 pt-4">
-                <summary
-                  class="group flex w-fit cursor-pointer list-none items-center gap-1.5 text-sm font-bold text-gray-400 transition hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  Try another way
-                  <svg
-                    class="h-4 w-4 transition-transform group-open:rotate-180"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    aria-hidden="true"
+              </div>
+              <details class="mt-4 border-t border-gray-100 pt-4">
+                <summary class="cursor-pointer text-sm font-bold text-gray-500">Sign in as an Agent</summary>
+                <form class="mt-3 grid gap-3" on-submit.prevent="agentLogin()">
+                  <label class="grid gap-1 text-sm font-semibold" for="agent-id">Agent ID</label>
+                  <input
+                    id="agent-id"
+                    type="text"
+                    autocomplete="username"
+                    required
+                    bind-value="agentId"
+                    on-input="setAgentId($event.target.value)"
+                    class="min-h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-brand dark:border-[#344239] dark:bg-[#202b24]"
+                  />
+                  <label class="grid gap-1 text-sm font-semibold" for="agent-token">Sign-in token</label>
+                  <input
+                    id="agent-token"
+                    type="password"
+                    autocomplete="current-password"
+                    required
+                    bind-value="agentToken"
+                    on-input="setAgentToken($event.target.value)"
+                    class="min-h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-brand dark:border-[#344239] dark:bg-[#202b24]"
+                  />
+                  <button
+                    type="submit"
+                    bind-disabled.bool="busy"
+                    class="flex min-h-12 items-center justify-center rounded-xl bg-brand px-4 font-bold text-accent shadow-lg disabled:opacity-60"
                   >
-                    <path d="m5 7.5 5 5 5-5" />
-                  </svg>
-                </summary>
-                <div class="mt-3 grid gap-2">
-                  <a
-                    class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
-                    attr-href="qrUrl"
-                    ><span
-                      class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/30 text-brand transition-transform group-hover:scale-105 dark:bg-[#2b4432] dark:text-[#d9f0c9]"
-                      ><svg
-                        class="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        aria-hidden="true"
-                      >
-                        <rect x="3" y="3" width="7" height="7" rx="1" />
-                        <rect x="14" y="3" width="7" height="7" rx="1" />
-                        <rect x="3" y="14" width="7" height="7" rx="1" />
-                        <path d="M14 14h3v3h-3zM20 14v2m-3 2h4v3h-4z" /></svg></span
-                    ><span
-                      ><span class="block text-sm font-bold text-gray-800">Scan QR code</span
-                      ><span class="block text-xs font-medium text-gray-500">Approve from another device</span></span
-                    ></a
-                  ><a
-                    class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
-                    attr-href="recoveryUrl"
-                    ><span
-                      class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-600 transition-transform group-hover:scale-105 dark:bg-[#26312a] dark:text-[#d2d9d3]"
-                      ><svg
-                        class="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        aria-hidden="true"
-                      >
-                        <rect x="4" y="3" width="16" height="18" rx="2" />
-                        <path d="M8 7h8M8 11h8M8 15h2m3 0h3" /></svg></span
-                    ><span
-                      ><span class="block text-sm font-bold text-gray-800">Use a recovery code</span
-                      ><span class="block text-xs font-medium text-gray-500">Enter an offline backup code</span></span
-                    ></a
+                    {{ busy ? 'Signing in…' : 'Sign in' }}
+                  </button>
+                  <p
+                    if="message"
+                    class="text-sm"
+                    role="status"
+                    attr-class="error ? 'text-rose-600' : 'text-emerald-700'"
                   >
-                </div>
-              </details></template
-            >
+                    {{ message }}
+                  </p>
+                </form>
+              </details>
+            </details>
           </section>
           <p class="mt-6 flex items-center justify-center gap-2 text-xs font-semibold text-gray-400">
             <svg

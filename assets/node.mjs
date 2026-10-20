@@ -351,16 +351,16 @@ export class AuthClient {
     return this.request(`/api/v1/api-tokens/me${query}`, { request, auth: 'session' });
   }
   /**
-   * Admin-session list of API tokens for a client.
+   * List the current user's API tokens for an available client.
    * @param {Request|object} request
    * @param {string} clientId
    * @returns {Promise<unknown>}
    */
   listApiTokensForClient(request, clientId) {
-    return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}`, { request, auth: 'admin' });
+    return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}`, { request, auth: 'session' });
   }
   /**
-   * Create a client API token using the admin session.
+   * Create a client API token using the current user's session.
    * @param {Request|object} request
    * @param {string} clientId
    * @param {object} data
@@ -370,12 +370,12 @@ export class AuthClient {
     return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}`, {
       method: 'POST',
       request,
-      auth: 'admin',
+      auth: 'session',
       body: data,
     });
   }
   /**
-   * Delete a client API token using the admin session.
+   * Delete one of the current user's API tokens.
    * @param {Request|object} request
    * @param {string} clientId
    * @param {string} tokenId
@@ -385,12 +385,12 @@ export class AuthClient {
     return this.request(`/api/v1/api-tokens/${encodeURIComponent(clientId)}/${encodeURIComponent(tokenId)}`, {
       method: 'DELETE',
       request,
-      auth: 'admin',
+      auth: 'session',
       allowEmpty: true,
     });
   }
   /**
-   * Alias for listApiTokensForClient; requires an admin session.
+   * Alias for listApiTokensForClient.
    * @param {Request|object} request
    * @param {string} clientId
    * @returns {Promise<unknown>}
@@ -399,7 +399,7 @@ export class AuthClient {
     return this.listApiTokensForClient(request, clientId);
   }
   /**
-   * Alias for createApiToken; requires an admin session.
+   * Alias for createApiToken.
    * @param {Request|object} request
    * @param {string} clientId
    * @param {object} data
@@ -409,7 +409,7 @@ export class AuthClient {
     return this.createApiToken(request, clientId, data);
   }
   /**
-   * Alias for deleteApiToken; requires an admin session.
+   * Alias for deleteApiToken.
    * @param {Request|object} request
    * @param {string} clientId
    * @param {string} tokenId
@@ -445,24 +445,24 @@ export class AuthClient {
     });
   }
   /**
-   * List OIDC clients using the admin session cookie.
+   * List OIDC clients visible to the current account.
    * @param {Request|object} request
    * @returns {Promise<unknown>}
    */
   listOidcClients(request) {
-    return this.request('/api/v1/oidc/clients', { request, auth: 'admin' });
+    return this.request('/api/v1/oidc/apps', { request, auth: 'session' });
   }
   /**
-   * Create an OIDC client using the admin session; response may include its one-time client secret.
+   * Create an OIDC client; the server generates an immutable client ID and may return its one-time secret.
    * @param {Request|object} request
-   * @param {{id: string, redirectUris: string[], postLogoutRedirectUris?: string[], scopes?: string[], isPublic?: boolean}} data
+   * @param {{name: string, redirectUris: string[], postLogoutRedirectUris?: string[], scopes?: string[], isPublic?: boolean}} data
    * @returns {Promise<unknown>}
    */
   createOidcClient(request, data) {
-    return this.request('/api/v1/oidc/clients', { method: 'POST', request, auth: 'admin', body: data });
+    return this.request('/api/v1/oidc/clients', { method: 'POST', request, auth: 'session', body: data });
   }
   /**
-   * Delete an OIDC client using the admin session.
+   * Delete an OIDC client owned by the current account, or any client when an administrator.
    * @param {Request|object} request
    * @param {string} id
    * @returns {Promise<void>}
@@ -471,12 +471,12 @@ export class AuthClient {
     return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, {
       method: 'DELETE',
       request,
-      auth: 'admin',
+      auth: 'session',
       allowEmpty: true,
     });
   }
   /**
-   * Replace a client's registered post-logout redirect URLs using the admin session.
+   * Replace a client's registered post-logout redirect URLs.
    * @param {Request|object} request
    * @param {string} id
    * @param {string[]} postLogoutRedirectUris
@@ -486,12 +486,12 @@ export class AuthClient {
     return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/logout-redirects`, {
       method: 'PUT',
       request,
-      auth: 'admin',
+      auth: 'session',
       body: { postLogoutRedirectUris },
     });
   }
   /**
-   * Regenerate an OIDC client's secret using the admin session; the new secret may be returned once.
+   * Regenerate an OIDC client's secret; the new secret may be returned once.
    * @param {Request|object} request
    * @param {string} id
    * @returns {Promise<unknown>}
@@ -500,11 +500,11 @@ export class AuthClient {
     return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/secret`, {
       method: 'PUT',
       request,
-      auth: 'admin',
+      auth: 'session',
     });
   }
   /**
-   * Replace an OIDC client's scopes using the admin session.
+   * Replace an OIDC client's scopes.
    * @param {Request|object} request
    * @param {string} id
    * @param {string[]} scopes
@@ -514,7 +514,7 @@ export class AuthClient {
     return this.request(`/api/v1/oidc/clients/${encodeURIComponent(id)}/scopes`, {
       method: 'PUT',
       request,
-      auth: 'admin',
+      auth: 'session',
       body: { scopes },
     });
   }

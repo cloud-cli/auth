@@ -150,20 +150,114 @@ export async function deleteProperty(key) {
 }
 
 export async function getOidcClients() {
-  const response = await fetch(new URL('/api/v1/oidc/clients', authDomain), { credentials: 'include' });
+  const response = await fetch(new URL('/api/v1/oidc/apps', authDomain), { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load OIDC clients');
   return response.json();
 }
 
-export async function createOidcClient(id, redirectUris, scopes, isPublic = false, postLogoutRedirectUris = []) {
+export async function createOidcClient(name, redirectUris, scopes, isPublic = false, postLogoutRedirectUris = []) {
   const response = await fetch(new URL('/api/v1/oidc/clients', authDomain), {
     credentials: 'include',
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ id, redirectUris, scopes, isPublic, postLogoutRedirectUris }),
+    body: JSON.stringify({ name, redirectUris, scopes, isPublic, postLogoutRedirectUris }),
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Could not create OIDC client');
+  return result;
+}
+
+export async function updateOidcClientName(id, name) {
+  const response = await fetch(new URL('/api/v1/oidc/clients/' + encodeURIComponent(id) + '/name', authDomain), {
+    credentials: 'include',
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not update application name');
+  return result;
+}
+
+export async function setOidcClientAvailability(id, availableToUsers) {
+  const response = await fetch(
+    new URL('/api/v1/oidc/clients/' + encodeURIComponent(id) + '/availability', authDomain),
+    {
+      credentials: 'include',
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ availableToUsers }),
+    },
+  );
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not update application availability');
+  return result;
+}
+
+export async function getAgents() {
+  const response = await fetch(new URL('/api/v1/agents', authDomain), { credentials: 'include' });
+  if (!response.ok) throw new Error('Could not load Agents');
+  return response.json();
+}
+
+export async function createAgent(name) {
+  const response = await fetch(new URL('/api/v1/agents', authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not create Agent');
+  return result;
+}
+
+export async function disableAgent(agentId) {
+  const response = await fetch(new URL('/api/v1/agents/' + encodeURIComponent(agentId), authDomain), {
+    credentials: 'include',
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Could not disable Agent');
+}
+
+export async function getAgentTokens(agentId) {
+  const response = await fetch(new URL('/api/v1/agents/' + encodeURIComponent(agentId) + '/tokens', authDomain), {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Could not load Agent sign-in tokens');
+  return response.json();
+}
+
+export async function createAgentToken(agentId, label) {
+  const response = await fetch(new URL('/api/v1/agents/' + encodeURIComponent(agentId) + '/tokens', authDomain), {
+    credentials: 'include',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ label }),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not create Agent sign-in token');
+  return result;
+}
+
+export async function revokeAgentToken(agentId, tokenId) {
+  const response = await fetch(
+    new URL('/api/v1/agents/' + encodeURIComponent(agentId) + '/tokens/' + encodeURIComponent(tokenId), authDomain),
+    { credentials: 'include', method: 'DELETE' },
+  );
+  if (!response.ok) throw new Error('Could not revoke Agent sign-in token');
+}
+
+export async function rotateAgentToken(agentId, tokenId) {
+  const response = await fetch(
+    new URL(
+      '/api/v1/agents/' + encodeURIComponent(agentId) + '/tokens/' + encodeURIComponent(tokenId) + '/rotate',
+      authDomain,
+    ),
+    { credentials: 'include', method: 'POST' },
+  );
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Could not rotate Agent sign-in token');
   return result;
 }
 
@@ -260,6 +354,12 @@ export async function getApiTokens(clientId) {
   const response = await fetch(new URL('/api/v1/api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',
   });
+  if (!response.ok) throw new Error('Could not load API tokens');
+  return response.json();
+}
+
+export async function getAllApiTokens() {
+  const response = await fetch(new URL('/api/v1/api-tokens/me', authDomain), { credentials: 'include' });
   if (!response.ok) throw new Error('Could not load API tokens');
   return response.json();
 }

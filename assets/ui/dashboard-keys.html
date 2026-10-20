@@ -43,7 +43,7 @@
           on-change="selectClient($event.target.value)"
         >
           <option value="">Choose an OIDC client</option>
-          <template for="app of apps"><option attr-value="app.id">{{ app.id }}</option></template>
+          <template for="app of apps"><option attr-value="app.id">{{ app.name }} · {{ app.id }}</option></template>
         </select>
         <div
           class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 dark:text-[#aab7ad]"

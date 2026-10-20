@@ -4,6 +4,9 @@ import { accessTokenTtl, createAccessToken, createIdentityToken } from './token.
 
 type Client = {
   id: string;
+  name: string;
+  ownerUserId: string;
+  availableToUsers: boolean;
   redirectUris: string[];
   postLogoutRedirectUris: string[];
   scopes: string[];
@@ -52,6 +55,9 @@ export async function getClient(clientId: string) {
     return stored
       ? ({
           id: stored.id,
+          name: stored.name || stored.id,
+          ownerUserId: stored.ownerUserId || '',
+          availableToUsers: Boolean(stored.availableToUsers),
           redirectUris: stored.redirectUris,
           postLogoutRedirectUris: stored.postLogoutRedirectUris || [],
           scopes: stored.scopes || [],
@@ -273,38 +279,87 @@ export function oidcUserInfo(user: User, scopes: string[]) {
 
 export async function listManagedClients() {
   const clients = await rows<OidcClient>('auth_oidc_client');
-  return clients.map(({ id, redirectUris, postLogoutRedirectUris, scopes, createdAt, isPublic }) => ({
-    id,
-    redirectUris,
-    postLogoutRedirectUris: postLogoutRedirectUris || [],
-    scopes,
-    createdAt,
-    isPublic,
-  }));
+  return clients.map(
+    ({
+      id,
+      name,
+      ownerUserId,
+      availableToUsers,
+      redirectUris,
+      postLogoutRedirectUris,
+      scopes,
+      createdAt,
+      isPublic,
+    }) => ({
+      id,
+      name: name || id,
+      ownerUserId,
+      availableToUsers: Boolean(availableToUsers),
+      redirectUris,
+      postLogoutRedirectUris: postLogoutRedirectUris || [],
+      scopes,
+      createdAt,
+      isPublic,
+    }),
+  );
+}
+
+export async function listAvailableClients(userId: string, isAdmin = false) {
+  const clients = await rows<OidcClient>('auth_oidc_client');
+  return clients
+    .map((client) => {
+      const canManage = isAdmin || client.ownerUserId === userId;
+      return {
+        id: client.id,
+        name: client.name || client.id,
+        scopes: client.scopes || [],
+        isPublic: Boolean(client.isPublic),
+        availableToUsers: Boolean(client.availableToUsers),
+        canManage,
+        ...(canManage
+          ? {
+              ownerUserId: client.ownerUserId,
+              redirectUris: client.redirectUris,
+              postLogoutRedirectUris: client.postLogoutRedirectUris || [],
+              createdAt: client.createdAt,
+            }
+          : {}),
+      };
+    })
+    .filter((client) => isAdmin || client.availableToUsers || client.ownerUserId === userId);
 }
 
 export async function createManagedClient(
-  id: string,
+  nameValue: string,
   redirectUris: string[],
   scopes: string[],
   isPublic = false,
   postLogoutRedirectUris: string[] = [],
+  ownerUserId = '',
+  availableToUsers = false,
 ) {
-  if (!id || !/^[a-zA-Z0-9._-]{1,80}$/.test(id)) throw new Error('Invalid client ID');
+  const name = nameValue.trim();
+  if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) {
+    throw new Error('Invalid application name');
+  }
+  const id = `app_${randomBytes(24).toString('base64url')}`;
   const normalizedUris = [
     ...new Set(redirectUris.filter((uri) => isSecureRedirectUri(uri) || (isPublic && isNativeRedirectUri(uri)))),
   ];
-  if (!normalizedUris.length) throw new Error('At least one secure callback URL is required');
+  if (!normalizedUris.length) {
+    throw new Error('At least one secure callback URL is required');
+  }
   const normalizedLogoutUris = [
     ...new Set(
       postLogoutRedirectUris.filter((uri) => isSecureRedirectUri(uri) || (isPublic && isNativeRedirectUri(uri))),
     ),
   ];
   const normalizedScopes = scopes.map((scope) => scope.trim()).filter((scope) => /^[a-zA-Z0-9:._-]{1,80}$/.test(scope));
-  if (await getClient(id)) throw new Error('Client already exists');
   const secret = randomBytes(32).toString('base64url');
-  await run(
-    'INSERT INTO auth_oidc_client (id, secret_hash, redirect_uris, post_logout_redirect_uris, scopes, created_at, is_public) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  const inserted = await run(
+    `INSERT INTO auth_oidc_client (id, secret_hash, redirect_uris, post_logout_redirect_uris, scopes, created_at, is_public, owner_user_id, available_to_users, display_name)
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+     WHERE ? = '' OR (SELECT COUNT(*) FROM auth_oidc_client WHERE owner_user_id = ?) < 25`,
     [
       id,
       isPublic ? '' : hashSecret(secret),
@@ -313,16 +368,45 @@ export async function createManagedClient(
       json(normalizedScopes),
       new Date().toISOString(),
       isPublic ? 1 : 0,
+      ownerUserId,
+      availableToUsers ? 1 : 0,
+      name,
+      ownerUserId,
+      ownerUserId,
     ],
   );
+  if (!inserted?.changes) {
+    throw new Error('An account can create up to 25 applications.');
+  }
   return {
     id,
+    name,
     secret: isPublic ? undefined : secret,
     redirectUris: normalizedUris,
     postLogoutRedirectUris: normalizedLogoutUris,
     scopes: normalizedScopes,
     isPublic,
   };
+}
+
+export async function updateManagedClientAvailability(id: string, availableToUsers: boolean) {
+  const result = await run('UPDATE auth_oidc_client SET available_to_users = ? WHERE id = ?', [
+    availableToUsers ? 1 : 0,
+    id,
+  ]);
+  return Boolean(result?.changes);
+}
+
+export async function updateManagedClientName(id: string, nameValue: string) {
+  const name = nameValue.trim();
+  if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) {
+    throw new Error('Invalid application name');
+  }
+  const result = await run('UPDATE auth_oidc_client SET display_name = ? WHERE id = ?', [name, id]);
+  if (!result?.changes) {
+    throw new Error('Client not found');
+  }
+  return name;
 }
 
 export function isNativeRedirectUri(uri: string) {

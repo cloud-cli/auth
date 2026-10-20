@@ -71,15 +71,18 @@
         <pre class="whitespace-pre-wrap break-words text-sm font-bold text-brand dark:text-[#c8e6a8]">{{ codes }}</pre>
       </div>
     </template>
+
+    <template if="user.role === 'admin'"><v2-keys></v2-keys></template>
   </section>
 
   <script setup>
     import { ref } from '@li3/web';
-    import { getPasskeys, registerPasskey, revokePasskey, generateRecoveryCodes } from '/ui/dashboard.mjs';
+    import { generateRecoveryCodes, getPasskeys, getProfile, registerPasskey, revokePasskey } from '/ui/dashboard.mjs';
 
     export default function () {
       const passkeys = ref([]);
       const codes = ref('');
+      const user = ref({ role: '' });
 
       const load = async () => {
         const keys = await getPasskeys();
@@ -120,7 +123,10 @@
       };
 
       load();
-      return { passkeys, codes, addPasskey, revoke, recoveryCodes, openPwa, formatLastUsed };
+      getProfile()
+        .then((profile) => (user.value = profile))
+        .catch(() => {});
+      return { passkeys, codes, user, addPasskey, revoke, recoveryCodes, openPwa, formatLastUsed };
     }
   </script>
 </template>

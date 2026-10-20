@@ -6,9 +6,10 @@
     <div class="grid gap-2 sm:grid-cols-2">
       <input
         class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
-        placeholder="App ID"
-        bind-value="newId"
-        on-input="setNewId($event.target.value)"
+        placeholder="Application name"
+        bind-value="newName"
+        on-input="setNewName($event.target.value)"
+        maxlength="80"
         required
       />
       <label class="flex items-center gap-2 text-sm">
@@ -143,7 +144,7 @@
       const newCallbacks = ref([]);
       const newLogoutRedirects = ref([]);
       const newScopes = ref([]);
-      const [newId, setNewId] = hook('');
+      const [newName, setNewName] = hook('');
       const [newCallbackInput, setNewCallbackInput] = hook('');
       const [newLogoutRedirectInput, setNewLogoutRedirectInput] = hook('');
       const [newScopeInput, setNewScopeInput] = hook('');
@@ -155,14 +156,14 @@
         if (formError.value) return;
         try {
           const result = await createOidcClient(
-            newId.value.trim(),
+            newName.value.trim(),
             newCallbacks.value,
             newScopes.value,
             isPublic.value,
             newLogoutRedirects.value,
           );
           createdSecret.value = result.secret || '';
-          formOpen.value = false;
+          setNewName('');
           newCallbacks.value = [];
           newLogoutRedirects.value = [];
           newScopes.value = [];
@@ -230,8 +231,8 @@
         formOpen,
         formError,
         createdSecret,
-        newId,
-        setNewId,
+        newName,
+        setNewName,
         newCallbacks,
         newLogoutRedirects,
         newScopes,

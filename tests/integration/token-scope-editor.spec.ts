@@ -1,38 +1,30 @@
 import { expect, test } from '@playwright/test';
+import { createAgentFixture, deleteAgentFixture, signInAsAgent } from './agent-fixture.js';
 
-const authLabKey = process.env.AUTH_LAB_KEY;
-
-test('token scope editor opens, cancels, and saves on the Auth Lab deployment', async ({ page }) => {
-  test.skip(!authLabKey, 'Requires AUTH_LAB_KEY');
-  const appId = `e2e-scope-editor-${Date.now()}`;
-  let clientCreated = false;
+test('Tokens scope editor opens and saves a valid scope selection', async ({ page }) => {
+  const fixture = await createAgentFixture(page);
+  if (!fixture) {
+    test.skip(true, 'Requires a deployment built with test fixture routes');
+    return;
+  }
 
   try {
-    await page.goto('/');
-    const loginStatus = await page.evaluate(async (key) => {
-      const response = await fetch('/__test__/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ key, role: 'admin' }),
-      });
-      return response.status;
-    }, authLabKey);
-    expect(loginStatus).toBe(204);
+    await signInAsAgent(page, fixture);
 
-    const createStatus = await page.evaluate(async (id) => {
+    const createdApp = await page.evaluate(async () => {
       const response = await fetch('/api/v1/oidc/clients', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          id,
-          redirectUris: [`https://${id}.example/callback`],
+          name: `E2E scope editor ${Date.now()}`,
+          redirectUris: ['https://scope-editor.example/callback'],
           scopes: ['workflows:read', 'artifacts:read'],
         }),
       });
-      return response.status;
-    }, appId);
-    expect(createStatus).toBe(201);
-    clientCreated = true;
+      return { status: response.status, body: await response.json() };
+    });
+    expect(createdApp.status).toBe(201);
+    const appId = createdApp.body.id;
 
     const tokenStatus = await page.evaluate(async (id) => {
       const response = await fetch(`/api/v1/api-tokens/${encodeURIComponent(id)}`, {
@@ -44,28 +36,14 @@ test('token scope editor opens, cancels, and saves on the Auth Lab deployment', 
     }, appId);
     expect(tokenStatus).toBe(201);
 
-    await page.goto('/me#applications');
-    const appDetails = page.locator('details').filter({ hasText: appId });
-    await appDetails.locator('summary').click();
-
+    await page.goto('/me#tokens');
+    await page.getByLabel('Filter by app').selectOption(appId);
     const tokenCard = page.locator('article').filter({ hasText: 'scope editor test' });
-    const scopeEditor = tokenCard.locator('details');
-    await scopeEditor.locator('summary').click();
-    await expect(scopeEditor).toHaveAttribute('open', '');
-    await tokenCard.getByRole('button', { name: 'Cancel' }).click();
-    await expect(scopeEditor).not.toHaveAttribute('open', '');
-
-    await scopeEditor.locator('summary').click();
-    await expect(scopeEditor).toHaveAttribute('open', '');
+    await tokenCard.getByRole('button', { name: 'Edit scopes' }).click();
     await tokenCard.getByLabel('artifacts:read').uncheck();
     await tokenCard.getByRole('button', { name: 'Save scopes' }).click();
     await expect(tokenCard.getByText('Scopes: workflows:read', { exact: true })).toBeVisible();
-    await expect(scopeEditor).not.toHaveAttribute('open', '');
   } finally {
-    if (clientCreated) {
-      await page.evaluate(async (id) => {
-        await fetch(`/api/v1/oidc/clients/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      }, appId);
-    }
+    await deleteAgentFixture(page, fixture);
   }
 });

@@ -1,0 +1,260 @@
+<template component="v2-agents">
+  <section class="content-section animate-fade-in max-w-4xl">
+    <div class="mb-6">
+      <h2 class="text-xl font-bold tracking-tight text-gray-900 dark:text-[#eef3ef]">Agents</h2>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-[#aab7ad]">
+        Agents are independent accounts with their own OIDC subject. They sign in with an Agent ID and a rotatable
+        sign-in token, and can create apps and child Agents without gaining server administration rights.
+      </p>
+    </div>
+
+    <form
+      class="mb-6 flex flex-col gap-3 rounded-xl border border-brand/10 bg-brand/5 p-4 sm:flex-row dark:bg-[#c8e6a8]/[0.06]"
+      on-submit.prevent="addAgent()"
+    >
+      <label class="sr-only" for="new-agent-name">Agent name</label>
+      <input
+        id="new-agent-name"
+        class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+        placeholder="Agent name"
+        bind-value="agentName"
+        on-input="setAgentName($event.target.value)"
+        maxlength="40"
+        required
+      />
+      <button class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white dark:bg-[#376d46]" type="submit">
+        Create Agent
+      </button>
+    </form>
+    <p class="mb-4 text-sm text-red-600 dark:text-[#ffb8ae]" role="alert">{{ error }}</p>
+
+    <template if="createdToken">
+      <v2-copy-value-box bind-token="createdToken" bind-message="secretMessage"></v2-copy-value-box>
+      <p class="mb-4 break-all text-xs text-gray-500 dark:text-[#aab7ad]">Agent ID: {{ createdAgentId }}</p>
+    </template>
+
+    <ul class="divide-y divide-gray-100 rounded-xl border border-gray-100 dark:divide-[#2d3a31] dark:border-[#2d3a31]">
+      <template if="agents.length === 0">
+        <li class="p-6 text-center text-sm text-gray-500 dark:text-[#aab7ad]">No Agents yet. Create one above.</li>
+      </template>
+      <template for="agent of agents">
+        <li class="p-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="font-semibold text-gray-900 dark:text-[#eef3ef]">{{ agent.name }}</h3>
+                <span
+                  if="agent.self"
+                  class="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand dark:text-[#c8e6a8]"
+                  >This Agent</span
+                >
+                <span
+                  if="agent.disabled"
+                  class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-[#ffb8ae]"
+                  >Disabled</span
+                >
+              </div>
+              <code class="mt-1 block break-all font-mono text-xs text-gray-500 dark:text-[#aab7ad]"
+                >{{ agent.id }}</code
+              >
+              <p class="mt-1 text-xs text-gray-500 dark:text-[#aab7ad]">Created {{ agent.createdAt }}</p>
+            </div>
+            <button
+              if="!agent.self && !agent.disabled"
+              class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-[#ffb8ae]"
+              type="button"
+              on-click="disable(agent)"
+            >
+              Disable Agent
+            </button>
+          </div>
+
+          <details
+            class="mt-3 rounded-lg border border-gray-100 p-3 dark:border-[#2d3a31]"
+            on-toggle="loadTokens(agent, $event)"
+          >
+            <summary class="cursor-pointer text-sm font-semibold text-brand dark:text-[#c8e6a8]">
+              Manage sign-in tokens
+            </summary>
+            <form class="mt-3 flex flex-col gap-2 sm:flex-row" on-submit.prevent="addToken(agent)">
+              <label class="sr-only" attr-for="'agent-token-label-' + agent.id">Token label</label>
+              <input
+                class="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+                attr-id="'agent-token-label-' + agent.id"
+                placeholder="Token label"
+                bind-value="tokenLabel"
+                on-input="setTokenLabel($event.target.value)"
+                maxlength="80"
+                required
+                attr-disabled.bool="agent.disabled"
+              />
+              <button
+                class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-[#376d46]"
+                type="submit"
+                attr-disabled.bool="agent.disabled"
+              >
+                Generate token
+              </button>
+            </form>
+            <template if="agent.tokensLoading"
+              ><p class="mt-3 text-sm text-gray-500 dark:text-[#aab7ad]">Loading tokens…</p></template
+            >
+            <template if="!agent.tokensLoading && agent.tokens && agent.tokens.length === 0"
+              ><p class="mt-3 text-sm text-gray-500 dark:text-[#aab7ad]">No sign-in tokens.</p></template
+            >
+            <template for="token of agent.tokens || []">
+              <div
+                class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-3 text-sm dark:bg-[#1c2820]"
+              >
+                <div class="min-w-0">
+                  <strong>{{ token.label }}</strong>
+                  <p class="font-mono text-xs text-gray-500 dark:text-[#aab7ad]">
+                    {{ token.tokenHint }} · expires {{ token.expiresAt }}
+                  </p>
+                  <p if="token.revokedAt" class="text-xs text-red-700 dark:text-[#ffb8ae]">
+                    Revoked {{ token.revokedAt }}
+                  </p>
+                </div>
+                <button
+                  if="!token.revokedAt && !agent.disabled"
+                  class="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand dark:text-[#c8e6a8]"
+                  type="button"
+                  on-click="rotateToken(agent, token)"
+                >
+                  Rotate token
+                </button>
+                <button
+                  if="!token.revokedAt && !agent.disabled"
+                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-[#ffb8ae]"
+                  type="button"
+                  on-click="revokeToken(agent, token)"
+                >
+                  Revoke
+                </button>
+              </div>
+            </template>
+          </details>
+        </li>
+      </template>
+    </ul>
+  </section>
+
+  <link rel="component" href="/ui/dashboard-copy-value.html" />
+  <script setup>
+    import { hook, ref } from '@li3/web';
+    import {
+      createAgent,
+      createAgentToken,
+      disableAgent,
+      getAgents,
+      getAgentTokens,
+      revokeAgentToken,
+      rotateAgentToken,
+    } from '/ui/dashboard.mjs';
+
+    export default function () {
+      const agents = ref([]);
+      const error = ref('');
+      const createdToken = ref('');
+      const createdAgentId = ref('');
+      const secretMessage = ref('Copy this Agent sign-in token now. It is only shown once.');
+      const [agentName, setAgentName] = hook('');
+      const [tokenLabel, setTokenLabel] = hook('');
+      const load = async () => {
+        agents.value = await getAgents();
+      };
+
+      const addAgent = async () => {
+        error.value = '';
+        try {
+          const result = await createAgent(agentName.value);
+          createdToken.value = result.token;
+          createdAgentId.value = result.agent.id;
+          secretMessage.value = `Copy the sign-in token for ${result.agent.name} now. It is only shown once.`;
+          setAgentName('');
+          await load();
+        } catch (reason) {
+          error.value = reason.message || 'Could not create Agent.';
+        }
+      };
+
+      const loadTokens = async (agent, event) => {
+        if (!event.currentTarget.open || agent.tokens) return;
+        agent.tokensLoading = true;
+        try {
+          agent.tokens = await getAgentTokens(agent.id);
+        } catch (reason) {
+          error.value = reason.message || 'Could not load Agent sign-in tokens.';
+        } finally {
+          agent.tokensLoading = false;
+        }
+      };
+
+      const addToken = async (agent) => {
+        error.value = '';
+        try {
+          const token = await createAgentToken(agent.id, tokenLabel.value || 'Rotated sign-in token');
+          createdToken.value = token.token;
+          createdAgentId.value = agent.id;
+          secretMessage.value = `Copy the replacement sign-in token for ${agent.name} now. It is only shown once.`;
+          setTokenLabel('');
+          agent.tokens = await getAgentTokens(agent.id);
+        } catch (reason) {
+          error.value = reason.message || 'Could not create Agent sign-in token.';
+        }
+      };
+
+      const revokeToken = async (agent, token) => {
+        if (!confirm(`Revoke the "${token.label}" sign-in token?`)) return;
+        try {
+          await revokeAgentToken(agent.id, token.tokenId);
+          agent.tokens = await getAgentTokens(agent.id);
+        } catch (reason) {
+          error.value = reason.message || 'Could not revoke Agent sign-in token.';
+        }
+      };
+
+      const rotateToken = async (agent, token) => {
+        if (!confirm(`Replace the "${token.label}" sign-in token? The old token will be revoked.`)) return;
+        try {
+          const replacement = await rotateAgentToken(agent.id, token.tokenId);
+          createdToken.value = replacement.token;
+          createdAgentId.value = agent.id;
+          secretMessage.value = `Copy the replacement sign-in token for ${agent.name} now. It is only shown once.`;
+          agent.tokens = await getAgentTokens(agent.id);
+        } catch (reason) {
+          error.value = reason.message || 'Could not rotate Agent sign-in token.';
+        }
+      };
+
+      const disable = async (agent) => {
+        if (!confirm(`Disable ${agent.name} and all Agents it created? This revokes their sign-in tokens.`)) return;
+        try {
+          await disableAgent(agent.id);
+          await load();
+        } catch (reason) {
+          error.value = reason.message || 'Could not disable Agent.';
+        }
+      };
+
+      load().catch((reason) => (error.value = reason.message || 'Could not load Agents.'));
+      return {
+        agents,
+        error,
+        createdToken,
+        createdAgentId,
+        secretMessage,
+        agentName,
+        setAgentName,
+        tokenLabel,
+        setTokenLabel,
+        addAgent,
+        loadTokens,
+        addToken,
+        revokeToken,
+        rotateToken,
+        disable,
+      };
+    }
+  </script>
+</template>

@@ -11,7 +11,16 @@ const operations = Object.entries(spec.paths).flatMap(([path, methods]) =>
 
 test('OpenAPI splits authentication operations into readable sections', () => {
   const tags = spec.tags.map(({ name }) => name);
-  for (const name of ['Profile', 'Properties', 'API tokens', 'JWT APIs', 'Admin-only APIs', 'UI-only APIs']) {
+  for (const name of [
+    'Profile',
+    'Properties',
+    'API tokens',
+    'Applications',
+    'Agents',
+    'JWT APIs',
+    'Admin-only APIs',
+    'UI-only APIs',
+  ]) {
     assert.ok(tags.includes(name), `Missing OpenAPI tag: ${name}`);
   }
   assert.ok(operations.every(({ operation }) => !operation.tags?.includes('Authentication')));
@@ -20,10 +29,22 @@ test('OpenAPI splits authentication operations into readable sections', () => {
   assert.equal(spec.paths['/api/v1/api-tokens/me'].get.tags[0], 'API tokens');
   assert.equal(spec.paths['/authorize'].get.tags[0], 'JWT APIs');
   assert.equal(spec.paths['/api/v1/oidc/clients'].get.tags[0], 'Admin-only APIs');
+  assert.equal(spec.paths['/api/v1/oidc/apps'].get.tags[0], 'Applications');
+  assert.equal(spec.paths['/api/v1/agents'].post.tags[0], 'Agents');
+  assert.deepEqual(spec.paths['/api/v1/api-tokens/me'].get.security, [{ apiKeyAuth: [] }]);
+  assert.deepEqual(spec.paths['/api/v1/api-tokens/{clientId}/{tokenId}/scopes'].put.security, [{ apiKeyAuth: [] }]);
   assert.equal(spec.paths['/api/v1/webauthn/credentials'].get.tags[0], 'UI-only APIs');
   assert.equal(spec.paths['/index.mjs'].get.tags[0], 'Browser client');
   assert.equal(spec.paths['/oidc.mjs'].get.tags[0], 'Browser client');
   assert.equal(spec.paths['/node.mjs'].get.tags[0], 'Node client');
+});
+
+test('OIDC app creation uses a display name and generated client ID', () => {
+  const schema = spec.paths['/api/v1/oidc/clients'].post.requestBody.content['application/json'].schema;
+  assert.deepEqual(schema.required, ['name', 'redirectUris']);
+  assert.ok(schema.properties.name);
+  assert.equal('id' in schema.properties, false);
+  assert.deepEqual(spec.components.schemas.User.properties.role.enum, ['agent', 'user', 'admin']);
 });
 
 test('every documented operation uses a declared section', () => {

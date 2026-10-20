@@ -1,0 +1,395 @@
+<template component="v2-api-tokens">
+  <section class="content-section animate-fade-in max-w-5xl">
+    <div class="mb-6">
+      <h2 class="text-xl font-bold tracking-tight text-gray-900 dark:text-[#eef3ef]">Tokens</h2>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-[#aab7ad]">
+        Create and manage downstream API tokens for applications available to your account. Tokens are tied to your own
+        OIDC subject and can be scoped, rotated, or revoked independently.
+      </p>
+    </div>
+
+    <button
+      class="flex min-h-11 w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-semibold text-gray-800 hover:border-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+      type="button"
+      on-click="toggleCreate()"
+      attr-aria-expanded="createOpen"
+    >
+      <lucide-icon icon="plus" size="17"></lucide-icon>Create token
+    </button>
+
+    <template if="createOpen">
+      <div class="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-[#2d3a31] dark:bg-[#1c2820]">
+        <div class="grid gap-4">
+          <label class="grid gap-1 text-sm font-semibold" for="token-app-select">
+            OIDC application
+            <select
+              id="token-app-select"
+              class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+              bind-value="selectedClientId"
+              on-change="selectClient($event.target.value)"
+            >
+              <option value="">Choose an application</option>
+              <template for="app of apps"><option attr-value="app.id">{{ app.name }} · {{ app.id }}</option></template>
+            </select>
+          </label>
+
+          <template if="selectedApp">
+            <fieldset class="grid gap-2">
+              <legend class="mb-1 text-sm font-semibold">Choose token scopes</legend>
+              <template if="selectedApp.scopes.length === 0">
+                <p class="text-sm text-gray-500 dark:text-[#aab7ad]">
+                  This application has no token scopes configured.
+                </p>
+              </template>
+              <template for="scope of selectedApp.scopes">
+                <label
+                  class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b]"
+                >
+                  <input
+                    type="checkbox"
+                    attr-checked.bool="selectedScopes.includes(scope)"
+                    on-change="toggleScope(scope)"
+                  />
+                  <span>{{ scope }}</span>
+                </label>
+              </template>
+            </fieldset>
+          </template>
+
+          <div>
+            <button
+              class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#376d46]"
+              type="button"
+              bind-disabled.bool="!selectedClientId || selectedScopes.length === 0 || creating"
+              on-click="createToken()"
+            >
+              {{ creating ? 'Creating…' : 'Create' }}
+            </button>
+            <template if="createdToken">
+              <v2-copy-value-box bind-token="createdToken" bind-message="createdMessage"></v2-copy-value-box>
+            </template>
+          </div>
+          <p class="text-sm text-red-600 dark:text-[#ffb8ae]" role="alert">{{ createError }}</p>
+        </div>
+      </div>
+    </template>
+
+    <div class="mt-8">
+      <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 class="text-base font-bold text-gray-900 dark:text-[#eef3ef]">Your tokens</h3>
+          <p class="text-xs text-gray-500 dark:text-[#aab7ad]">Tokens issued for your account across applications.</p>
+        </div>
+        <label class="grid gap-1 text-xs font-semibold text-gray-600 dark:text-[#aab7ad]">
+          Filter by app
+          <select
+            class="max-w-[18rem] rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+            bind-value="filterClientId"
+            on-change="setFilter($event.target.value)"
+          >
+            <option value="">All apps</option>
+            <template for="app of filterApps"><option attr-value="app.id">{{ app.name }}</option></template>
+          </select>
+        </label>
+      </div>
+
+      <p if="error" class="mb-3 text-sm text-red-600 dark:text-[#ffb8ae]" role="alert">{{ error }}</p>
+      <div
+        class="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100 dark:divide-[#2d3a31] dark:border-[#2d3a31]"
+      >
+        <template if="loading"
+          ><p class="p-6 text-center text-sm text-gray-500 dark:text-[#aab7ad]">Loading tokens…</p></template
+        >
+        <template if="!loading && visibleTokens.length === 0">
+          <p class="p-6 text-center text-sm text-gray-500 dark:text-[#aab7ad]">No tokens match this app filter.</p>
+        </template>
+        <template for="token of visibleTokens">
+          <article class="p-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h4 class="font-semibold text-gray-900 dark:text-[#eef3ef]">{{ token.label }}</h4>
+                <p class="mt-0.5 break-all text-xs text-gray-500 dark:text-[#aab7ad]">
+                  {{ token.clientName }} · {{ token.clientId }}
+                </p>
+                <p class="mt-1 font-mono text-xs text-gray-500 dark:text-[#aab7ad]">
+                  {{ token.tokenHint || 'Token hint unavailable' }}
+                </p>
+                <p class="mt-1 break-words text-xs text-gray-600 dark:text-[#aab7ad]">
+                  Scopes: {{ token.scopes.join(', ') }}
+                </p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-[#aab7ad]">Expires {{ token.expiresAt }}</p>
+                <p if="token.revokedAt" class="mt-1 text-xs font-semibold text-red-700 dark:text-[#ffb8ae]">
+                  Revoked {{ token.revokedAt }}
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  if="!token.revokedAt && token.canRotate"
+                  class="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand dark:text-[#c8e6a8]"
+                  type="button"
+                  on-click="rotateToken(token)"
+                >
+                  Rotate
+                </button>
+                <button
+                  if="!token.revokedAt && token.canEdit"
+                  class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold dark:border-[#2d3a31]"
+                  type="button"
+                  on-click="toggleEdit(token)"
+                >
+                  {{ editingTokenId === token.tokenId ? 'Close scopes' : 'Edit scopes' }}
+                </button>
+                <button
+                  if="!token.revokedAt"
+                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-[#ffb8ae]"
+                  type="button"
+                  on-click="revokeToken(token)"
+                >
+                  Revoke
+                </button>
+              </div>
+            </div>
+            <template if="editingTokenId === token.tokenId">
+              <div class="mt-3 grid gap-2 rounded-lg bg-gray-50 p-3 dark:bg-[#1c2820]">
+                <template for="scope of scopesFor(token)">
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      attr-checked.bool="editScopes.includes(scope)"
+                      on-change="toggleEditScope(scope)"
+                    />{{ scope }}
+                  </label>
+                </template>
+                <p class="text-xs text-red-600 dark:text-[#ffb8ae]">{{ editError }}</p>
+                <div class="flex gap-2">
+                  <button
+                    class="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 dark:bg-[#376d46]"
+                    type="button"
+                    bind-disabled.bool="editScopes.length === 0"
+                    on-click="saveScopes(token)"
+                  >
+                    Save scopes
+                  </button>
+                  <button
+                    class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold dark:border-[#2d3a31]"
+                    type="button"
+                    on-click="cancelEdit()"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </template>
+          </article>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <link rel="component" href="/ui/dashboard-copy-value.html" />
+  <script setup>
+    import { ref } from '@li3/web';
+    import {
+      createApiToken,
+      getAllApiTokens,
+      getOidcClients,
+      revokeApiToken,
+      updateApiTokenScopes,
+    } from '/ui/dashboard.mjs';
+
+    export default function () {
+      const apps = ref([]);
+      const filterApps = ref([]);
+      const tokens = ref([]);
+      const visibleTokens = ref([]);
+      const loading = ref(true);
+      const error = ref('');
+      const createError = ref('');
+      const createOpen = ref(false);
+      const selectedClientId = ref('');
+      const selectedScopes = ref([]);
+      const creating = ref(false);
+      const createdToken = ref('');
+      const createdMessage = ref('Copy this downstream API token now. It is only shown once.');
+      const filterClientId = ref('');
+      const editingTokenId = ref('');
+      const editScopes = ref([]);
+      const editError = ref('');
+
+      const selectedApp = ref(null);
+
+      const refreshFilter = () => {
+        const options = new Map();
+        for (const app of apps.value) options.set(app.id, { id: app.id, name: app.name || app.id });
+        for (const token of tokens.value) {
+          if (!options.has(token.clientId))
+            options.set(token.clientId, { id: token.clientId, name: token.clientName || token.clientId });
+        }
+        filterApps.value = [...options.values()].sort((left, right) => left.name.localeCompare(right.name));
+        visibleTokens.value = filterClientId.value
+          ? tokens.value.filter((token) => token.clientId === filterClientId.value)
+          : tokens.value;
+      };
+
+      const load = async () => {
+        loading.value = true;
+        error.value = '';
+        try {
+          const [availableApps, ownTokens] = await Promise.all([getOidcClients(), getAllApiTokens()]);
+          apps.value = availableApps;
+          selectedApp.value = availableApps.find((app) => app.id === selectedClientId.value) || null;
+          tokens.value = ownTokens.map((token) => {
+            const app = availableApps.find((item) => item.id === token.clientId);
+            return {
+              ...token,
+              clientName: app?.name || token.clientName || token.clientId,
+              canEdit: Boolean(app),
+              canRotate: Boolean(app),
+            };
+          });
+          refreshFilter();
+        } catch (reason) {
+          error.value = reason.message || 'Could not load tokens.';
+        } finally {
+          loading.value = false;
+        }
+      };
+
+      const toggleCreate = () => {
+        createOpen.value = !createOpen.value;
+        if (!createOpen.value) {
+          selectedClientId.value = '';
+          selectedScopes.value = [];
+          createdToken.value = '';
+          createError.value = '';
+        }
+      };
+
+      const selectClient = (clientId) => {
+        selectedClientId.value = clientId;
+        selectedApp.value = apps.value.find((app) => app.id === clientId) || null;
+        selectedScopes.value = [];
+        createdToken.value = '';
+        createError.value = '';
+      };
+
+      const toggleScope = (scope) => {
+        selectedScopes.value = selectedScopes.value.includes(scope)
+          ? selectedScopes.value.filter((item) => item !== scope)
+          : [...selectedScopes.value, scope];
+      };
+
+      const createToken = async () => {
+        if (!selectedClientId.value || !selectedScopes.value.length || creating.value) return;
+        creating.value = true;
+        createError.value = '';
+        try {
+          createdMessage.value = 'Copy this downstream API token now. It is only shown once.';
+          const result = await createApiToken(selectedClientId.value, 'API token', selectedScopes.value);
+          createdToken.value = result.token;
+          selectedScopes.value = [];
+          await load();
+        } catch (reason) {
+          createError.value = reason.message || 'Could not create token.';
+        } finally {
+          creating.value = false;
+        }
+      };
+
+      const setFilter = (clientId) => {
+        filterClientId.value = clientId;
+        refreshFilter();
+      };
+
+      const toggleEdit = (token) => {
+        if (editingTokenId.value === token.tokenId) return cancelEdit();
+        editingTokenId.value = token.tokenId;
+        editScopes.value = [...token.scopes];
+        editError.value = '';
+      };
+
+      const scopesFor = (token) => apps.value.find((app) => app.id === token.clientId)?.scopes || [];
+
+      const toggleEditScope = (scope) => {
+        editScopes.value = editScopes.value.includes(scope)
+          ? editScopes.value.filter((item) => item !== scope)
+          : [...editScopes.value, scope];
+      };
+
+      const cancelEdit = () => {
+        editingTokenId.value = '';
+        editScopes.value = [];
+        editError.value = '';
+      };
+
+      const saveScopes = async (token) => {
+        try {
+          await updateApiTokenScopes(token.clientId, token.tokenId, editScopes.value);
+          cancelEdit();
+          await load();
+        } catch (reason) {
+          editError.value = reason.message || 'Could not update token scopes.';
+        }
+      };
+
+      const revokeToken = async (token) => {
+        if (!confirm(`Revoke "${token.label}"?`)) return;
+        try {
+          await revokeApiToken(token.clientId, token.tokenId);
+          await load();
+        } catch (reason) {
+          error.value = reason.message || 'Could not revoke token.';
+        }
+      };
+
+      const rotateToken = async (token) => {
+        if (!confirm(`Rotate "${token.label}"? The old token will be revoked.`)) return;
+        try {
+          const replacement = await createApiToken(token.clientId, token.label, token.scopes);
+          createdToken.value = replacement.token;
+          createdMessage.value = `Copy the replacement token for ${token.clientName} now. It is only shown once.`;
+          createOpen.value = true;
+          await revokeApiToken(token.clientId, token.tokenId);
+          await load();
+        } catch (reason) {
+          error.value =
+            reason.message ||
+            'Could not rotate token. If a replacement was created, copy it above and revoke the old token manually.';
+        }
+      };
+
+      load();
+      return {
+        apps,
+        filterApps,
+        visibleTokens,
+        loading,
+        error,
+        createError,
+        createOpen,
+        selectedClientId,
+        selectedApp,
+        selectedScopes,
+        creating,
+        createdToken,
+        createdMessage,
+        filterClientId,
+        editingTokenId,
+        editScopes,
+        editError,
+        toggleCreate,
+        selectClient,
+        toggleScope,
+        createToken,
+        setFilter,
+        toggleEdit,
+        scopesFor,
+        toggleEditScope,
+        cancelEdit,
+        saveScopes,
+        revokeToken,
+        rotateToken,
+      };
+    }
+  </script>
+</template>

@@ -19,6 +19,14 @@
       "name": "Properties"
     },
     {
+      "name": "Applications",
+      "description": "OIDC applications owned by the current account or published by an administrator."
+    },
+    {
+      "name": "Agents",
+      "description": "Independent Agent accounts and their rotatable sign-in tokens."
+    },
+    {
       "name": "API tokens",
       "description": "Opaque API tokens scoped to registered OIDC clients."
     },
@@ -304,8 +312,8 @@
         }
       },
       "post": {
-        "tags": ["Admin-only APIs"],
-        "summary": "Create a managed OIDC client",
+        "tags": ["Applications"],
+        "summary": "Create an OIDC application with a server-generated immutable client ID",
         "security": [
           {
             "apiKeyAuth": []
@@ -317,11 +325,8 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["id", "redirectUris"],
+                "required": ["name", "redirectUris"],
                 "properties": {
-                  "id": {
-                    "type": "string"
-                  },
                   "redirectUris": {
                     "type": "array",
                     "items": {
@@ -345,6 +350,11 @@
                   "isPublic": {
                     "type": "boolean",
                     "description": "Public/native applications omit client_secret and authenticate using PKCE."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
                   }
                 }
               }
@@ -353,13 +363,13 @@
         },
         "responses": {
           "201": {
-            "description": "Client; confidential clients also receive a one-time secret"
+            "description": "Created application; confidential clients also receive a one-time secret. New user and Agent apps are private by default."
           },
           "400": {
             "description": "Invalid client"
           },
           "403": {
-            "description": "Administrator access required"
+            "description": "Authentication required"
           }
         }
       }
@@ -380,7 +390,7 @@
     },
     "/api/v1/oidc/clients/{id}": {
       "delete": {
-        "tags": ["Admin-only APIs"],
+        "tags": ["Applications"],
         "summary": "Remove a managed OIDC client",
         "security": [
           {
@@ -402,7 +412,7 @@
             "description": "Removed"
           },
           "403": {
-            "description": "Administrator access required"
+            "description": "Owner or administrator access required"
           },
           "404": {
             "description": "Not found"
@@ -412,7 +422,7 @@
     },
     "/api/v1/oidc/clients/{id}/logout-redirects": {
       "put": {
-        "tags": ["Admin-only APIs"],
+        "tags": ["Applications"],
         "summary": "Set post-logout redirect URLs for an OIDC client",
         "security": [
           {
@@ -457,14 +467,14 @@
             "description": "Invalid client or redirect URI"
           },
           "403": {
-            "description": "Administrator access required"
+            "description": "Owner or administrator access required"
           }
         }
       }
     },
     "/api/v1/oidc/clients/{id}/secret": {
       "put": {
-        "tags": ["Admin-only APIs"],
+        "tags": ["Applications"],
         "summary": "Regenerate a managed OIDC client secret",
         "security": [
           {
@@ -515,7 +525,7 @@
             }
           },
           "403": {
-            "description": "Administrator access required"
+            "description": "Owner or administrator access required"
           },
           "404": {
             "description": "Not found"
@@ -525,7 +535,7 @@
     },
     "/api/v1/oidc/clients/{id}/scopes": {
       "put": {
-        "tags": ["Admin-only APIs"],
+        "tags": ["Applications"],
         "summary": "Replace the allowed API scopes for a managed OIDC client",
         "parameters": [
           {
@@ -564,7 +574,7 @@
             "description": "Invalid client or scope"
           },
           "403": {
-            "description": "Administrator access required"
+            "description": "Owner or administrator access required"
           }
         }
       }
@@ -589,8 +599,16 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Application or resource not available to the current account"
           }
-        }
+        },
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ]
       },
       "post": {
         "tags": ["API tokens"],
@@ -636,8 +654,16 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Application or resource not available to the current account"
           }
-        }
+        },
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ]
       }
     },
     "/api/v1/api-tokens/{clientId}/{tokenId}": {
@@ -669,7 +695,12 @@
           "404": {
             "description": "Token not found"
           }
-        }
+        },
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ]
       }
     },
     "/api/v1/api-tokens/{clientId}/issue": {
@@ -1133,18 +1164,31 @@
                 "type": "object",
                 "required": ["client_id", "token"],
                 "properties": {
-                  "client_id": { "type": "string" },
-                  "client_secret": { "type": "string" },
-                  "token": { "type": "string" },
-                  "token_type_hint": { "type": "string", "const": "refresh_token" }
+                  "client_id": {
+                    "type": "string"
+                  },
+                  "client_secret": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "token_type_hint": {
+                    "type": "string",
+                    "const": "refresh_token"
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Token revoked or unknown" },
-          "401": { "description": "Invalid client credentials" }
+          "200": {
+            "description": "Token revoked or unknown"
+          },
+          "401": {
+            "description": "Invalid client credentials"
+          }
         }
       }
     },
@@ -1618,7 +1662,12 @@
           "200": {
             "description": "Successful response"
           }
-        }
+        },
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ]
       }
     },
     "/index.mjs": {
@@ -1733,6 +1782,512 @@
           }
         }
       }
+    },
+    "/api/v1/oidc/apps": {
+      "get": {
+        "tags": ["Applications"],
+        "summary": "List applications available to the current account",
+        "description": "Includes the account’s own private apps and apps published by an administrator. Administrators see all apps.",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Visible apps; only owners and administrators receive management fields"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
+        }
+      }
+    },
+    "/api/v1/oidc/clients/{id}/name": {
+      "put": {
+        "tags": ["Applications"],
+        "summary": "Update an OIDC application display name",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated display name"
+          },
+          "400": {
+            "description": "Invalid name"
+          },
+          "404": {
+            "description": "Not found or not owned by the current account"
+          }
+        }
+      }
+    },
+    "/api/v1/oidc/clients/{id}/callbacks": {
+      "put": {
+        "tags": ["Applications"],
+        "summary": "Replace an OIDC application’s callback URLs",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["redirectUris"],
+                "properties": {
+                  "redirectUris": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved callback URLs"
+          },
+          "400": {
+            "description": "Invalid callback URL"
+          },
+          "404": {
+            "description": "Not found or not owned by the current account"
+          }
+        }
+      }
+    },
+    "/api/v1/oidc/clients/{id}/availability": {
+      "put": {
+        "tags": ["Admin-only APIs"],
+        "summary": "Publish or unpublish an OIDC application for other accounts",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["availableToUsers"],
+                "properties": {
+                  "availableToUsers": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated application availability"
+          },
+          "403": {
+            "description": "Administrator access required"
+          },
+          "404": {
+            "description": "Application not found"
+          }
+        }
+      }
+    },
+    "/api/v1/agent/login": {
+      "post": {
+        "tags": ["UI-only APIs"],
+        "summary": "Sign in as an Agent using its ID and sign-in token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["agentId", "token"],
+                "properties": {
+                  "agentId": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Agent session created"
+          },
+          "401": {
+            "description": "Invalid Agent ID or token"
+          },
+          "403": {
+            "description": "Request origin is not allowed"
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "tags": ["Agents"],
+        "summary": "List Agents managed by the current account",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed Agents, including the current Agent for Agent sessions"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Agents"],
+        "summary": "Create a child Agent and its initial one-time sign-in token",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created Agent and one-time token"
+          },
+          "400": {
+            "description": "Invalid Agent name or account limit reached"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agentId}": {
+      "delete": {
+        "tags": ["Agents"],
+        "summary": "Disable an Agent and all of its descendants",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Agent disabled and sign-in tokens revoked"
+          },
+          "404": {
+            "description": "Agent not managed by the current account"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agentId}/tokens": {
+      "get": {
+        "tags": ["Agents"],
+        "summary": "List an Agent’s sign-in token metadata",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token metadata; token values are never returned"
+          },
+          "404": {
+            "description": "Agent not managed by the current account"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Agents"],
+        "summary": "Create an additional one-time Agent sign-in token",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["label"],
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created token and one-time secret value"
+          },
+          "400": {
+            "description": "Invalid label or unavailable Agent"
+          },
+          "404": {
+            "description": "Agent not managed by the current account"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agentId}/tokens/{tokenId}": {
+      "delete": {
+        "tags": ["Agents"],
+        "summary": "Revoke an Agent sign-in token",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Token revoked"
+          },
+          "404": {
+            "description": "Token or Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agentId}/tokens/{tokenId}/rotate": {
+      "post": {
+        "tags": ["Agents"],
+        "summary": "Rotate an Agent sign-in token and revoke the old token",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Replacement token and one-time secret value"
+          },
+          "404": {
+            "description": "Token or Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/api-tokens/{clientId}/{tokenId}/scopes": {
+      "put": {
+        "tags": ["API tokens"],
+        "summary": "Replace scopes on one of the current account’s downstream tokens",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["scopes"],
+                "properties": {
+                  "scopes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Updated token scopes"
+          },
+          "400": {
+            "description": "Invalid scope selection"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Token or application not available to the current account"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1748,15 +2303,14 @@
             "type": "string"
           },
           "email": {
-            "type": "string",
-            "format": "email"
+            "type": "string"
           },
           "photo": {
             "type": "string"
           },
           "role": {
             "type": "string",
-            "enum": ["user", "admin"]
+            "enum": ["agent", "user", "admin"]
           },
           "preferred_username": {
             "type": ["string", "null"]

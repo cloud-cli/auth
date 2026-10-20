@@ -1,7 +1,7 @@
 import express from 'express';
-import { createHash, timingSafeEqual } from 'crypto';
+import { randomBytes } from 'crypto';
 import { readFileSync } from 'fs';
-import migrate from '../db/migrations/009_api_token_hints.js';
+import migrate from '../db/migrations/010_agents.js';
 import {
   findByEmail,
   findByUserId,
@@ -10,7 +10,7 @@ import {
   userAsJSON,
   normalizePreferredUsername,
 } from './user.js';
-import { initDatabase } from './database.js';
+import { initDatabase, run } from './database.js';
 import session, { normalizeSessionCookieHeader } from './session.js';
 import log from './log.js';
 import passport, { googleCallback } from './passport.js';
@@ -34,6 +34,7 @@ import {
   exchangeAuthorizationCode,
   getClient,
   isOidcClient,
+  listAvailableClients,
   listManagedClients,
   oidcUserInfo,
   removeManagedClient,
@@ -42,6 +43,8 @@ import {
   updateManagedClientRedirectUris,
   updateManagedClientPostLogoutRedirectUris,
   updateManagedClientScopes,
+  updateManagedClientAvailability,
+  updateManagedClientName,
   validateAuthorizationScopes,
   verifyClientSecret,
   rotateRefreshToken,
@@ -49,6 +52,7 @@ import {
   revokeRefreshToken,
   revokeRefreshTokenFamily,
   revokeRefreshTokensForUser,
+  revokeRefreshTokensForClient,
 } from './oidc.js';
 import {
   authenticate,
@@ -72,6 +76,21 @@ import {
   verifyAuthApiToken,
 } from './api-tokens.js';
 import { parseBasicClientCredentials } from './oauth-client-auth.js';
+import {
+  canManageAgent,
+  createAgent,
+  createAgentToken,
+  deleteAgentTree,
+  disableAgentTree,
+  disableAgentsForRootOwner,
+  getAgent,
+  listAgentTokens,
+  listAgentsForUser,
+  managedAgentTree,
+  revokeAgentToken,
+  rotateAgentToken,
+  verifyAgentToken,
+} from './agents.js';
 import {
   approveQrLogin,
   completeQrLogin,
@@ -119,6 +138,8 @@ const uiAssets = Object.fromEntries(
     'dashboard-properties.html',
     'dashboard-applications.html',
     'dashboard-app-editor.html',
+    'dashboard-agents.html',
+    'dashboard-api-tokens.html',
     'dashboard-app-form.html',
     'dashboard-users.html',
     'dashboard-keys.html',
@@ -248,6 +269,41 @@ async function adminRoute(req, res, next) {
   next();
 }
 
+async function humanRoute(req, res, next) {
+  if (!req.isAuthenticated?.() || !req.user?.id) return res.status(401).send('');
+  const user = await findByUserId(req.user.id);
+  if (!user || user.role === 'agent') return res.status(403).send('');
+  next();
+}
+
+async function canManageOidcClient(userId: string, ownerUserId: string) {
+  const user = await findByUserId(userId);
+  return Boolean(user && (user.role === 'admin' || ownerUserId === userId));
+}
+
+async function clientManagementRoute(req, res, next) {
+  if (!req.isAuthenticated?.() || !req.user?.id) {
+    return res.status(401).send('');
+  }
+  const client = await getClient(String(req.params.id || ''));
+  if (!client || !(await canManageOidcClient(req.user.id, client.ownerUserId))) {
+    return res.sendStatus(404);
+  }
+  next();
+}
+
+async function clientUseRoute(req, res, next) {
+  if (!req.isAuthenticated?.() || !req.user?.id) {
+    return res.status(401).send('');
+  }
+  const client = await getClient(String(req.params.clientId || ''));
+  const user = await findByUserId(req.user.id);
+  if (!client || !user || (!client.availableToUsers && client.ownerUserId !== user.userId && user.role !== 'admin')) {
+    return res.sendStatus(404);
+  }
+  next();
+}
+
 function registerUserAdminRoutes() {
   app.get('/api/v1/admin/users', adminRoute, async (_req, res) => {
     const { all } = await import('./database.js');
@@ -261,8 +317,8 @@ function registerUserAdminRoutes() {
          LEFT JOIN (
            SELECT user_id, MAX(timestamp) AS last_authenticated
            FROM auth_audit_event
-           WHERE result = 'success' AND event IN (
-             'google-authentication', 'test-authentication', 'recovery-authentication',
+            WHERE result = 'success' AND event IN (
+              'google-authentication', 'agent-authentication', 'recovery-authentication',
              'passkey-authentication', 'qr-approval', 'oidc-authorization', 'oidc-token-exchange'
            )
            GROUP BY user_id
@@ -302,6 +358,8 @@ function registerUserAdminRoutes() {
               await run('DELETE FROM auth_session WHERE sid = ?', [item.sid]);
           } catch {}
         }
+        if (target.role === 'agent') await disableAgentTree(id);
+        else await disableAgentsForRootOwner(id);
       }
       return res.json({ ok: true });
     }
@@ -329,6 +387,8 @@ function registerUserAdminRoutes() {
               await run('DELETE FROM auth_session WHERE sid = ?', [item.sid]);
           } catch {}
         }
+        if (target.role === 'agent') await disableAgentTree(id);
+        else await disableAgentsForRootOwner(id);
       }
       return res.json({ ok: true });
     }
@@ -342,19 +402,45 @@ function registerUserAdminRoutes() {
     if (!target) return res.sendStatus(404);
     if (target.role === 'admin' && users.filter((user: any) => user.role === 'admin').length <= 1)
       return res.status(409).json({ error: 'Cannot delete the final administrator.' });
+    const agentIds =
+      target.role === 'agent'
+        ? await managedAgentTree(id)
+        : (await listAgentsForUser(id, target.role === 'admin' ? 'user' : target.role)).map((agent) => agent.userId);
+    const deletionIds = [...new Set([id, ...agentIds])];
     const sessions = await all('SELECT sid, session FROM auth_session');
     for (const session of sessions as any[]) {
       try {
-        if (JSON.parse(session.session)?.passport?.user === id)
+        if (deletionIds.includes(JSON.parse(session.session)?.passport?.user))
           await run('DELETE FROM auth_session WHERE sid = ?', [session.sid]);
       } catch {}
     }
-    for (const table of ['auth_authenticator', 'auth_api_token', 'auth_property', 'auth_qr_login'])
-      await run(`DELETE FROM ${table} WHERE user_id = ?`, [id]);
-    await revokeRefreshTokensForUser(id);
-    await run('DELETE FROM auth_audit_event WHERE user_id = ?', [id]);
-    await run('DELETE FROM auth_blocked_identity WHERE profile_id = ?', [target.profile_id]);
-    await run('DELETE FROM auth_user WHERE user_id = ?', [id]);
+    for (const userId of deletionIds) {
+      const ownedClients = await all<{ id: string }>('SELECT id FROM auth_oidc_client WHERE owner_user_id = ?', [
+        userId,
+      ]);
+      for (const client of ownedClients) {
+        await revokeRefreshTokensForClient(client.id);
+        await run('DELETE FROM auth_api_token WHERE client_id = ?', [client.id]);
+      }
+      await run('DELETE FROM auth_oidc_client WHERE owner_user_id = ?', [userId]);
+      for (const table of [
+        'auth_authenticator',
+        'auth_api_token',
+        'auth_agent_token',
+        'auth_agent',
+        'auth_property',
+        'auth_qr_login',
+      ]) {
+        await run(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+      }
+      await revokeRefreshTokensForUser(userId);
+      await run('DELETE FROM auth_audit_event WHERE user_id = ?', [userId]);
+      await run(
+        'DELETE FROM auth_blocked_identity WHERE profile_id = (SELECT profile_id FROM auth_user WHERE user_id = ?)',
+        [userId],
+      );
+      await run('DELETE FROM auth_user WHERE user_id = ?', [userId]);
+    }
     res.json({ ok: true });
   });
 }
@@ -377,46 +463,18 @@ function isAllowedBrowserOrigin(origin: string, configuredOrigins: string[]) {
 
 function serveUi(name: string) {
   return (_req, res) => {
-    let source = name === 'profile.html' ? uiAssets[name].replace('ACCOUNT SECURITY', '') : uiAssets[name];
-    if (name === 'login.html') {
-      source = source.replace('__TEST_LOGIN_ENABLED__', testLoginEnabled ? 'true' : 'false');
-    }
+    const source = name === 'profile.html' ? uiAssets[name].replace('ACCOUNT SECURITY', '') : uiAssets[name];
     res.status(200).set('Cache-Control', 'no-store').vary('Cookie').type('html').end(source);
   };
 }
 
-const testLoginEnabled = Boolean(process.env.AUTH_TEST_KEYS || process.env.AUTH_TEST_SECRET);
-
 function renderAuthError(message: string) {
   const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   const escaped = message.replace(/[&<>"']/g, (character) => entities[character]);
-  return uiAssets['login.html']
-    .replace(
-      '<div data-auth-error></div>',
-      `<div role="alert" class="grid gap-3 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p>${escaped}</p><div class="flex flex-wrap gap-3"><a class="rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white" href="/login">Try signing in again</a><a class="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-brand" href="/">Return to Auth home</a></div></div>`,
-    )
-    .replace('__TEST_LOGIN_ENABLED__', testLoginEnabled ? 'true' : 'false');
-}
-
-function configuredTestKeys() {
-  return (process.env.AUTH_TEST_KEYS || process.env.AUTH_TEST_SECRET || '')
-    .split(',')
-    .map((key) => key.trim())
-    .filter(Boolean);
-}
-
-function testKeyHash(key: string) {
-  return createHash('sha256').update(key).digest();
-}
-
-function isConfiguredTestKey(key: string) {
-  if (!key) return false;
-  const candidate = testKeyHash(key);
-  return configuredTestKeys().some((configured) => timingSafeEqual(candidate, testKeyHash(configured)));
-}
-
-function testUserId(key: string) {
-  return `test-${testKeyHash(key).toString('hex')}`;
+  return uiAssets['login.html'].replace(
+    '<div data-auth-error></div>',
+    `<div role="alert" class="grid gap-3 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p>${escaped}</p><div class="flex flex-wrap gap-3"><a class="rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white" href="/login">Try signing in again</a><a class="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-brand" href="/">Return to Auth home</a></div></div>`,
+  );
 }
 
 function serveAppEntry(req, res) {
@@ -457,6 +515,10 @@ app.use((req, _res, next) => {
 app.use(session);
 app.use(passport.initialize());
 app.use(passport.session());
+app.use('/api/v1', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 registerUserAdminRoutes();
 
 app.use((req, res, next) => {
@@ -487,67 +549,224 @@ app.put('/api/v1/profile/preferred-username', express.json(), protectedRoute, as
     res.status(status).json({ error: message });
   }
 });
-app.post('/__test__/login', express.json(), async (req, res) => {
-  if (!testLoginEnabled) return res.sendStatus(404);
-
-  const authorization = req.get('authorization') || '';
-  const bearerKey = authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length).trim() : '';
-  const key = bearerKey || req.get('x-test-secret') || String(req.body?.key || '');
-  if (!isConfiguredTestKey(key)) {
-    console.warn('Test login rejected: invalid key');
-    return res.status(401).json({ error: 'Invalid test key' });
+app.post('/api/v1/agent/login', express.json(), async (req, res) => {
+  const origin = req.get('origin');
+  if (origin) {
+    try {
+      const expectedOrigin = new URL(process.env.AUTH_DOMAIN || `${req.protocol}://${req.get('host')}`).origin;
+      if (new URL(origin).origin !== expectedOrigin) {
+        return res.sendStatus(403);
+      }
+    } catch {
+      return res.sendStatus(403);
+    }
   }
 
-  const userId = testUserId(key);
-  const role = 'admin';
-  console.info('Test login accepted; creating session');
-  let user = await findByUserId(userId);
-  if (user && (await isUserSuspended(user.userId))) return res.status(403).json({ error: 'This account is disabled.' });
-  if (!user) {
-    user = {
-      userId,
-      profileId: `test-profile-${testKeyHash(key).toString('hex')}`,
-      accessToken: '',
-      refreshToken: '',
-      name: 'John Doe',
-      email: `john.doe+${testKeyHash(key).toString('hex').slice(0, 12)}@example.test`,
-      photo: '',
-      lastSeen: new Date().toISOString(),
-      role,
-    };
-    const { saveUser } = await import('./database.js');
-    await saveUser(user);
-  } else if (user.role !== role) {
-    user.role = role;
-    user.lastSeen = new Date().toISOString();
-    const { saveUser } = await import('./database.js');
-    await saveUser(user);
+  const userId = typeof req.body?.agentId === 'string' ? req.body.agentId.trim() : '';
+  const token = typeof req.body?.token === 'string' ? req.body.token : '';
+  const user = userId ? await findByUserId(userId) : null;
+  if (!user || user.role !== 'agent' || (await isUserSuspended(userId)) || !(await verifyAgentToken(userId, token))) {
+    await recordAudit({ userId: user?.userId, event: 'agent-authentication', app: 'Agent sign-in', result: 'failure' });
+    return res.status(401).json({ error: 'Agent ID or sign-in token is invalid.' });
   }
 
-  await recordAudit({ userId, event: 'test-authentication', app: 'Test login', result: 'success' });
+  user.lastSeen = new Date().toISOString();
+  const { saveUser } = await import('./database.js');
+  await saveUser(user);
+  await recordAudit({ userId, event: 'agent-authentication', app: 'Agent sign-in', result: 'success' });
   req.login(userAsJSON(user), (error) => {
     if (error) {
-      console.error('Test login session creation failed', { errorName: error.name });
-      return res.status(500).send('Could not create test session');
+      return res.status(500).json({ error: 'Could not create session.' });
     }
     req.session.save((saveError) => {
       if (saveError) {
-        console.error('Test login session persistence failed', { errorName: saveError.name });
-        return res.status(500).send('Could not persist test session');
+        return res.status(500).json({ error: 'Could not persist session.' });
       }
-      console.info('Test login session persisted', {
-        authenticated: Boolean(req.isAuthenticated?.()),
-        hasUserId: Boolean(req.user?.id),
-        hasSession: Boolean(req.session),
-      });
-      return res.status(204).send('');
+      res.set('Cache-Control', 'no-store').sendStatus(204);
     });
   });
 });
+if (__TEST__) {
+  app.post('/__test__/admin-session', async (req, res) => {
+    const fixtureId = randomBytes(16).toString('hex');
+    const userId = `test_fixture_admin_${fixtureId}`;
+    const now = new Date().toISOString();
+    const { saveUser } = await import('./database.js');
+    const user = {
+      userId,
+      profileId: `test-fixture-admin-profile-${fixtureId}`,
+      accessToken: '',
+      refreshToken: '',
+      name: 'Integration Test Administrator',
+      email: `${fixtureId}@example.test`,
+      photo: '',
+      lastSeen: now,
+      role: 'admin' as const,
+    };
+    await saveUser(user);
+    req.login(userAsJSON(user), (error) => {
+      if (error) {
+        return res.status(500).json({ error: 'Could not create administrator test session.' });
+      }
+      req.session.save((saveError) => {
+        if (saveError) {
+          return res.status(500).json({ error: 'Could not persist administrator test session.' });
+        }
+        res.set('Cache-Control', 'no-store').status(201).json({ userId });
+      });
+    });
+  });
+  app.delete('/__test__/admins/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    const user = await findByUserId(userId);
+    if (!userId.startsWith('test_fixture_admin_') || user?.role !== 'admin') {
+      return res.sendStatus(404);
+    }
+    const { all } = await import('./database.js');
+    const clients = await all<{ id: string }>('SELECT id FROM auth_oidc_client WHERE owner_user_id = ?', [userId]);
+    for (const client of clients) {
+      await revokeRefreshTokensForClient(client.id);
+      await run('DELETE FROM auth_api_token WHERE client_id = ?', [client.id]);
+      await run('DELETE FROM auth_oidc_client WHERE id = ?', [client.id]);
+    }
+    await revokeRefreshTokensForUser(userId);
+    for (const table of ['auth_authenticator', 'auth_api_token', 'auth_property', 'auth_qr_login']) {
+      await run(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+    }
+    await run('DELETE FROM auth_audit_event WHERE user_id = ?', [userId]);
+    await run('DELETE FROM auth_user WHERE user_id = ?', [userId]);
+    const sessions = await all<{ sid: string; session: string }>('SELECT sid, session FROM auth_session');
+    for (const item of sessions) {
+      try {
+        if (JSON.parse(item.session)?.passport?.user === userId) {
+          await run('DELETE FROM auth_session WHERE sid = ?', [item.sid]);
+        }
+      } catch {}
+    }
+    res.sendStatus(204);
+  });
+  app.post('/__test__/agents', express.json(), async (_req, res) => {
+    const fixtureId = randomBytes(16).toString('hex');
+    const ownerId = `test_fixture_owner_${fixtureId}`;
+    const now = new Date().toISOString();
+    const { saveUser } = await import('./database.js');
+    await saveUser({
+      userId: ownerId,
+      profileId: `test-fixture-profile-${fixtureId}`,
+      accessToken: '',
+      refreshToken: '',
+      name: 'Integration Test Owner',
+      email: `${fixtureId}@example.test`,
+      photo: '',
+      lastSeen: now,
+      role: 'admin',
+    });
+    try {
+      const result = await createAgent(ownerId, 'Integration Test Agent');
+      res.set('Cache-Control', 'no-store').status(201).json({ agentId: result.agent.userId, token: result.token });
+    } catch (error) {
+      await run('DELETE FROM auth_user WHERE user_id = ?', [ownerId]);
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Could not create test Agent.' });
+    }
+  });
+  app.delete('/__test__/agents/:agentId', async (req, res) => {
+    const agent = await getAgent(req.params.agentId);
+    if (!agent || !agent.createdByUserId.startsWith('test_fixture_owner_')) {
+      return res.sendStatus(404);
+    }
+    await deleteAgentTree(agent.userId);
+    await run('DELETE FROM auth_user WHERE user_id = ?', [agent.createdByUserId]);
+    res.sendStatus(204);
+  });
+}
 app.head('/api/v1/profile', browserCors, protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
 app.delete('/api/v1/profile', protectedRoute, logout);
+app.get('/api/v1/agents', protectedRoute, async (req, res) => {
+  const user = await findByUserId(req.user!.id);
+  if (!user) {
+    return res.sendStatus(401);
+  }
+  const agents = await listAgentsForUser(user.userId, user.role);
+  if (user.role === 'agent') {
+    const self = await getAgent(user.userId);
+    if (self) {
+      agents.unshift({ ...self, disabled: Number(Boolean(user.disabled)) });
+    }
+  }
+  res.json(
+    agents.map(({ userId, createdByUserId, name, createdAt, disabled }) => ({
+      id: userId,
+      createdByUserId,
+      name,
+      createdAt,
+      disabled: Boolean(disabled),
+      self: user.role === 'agent' && userId === user.userId,
+    })),
+  );
+});
+app.post('/api/v1/agents', express.json(), protectedRoute, async (req, res) => {
+  try {
+    const result = await createAgent(req.user!.id, req.body?.name);
+    res.status(201).json({
+      agent: { id: result.agent.userId, name: result.agent.name, createdAt: result.agent.createdAt },
+      token: result.token,
+      tokenId: result.tokenId,
+      tokenHint: result.tokenHint,
+      expiresAt: result.expiresAt,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Could not create Agent.' });
+  }
+});
+app.delete('/api/v1/agents/:agentId', protectedRoute, async (req, res) => {
+  if (!(await canManageAgent(req.user!.id, req.params.agentId))) {
+    return res.sendStatus(404);
+  }
+  await disableAgentTree(req.params.agentId);
+  res.sendStatus(204);
+});
+app.get('/api/v1/agents/:agentId/tokens', protectedRoute, async (req, res) => {
+  const isSelf = req.user!.id === req.params.agentId;
+  if (!isSelf && !(await canManageAgent(req.user!.id, req.params.agentId))) {
+    return res.sendStatus(404);
+  }
+  res.json(await listAgentTokens(req.params.agentId));
+});
+app.post('/api/v1/agents/:agentId/tokens', express.json(), protectedRoute, async (req, res) => {
+  const isSelf = req.user!.id === req.params.agentId;
+  if (!isSelf && !(await canManageAgent(req.user!.id, req.params.agentId))) {
+    return res.sendStatus(404);
+  }
+  try {
+    res.status(201).json(await createAgentToken(req.params.agentId, req.body?.label));
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Could not create sign-in token.' });
+  }
+});
+app.delete('/api/v1/agents/:agentId/tokens/:tokenId', protectedRoute, async (req, res) => {
+  const isSelf = req.user!.id === req.params.agentId;
+  if (!isSelf && !(await canManageAgent(req.user!.id, req.params.agentId))) {
+    return res.sendStatus(404);
+  }
+  res.sendStatus((await revokeAgentToken(req.params.agentId, req.params.tokenId)) ? 204 : 404);
+});
+app.post('/api/v1/agents/:agentId/tokens/:tokenId/rotate', protectedRoute, async (req, res) => {
+  const isSelf = req.user!.id === req.params.agentId;
+  if (!isSelf && !(await canManageAgent(req.user!.id, req.params.agentId))) {
+    return res.sendStatus(404);
+  }
+  try {
+    const replacement = await rotateAgentToken(req.params.agentId, req.params.tokenId);
+    if (!replacement) {
+      return res.sendStatus(404);
+    }
+    res.status(201).json(replacement);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Could not rotate sign-in token.' });
+  }
+});
 app.get('/login', (req, res) => {
   const returnUrl = typeof req.query.url === 'string' ? req.query.url : '/me';
   if (req.isAuthenticated?.() && req.user?.id && returnUrl.startsWith('/') && !returnUrl.startsWith('//')) {
@@ -560,8 +779,8 @@ app.get('/login', (req, res) => {
 });
 app.get('/webauthn/login', serveUi('passkey.html'));
 app.get('/recovery', serveUi('recovery.html'));
-app.get('/oidc', adminRoute, (_req, res) => res.redirect('/me#oidc'));
-app.get('/auth-api-tokens', adminRoute, (_req, res) => res.redirect('/me#auth-api-tokens'));
+app.get('/oidc', protectedRoute, (_req, res) => res.redirect('/me#applications'));
+app.get('/auth-api-tokens', adminRoute, (_req, res) => res.redirect('/me#security'));
 app.get('/api/v1/keys', adminRoute, async (_req, res) => res.json(await listSigningKeys()));
 app.post('/api/v1/keys/rotate', express.json(), adminRoute, async (_req, res) => {
   try {
@@ -570,7 +789,7 @@ app.post('/api/v1/keys/rotate', express.json(), adminRoute, async (_req, res) =>
     res.status(503).json({ error: String(error) });
   }
 });
-app.get('/api/v1/audit', protectedRoute, async (req, res) =>
+app.get('/api/v1/audit', humanRoute, async (req, res) =>
   res.json(
     await getAuditEvents(req.user!.id, {
       app: typeof req.query.app === 'string' ? req.query.app : '',
@@ -580,8 +799,11 @@ app.get('/api/v1/audit', protectedRoute, async (req, res) =>
     }),
   ),
 );
-app.get('/api/v1/audit/options', protectedRoute, async (req, res) => res.json(await getAuditOptions(req.user!.id)));
+app.get('/api/v1/audit/options', humanRoute, async (req, res) => res.json(await getAuditOptions(req.user!.id)));
 app.post('/api/v1/recovery', express.urlencoded({ extended: false }), async (req, res) => {
+  if (req.isAuthenticated?.() && req.user?.id && (await findByUserId(req.user.id))?.role === 'agent') {
+    return res.sendStatus(403);
+  }
   const user = await consumeRecoveryCode(String(req.body?.email || ''), String(req.body?.code || ''));
   if (!user) {
     await recordAudit({ event: 'recovery-authentication', app: 'recovery-code', result: 'failure' });
@@ -622,7 +844,7 @@ app.get('/api/v1/qr-login/status', async (req, res) => {
     res.status(410).json({ status: 'expired' });
   }
 });
-app.get('/api/v1/qr-login/details', protectedRoute, async (req, res) => {
+app.get('/api/v1/qr-login/details', humanRoute, async (req, res) => {
   try {
     const token = typeof req.query.transaction === 'string' ? req.query.transaction : '';
     res.json(await qrLoginDetails(token));
@@ -630,7 +852,7 @@ app.get('/api/v1/qr-login/details', protectedRoute, async (req, res) => {
     res.status(410).json({ error: 'Expired QR login' });
   }
 });
-app.post('/api/v1/qr-login/approve', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/qr-login/approve', express.json(), humanRoute, async (req, res) => {
   try {
     await approveQrLogin(String(req.body?.transaction || ''), req.user!.id);
     await recordAudit({ userId: req.user!.id, event: 'qr-approval', app: 'QR login', result: 'success' });
@@ -639,7 +861,7 @@ app.post('/api/v1/qr-login/approve', express.json(), protectedRoute, async (req,
     res.status(410).json({ error: 'Expired QR login' });
   }
 });
-app.post('/api/v1/qr-login/deny', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/qr-login/deny', express.json(), humanRoute, async (req, res) => {
   try {
     await denyQrLogin(String(req.body?.transaction || ''));
     res.sendStatus(204);
@@ -651,10 +873,10 @@ app.get('/pwa/', serveUi('pwa.html'));
 app.get('/ui/sw.js', (_req, res) =>
   res.set('Content-Type', 'text/javascript').set('Service-Worker-Allowed', '/').send(pwaServiceWorker),
 );
-app.get('/api/v1/webauthn/register/options', protectedRoute, async (req, res) => {
+app.get('/api/v1/webauthn/register/options', humanRoute, async (req, res) => {
   res.json(await registrationOptions(req.user!.id));
 });
-app.post('/api/v1/webauthn/register/verify', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/webauthn/register/verify', express.json(), humanRoute, async (req, res) => {
   try {
     const authenticator = await registerAuthenticator(
       req.user!.id,
@@ -693,7 +915,7 @@ app.post('/api/v1/webauthn/authentication/verify', express.json(), async (req, r
     res.status(401).json({ error: String(error) });
   }
 });
-app.get('/api/v1/webauthn/credentials', protectedRoute, async (req, res) => {
+app.get('/api/v1/webauthn/credentials', humanRoute, async (req, res) => {
   const authenticators = await listAuthenticators(req.user!.id);
   res.json(
     authenticators.map(({ credentialId, label, transports, createdAt, lastUsedAt, revokedAt }) => ({
@@ -706,12 +928,12 @@ app.get('/api/v1/webauthn/credentials', protectedRoute, async (req, res) => {
     })),
   );
 });
-app.post('/api/v1/recovery-codes', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/recovery-codes', express.json(), humanRoute, async (req, res) => {
   const user = await findByUserId(req.user!.id);
   if (!user) return res.status(404).send('');
   res.json({ codes: await replaceRecoveryCodes(user) });
 });
-app.delete('/api/v1/webauthn/credentials/:credentialId', protectedRoute, async (req, res) => {
+app.delete('/api/v1/webauthn/credentials/:credentialId', humanRoute, async (req, res) => {
   const revoked = await revokeAuthenticator(req.user!.id, req.params.credentialId);
   res.sendStatus(revoked ? 204 : 404);
 });
@@ -721,16 +943,29 @@ app.get('/api', (req, res) => {
   res.type('application/json').send(openApiSpec.replace('__HOSTNAME__', host));
 });
 app.get('/api/v1/oidc/clients', adminRoute, async (_req, res) => res.json(await listManagedClients()));
-app.post('/api/v1/oidc/clients', express.json(), adminRoute, async (req, res) => {
+app.get('/api/v1/oidc/apps', protectedRoute, async (req, res) => {
+  const user = await findByUserId(req.user!.id);
+  if (!user) {
+    return res.sendStatus(401);
+  }
+  res.json(await listAvailableClients(user.userId, user.role === 'admin'));
+});
+app.post('/api/v1/oidc/clients', express.json(), protectedRoute, async (req, res) => {
   try {
+    const creator = await findByUserId(req.user!.id);
+    if (!creator) {
+      return res.sendStatus(401);
+    }
     const result = await createManagedClient(
-      String(req.body?.id || ''),
+      String(req.body?.name || ''),
       Array.isArray(req.body?.redirectUris) ? req.body.redirectUris.filter((value) => typeof value === 'string') : [],
       Array.isArray(req.body?.scopes) ? req.body.scopes.filter((value) => typeof value === 'string') : [],
       req.body?.isPublic === true,
       Array.isArray(req.body?.postLogoutRedirectUris)
         ? req.body.postLogoutRedirectUris.filter((value) => typeof value === 'string')
         : [],
+      creator.userId,
+      false,
     );
     res.status(201).json(result);
   } catch (error) {
@@ -739,11 +974,13 @@ app.post('/api/v1/oidc/clients', express.json(), adminRoute, async (req, res) =>
 });
 app.get('/api/v1/api-tokens/me', protectedRoute, async (req, res) => {
   const userId = req.user?.id;
-  if (!userId) return res.status(401).send('');
+  if (!userId) {
+    return res.status(401).send('');
+  }
   const clientId = typeof req.query?.clientId === 'string' ? req.query.clientId : undefined;
   res.json(await listApiTokens(userId, clientId));
 });
-app.get('/api/v1/api-tokens/:clientId', adminRoute, async (req, res) =>
+app.get('/api/v1/api-tokens/:clientId', clientUseRoute, async (req, res) =>
   res.json(await listApiTokens(req.user!.id, req.params.clientId)),
 );
 app.get('/api/v1/auth-api-tokens/:clientId', adminRoute, async (req, res) =>
@@ -760,7 +997,7 @@ app.post('/api/v1/auth-api-tokens/:clientId', express.json(), adminRoute, async 
 app.delete('/api/v1/auth-api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
   res.sendStatus((await revokeApiToken(req.params.clientId, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
-app.post('/api/v1/api-tokens/:clientId', express.json(), adminRoute, async (req, res) => {
+app.post('/api/v1/api-tokens/:clientId', express.json(), clientUseRoute, async (req, res) => {
   try {
     res
       .status(201)
@@ -823,10 +1060,10 @@ app.post('/api/v1/api-tokens/:clientId/scopes', express.json(), async (req, res)
     throw error;
   }
 });
-app.delete('/api/v1/api-tokens/:clientId/:tokenId', adminRoute, async (req, res) =>
+app.delete('/api/v1/api-tokens/:clientId/:tokenId', protectedRoute, async (req, res) =>
   res.sendStatus((await revokeApiToken(req.user!.id, req.params.clientId, req.params.tokenId)) ? 204 : 404),
 );
-app.put('/api/v1/api-tokens/:clientId/:tokenId/scopes', express.json(), adminRoute, async (req, res) => {
+app.put('/api/v1/api-tokens/:clientId/:tokenId/scopes', express.json(), clientUseRoute, async (req, res) => {
   const scopes = req.body?.scopes;
   if (!Array.isArray(scopes) || scopes.some((scope) => typeof scope !== 'string')) {
     return res.status(400).json({ error: 'Invalid token scope' });
@@ -848,11 +1085,11 @@ app.post('/oauth/introspect', express.urlencoded({ extended: false }), async (re
     .set('X-Token-Expires-At', String(result?.exp || 0))
     .json(result || { active: false });
 });
-app.delete('/api/v1/oidc/clients/:id', adminRoute, async (req, res) =>
+app.delete('/api/v1/oidc/clients/:id', clientManagementRoute, async (req, res) =>
   res.sendStatus((await removeManagedClient(req.params.id)) ? 204 : 404),
 );
 
-app.put('/api/v1/oidc/clients/:id/secret', adminRoute, express.json(), async (req, res) => {
+app.put('/api/v1/oidc/clients/:id/secret', express.json(), clientManagementRoute, async (req, res) => {
   try {
     const result = await regenerateManagedClientSecret(req.params.id);
     res.json(result);
@@ -862,7 +1099,7 @@ app.put('/api/v1/oidc/clients/:id/secret', adminRoute, express.json(), async (re
     res.status(400).json({ error: message });
   }
 });
-app.post('/api/v1/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
+app.post('/api/v1/oidc/clients/:id/scopes', express.json(), clientManagementRoute, async (req, res) => {
   try {
     res.json({
       scopes: await addManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []),
@@ -871,7 +1108,7 @@ app.post('/api/v1/oidc/clients/:id/scopes', express.json(), adminRoute, async (r
     res.status(400).json({ error: String(error) });
   }
 });
-app.put('/api/v1/oidc/clients/:id/scopes', express.json(), adminRoute, async (req, res) => {
+app.put('/api/v1/oidc/clients/:id/scopes', express.json(), clientManagementRoute, async (req, res) => {
   try {
     res.json({
       scopes: await updateManagedClientScopes(req.params.id, Array.isArray(req.body?.scopes) ? req.body.scopes : []),
@@ -880,7 +1117,7 @@ app.put('/api/v1/oidc/clients/:id/scopes', express.json(), adminRoute, async (re
     res.status(400).json({ error: String(error) });
   }
 });
-app.put('/api/v1/oidc/clients/:id/callbacks', express.json(), adminRoute, async (req, res) => {
+app.put('/api/v1/oidc/clients/:id/callbacks', express.json(), clientManagementRoute, async (req, res) => {
   try {
     res.json({
       redirectUris: await updateManagedClientRedirectUris(
@@ -892,7 +1129,7 @@ app.put('/api/v1/oidc/clients/:id/callbacks', express.json(), adminRoute, async 
     res.status(400).json({ error: String(error) });
   }
 });
-app.put('/api/v1/oidc/clients/:id/logout-redirects', express.json(), adminRoute, async (req, res) => {
+app.put('/api/v1/oidc/clients/:id/logout-redirects', express.json(), clientManagementRoute, async (req, res) => {
   try {
     res.json({
       postLogoutRedirectUris: await updateManagedClientPostLogoutRedirectUris(
@@ -903,6 +1140,28 @@ app.put('/api/v1/oidc/clients/:id/logout-redirects', express.json(), adminRoute,
   } catch (error) {
     res.status(400).json({ error: String(error) });
   }
+});
+app.put('/api/v1/oidc/clients/:id/name', express.json(), clientManagementRoute, async (req, res) => {
+  try {
+    res.json({ name: await updateManagedClientName(req.params.id, String(req.body?.name || '')) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const status = message === 'Client not found' ? 404 : 400;
+    res.status(status).json({ error: message });
+  }
+});
+app.put('/api/v1/oidc/clients/:id/availability', express.json(), adminRoute, async (req, res) => {
+  if (typeof req.body?.availableToUsers !== 'boolean') {
+    return res.status(400).json({ error: 'availableToUsers must be a boolean.' });
+  }
+  const updated = await updateManagedClientAvailability(req.params.id, req.body.availableToUsers);
+  if (!updated) {
+    return res.sendStatus(404);
+  }
+  if (!req.body.availableToUsers) {
+    await revokeRefreshTokensForClient(req.params.id);
+  }
+  res.json({ availableToUsers: req.body.availableToUsers });
 });
 app.options('/api/v1/session/token', sessionTokenCors, (_req, res) => res.sendStatus(204));
 app.post('/api/v1/session/token', express.json(), sessionTokenCors, protectedRoute, async (req, res) => {
@@ -959,6 +1218,20 @@ app.get('/authorize', async (req, res) => {
   }
   if (!req.isAuthenticated?.() || !req.user?.id) {
     return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
+  }
+
+  const authenticatingUser = await findByUserId(req.user.id);
+  if (!authenticatingUser) return res.redirect('/login?url=' + encodeURIComponent(req.originalUrl));
+  if (
+    !client!.availableToUsers &&
+    client!.ownerUserId !== authenticatingUser.userId &&
+    authenticatingUser.role !== 'admin'
+  ) {
+    const callback = new URL(redirectUri);
+    callback.searchParams.set('error', 'access_denied');
+    callback.searchParams.set('error_description', 'This application is private to its owner.');
+    callback.searchParams.set('state', state as string);
+    return res.redirect(String(callback));
   }
 
   let code: string;

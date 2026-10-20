@@ -11,7 +11,7 @@ export type User = {
   photo: string;
   lastSeen: string;
   recoveryCodes?: string[];
-  role: 'user' | 'admin';
+  role: 'agent' | 'user' | 'admin';
   preferredUsername?: string | null;
   disabled?: boolean | number;
 };
@@ -39,6 +39,9 @@ export type QrLoginTransaction = {
 };
 export type OidcClient = {
   id: string;
+  name: string;
+  ownerUserId: string;
+  availableToUsers: boolean | number;
   secretHash: string | null;
   redirectUris: string[];
   postLogoutRedirectUris: string[];
@@ -115,12 +118,30 @@ const tableColumns: Record<string, Record<string, string>> = {
   },
   auth_oidc_client: {
     id: 'id',
+    name: 'display_name',
+    ownerUserId: 'owner_user_id',
+    availableToUsers: 'available_to_users',
     secretHash: 'secret_hash',
     redirectUris: 'redirect_uris',
     postLogoutRedirectUris: 'post_logout_redirect_uris',
     scopes: 'scopes',
     isPublic: 'is_public',
     createdAt: 'created_at',
+  },
+  auth_agent: {
+    userId: 'user_id',
+    createdByUserId: 'created_by_user_id',
+    rootOwnerUserId: 'root_owner_user_id',
+    createdAt: 'created_at',
+  },
+  auth_agent_token: {
+    tokenHash: 'token_hash',
+    tokenHint: 'token_hint',
+    userId: 'user_id',
+    createdAt: 'created_at',
+    expiresAt: 'expires_at',
+    lastUsedAt: 'last_used_at',
+    revokedAt: 'revoked_at',
   },
   auth_api_token: {
     tokenHash: 'token_hash',

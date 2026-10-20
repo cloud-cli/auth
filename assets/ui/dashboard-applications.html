@@ -4,21 +4,19 @@
       <div>
         <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Applications</h2>
         <p class="text-sm text-gray-500 mt-1 max-w-2xl dark:text-[#aab7ad]">
-          Confidential clients are server-side apps that can keep a client secret. Public/native clients run on phones
-          or desktops and use PKCE without a secret.
+          Create OIDC clients for your apps. Client IDs are generated and immutable. New apps are private to you until
+          an administrator publishes them.
         </p>
       </div>
-      <template if="admin">
-        <button
-          class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#376d46]"
-          on-click="toggleForm()"
-        >
-          <lucide-icon icon="plus" size="16"></lucide-icon>Add app
-        </button>
-      </template>
+      <button
+        class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#376d46]"
+        on-click="toggleForm()"
+      >
+        <lucide-icon icon="plus" size="16"></lucide-icon>Add app
+      </button>
     </div>
 
-    <template if="admin && formOpen">
+    <template if="formOpen">
       <v2-app-form bind-form-open="formOpen" on-created="load()"></v2-app-form>
     </template>
 
@@ -32,7 +30,7 @@
         <template for="app of apps">
           <li class="p-4 hover:bg-gray-50/80 transition-colors group relative dark:hover:bg-[#243128]">
             <div class="flex items-center justify-between gap-3">
-              <details class="min-w-0 flex-1" on-toggle="loadTokens(app)">
+              <details class="min-w-0 flex-1" on-toggle="toggleApp(app, $event)">
                 <summary
                   class="flex cursor-pointer list-none items-center gap-2 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
                 >
@@ -41,7 +39,14 @@
                     size="14"
                     class="text-gray-400 shrink-0 dark:text-[#aab7ad]"
                   ></lucide-icon>
-                  <span class="font-semibold text-gray-900 text-sm truncate dark:text-[#eef3ef]">{{ app.id }}</span>
+                  <span class="font-semibold text-gray-900 text-sm truncate dark:text-[#eef3ef]">{{ app.name }}</span>
+                  <code class="break-all font-mono text-xs text-gray-500 dark:text-[#aab7ad]">{{ app.id }}</code>
+                  <span
+                    class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    attr-class="app.availableToUsers ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-[#c5e8c5]' : 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-[#f1d38e]'"
+                  >
+                    {{ app.availableToUsers ? 'Published' : 'Private' }}
+                  </span>
                   <lucide-icon
                     attr-icon="app.isPublic ? 'smartphone' : 'monitor'"
                     size="16"
@@ -55,7 +60,7 @@
                 </summary>
               </details>
               <div class="flex gap-2 shrink-0">
-                <template if="admin">
+                <template if="app.canManage">
                   <template if="!app.isPublic">
                     <button
                       class="p-1.5 text-gray-400 hover:text-brand bg-white border border-gray-200 hover:border-brand rounded-md transition-colors dark:text-[#aab7ad] dark:bg-[#17211b] dark:border-[#2d3a31]"
@@ -73,11 +78,27 @@
                     <lucide-icon icon="trash" size="18"></lucide-icon>
                   </button>
                 </template>
+                <template if="admin && !app.availableToUsers">
+                  <button
+                    class="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-semibold dark:border-[#2d3a31] dark:bg-[#17211b]"
+                    on-click="setAvailability(app, true, $event)"
+                  >
+                    Publish
+                  </button>
+                </template>
+                <template if="admin && app.availableToUsers">
+                  <button
+                    class="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-semibold dark:border-[#2d3a31] dark:bg-[#17211b]"
+                    on-click="setAvailability(app, false, $event)"
+                  >
+                    Unpublish
+                  </button>
+                </template>
               </div>
             </div>
             <v2-app-editor
               bind-app="app"
-              bind-admin="admin"
+              bind-admin="app.canManage"
               hidden="false"
               bind-hidden.bool="!app.expanded"
             ></v2-app-editor>
@@ -99,11 +120,11 @@
   <script setup>
     import { ref } from '@li3/web';
     import {
-      getApiTokens,
       getOidcClients,
       getProfile,
       removeOidcClient,
       regenerateOidcClientSecret,
+      setOidcClientAvailability,
     } from '/ui/dashboard.mjs';
 
     export default function () {
@@ -115,20 +136,28 @@
         apps.value = (await getOidcClients()).map((app) => ({
           ...app,
           expanded: false,
-          tokens: [],
-          tokensLoaded: false,
           secret: '',
         }));
       };
 
-      const loadTokens = async (app) => {
-        app.expanded = !app.expanded;
-        if (!app.expanded || app.tokensLoaded) return;
+      const toggleApp = (app, event) => {
+        app.expanded = event.currentTarget.open;
+      };
+
+      const setAvailability = async (app, availableToUsers, event) => {
+        event?.stopPropagation();
+        const action = availableToUsers ? 'publish' : 'unpublish';
+        if (
+          !confirm(
+            `${availableToUsers ? 'Publish' : 'Unpublish'} "${app.name}" ${availableToUsers ? 'for' : 'from'} other accounts?`,
+          )
+        )
+          return;
         try {
-          app.tokens = await getApiTokens(app.id);
-          app.tokensLoaded = true;
+          await setOidcClientAvailability(app.id, availableToUsers);
+          app.availableToUsers = availableToUsers;
         } catch (error) {
-          alert('Could not load tokens: ' + error.message);
+          alert(`Could not ${action} app: ` + error.message);
         }
       };
 
@@ -163,7 +192,7 @@
       getProfile()
         .then((profile) => (admin.value = profile.role === 'admin'))
         .catch(() => {});
-      return { apps, admin, formOpen, toggleForm, deleteApp, regenSecret, load, loadTokens };
+      return { apps, admin, formOpen, toggleForm, deleteApp, regenSecret, load, toggleApp, setAvailability };
     }
   </script>
 </template>

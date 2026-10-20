@@ -1,6 +1,6 @@
 import { load } from '@li3/web';
 import '@li3/web';
-import { ref, templateRef } from '@li3/web';
+import { hook, ref, templateRef } from '@li3/web';
 import {
   createOidcClient,
   deleteProperty,
@@ -18,7 +18,6 @@ import {
 } from '/ui/dashboard.mjs';
 
 const page = document.body.dataset.page;
-const testLoginEnabled = document.body.dataset.testLogin === 'true';
 const browserOrigins = __BROWSER_ALLOWED_ORIGINS__;
 const value = (name) => new URL(location.href).searchParams.get(name) || '';
 
@@ -55,7 +54,8 @@ export default function () {
   const qrUrl = ref('/qr-login?url=' + encodeURIComponent(value('url') || '/me'));
   const passkeyUrl = ref('/webauthn/login?url=' + encodeURIComponent(value('url') || '/me'));
   const recoveryUrl = ref('/recovery?url=' + encodeURIComponent(value('url') || '/me'));
-  const testKey = ref('');
+  const [agentId, setAgentId] = hook('');
+  const [agentToken, setAgentToken] = hook('');
   const status = ref('Preparing a secure connection...');
   const approved = ref(false);
   const clientId = templateRef('clientId');
@@ -90,34 +90,34 @@ export default function () {
     }
   }
 
-  async function testLogin() {
+  async function agentLogin() {
     busy.value = true;
-    setMessage('Signing in...');
-    console.info('Test-key login started', { hasKey: Boolean(testKey.value), hasReturnUrl: Boolean(value('url')) });
+    setMessage('Signing in as Agent...');
     try {
-      const response = await fetch('/__test__/login', {
+      const response = await fetch('/api/v1/agent/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ key: testKey.value }),
+        body: JSON.stringify({ agentId: agentId.value.trim(), token: agentToken.value }),
       });
-      console.info('Test-key login response', { status: response.status, ok: response.ok });
-      if (!response.ok) throw new Error(response.status === 401 ? 'Invalid test API key.' : 'Could not sign in.');
-      const returnUrl = new URL(value('url') || '/me', location.origin);
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || 'Could not sign in as Agent.');
+      }
+      agentToken.value = '';
+      const requestedReturnUrl = value('url') || '/me';
+      const returnUrl = new URL(
+        requestedReturnUrl.startsWith('/') && !requestedReturnUrl.startsWith('//') ? requestedReturnUrl : '/me',
+        location.origin,
+      );
       const nonce = value('signinNonce') || sessionStorage.getItem('auth.popup.signinNonce');
       if (nonce) returnUrl.searchParams.set('signinNonce', nonce);
-      console.info('Test-key login redirecting', { pathname: returnUrl.pathname, hasSigninNonce: Boolean(nonce) });
       location.href = returnUrl.pathname + returnUrl.search + returnUrl.hash;
     } catch (reason) {
-      console.error('Test-key login failed', { message: reason.message || 'Could not sign in.' });
-      setMessage(reason.message || 'Could not sign in.', true);
+      setMessage(reason.message || 'Could not sign in as Agent.', true);
     } finally {
       busy.value = false;
     }
-  }
-
-  function setTestKey(value) {
-    testKey.value = value;
   }
 
   async function loadProfile() {
@@ -346,13 +346,14 @@ export default function () {
     qrUrl,
     passkeyUrl,
     recoveryUrl,
-    testLoginEnabled,
-    testKey,
-    setTestKey,
+    agentId,
+    setAgentId,
+    agentToken,
+    setAgentToken,
+    agentLogin,
     status,
     approved,
     signIn,
-    testLogin,
     addPasskey,
     revoke,
     recoveryCodes,

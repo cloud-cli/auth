@@ -25,28 +25,39 @@ export const exec = async (sql) => database.exec(sql);
   process.env.DATABASE_URL = pathToFileURL(adapterPath).href;
 
   try {
-    const { default: migrate } = await import('../dist/db/migrations/006_add_oidc_logout_uris.js');
+    const { default: migrate } = await import('../dist/db/migrations/010_agents.js');
     await migrate();
     const oidc = await import('../dist/src/oidc.js');
-    await oidc.createManagedClient('scope-test', ['https://scope-test.example/callback'], ['existing:read']);
+    const created = await oidc.createManagedClient(
+      'Scope test',
+      ['https://scope-test.example/callback'],
+      ['existing:read'],
+      false,
+      [],
+      'scope-owner',
+      false,
+    );
+    const clientId = created.id;
+    assert.match(clientId, /^app_[A-Za-z0-9_-]+$/);
+    assert.notEqual(clientId, 'Scope test');
 
     await Promise.all([
-      oidc.addManagedClientScopes('scope-test', ['service-a:read']),
-      oidc.addManagedClientScopes('scope-test', ['service-b:write']),
+      oidc.addManagedClientScopes(clientId, ['service-a:read']),
+      oidc.addManagedClientScopes(clientId, ['service-b:write']),
     ]);
 
-    const client = await oidc.getClient('scope-test');
+    const client = await oidc.getClient(clientId);
     assert.deepEqual(new Set(client.scopes), new Set(['existing:read', 'service-a:read', 'service-b:write']));
 
-    const repeated = await oidc.addManagedClientScopes('scope-test', ['service-a:read', 'service-c:read']);
+    const repeated = await oidc.addManagedClientScopes(clientId, ['service-a:read', 'service-c:read']);
     assert.equal(repeated.filter((scope) => scope === 'service-a:read').length, 1);
     assert.ok(repeated.includes('existing:read'));
     assert.ok(repeated.includes('service-c:read'));
 
     const fullScopeList = Array.from({ length: 500 }, (_, index) => `service:${index}`);
-    await oidc.updateManagedClientScopes('scope-test', fullScopeList);
-    await assert.rejects(oidc.addManagedClientScopes('scope-test', ['service:additional']), /scope limit exceeded/);
-    assert.deepEqual((await oidc.getClient('scope-test')).scopes, fullScopeList);
+    await oidc.updateManagedClientScopes(clientId, fullScopeList);
+    await assert.rejects(oidc.addManagedClientScopes(clientId, ['service:additional']), /scope limit exceeded/);
+    assert.deepEqual((await oidc.getClient(clientId)).scopes, fullScopeList);
   } finally {
     if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = previousDatabaseUrl;

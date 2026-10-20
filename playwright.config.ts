@@ -10,7 +10,7 @@ export default defineConfig({
   webServer: process.env.INTEGRATION_BASE_URL
     ? undefined
     : {
-        command: 'pnpm start',
+        command: 'BUILD_TEST_ROUTES=true pnpm build && pnpm start',
         url: 'http://127.0.0.1:3000/',
         reuseExistingServer: true,
         timeout: 120_000,

@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-const testKey = process.env.AUTH_TEST_SECRET || process.env.AUTH_TEST_KEYS?.split(',')[0];
+import { createAgentFixture, deleteAgentFixture } from './agent-fixture.js';
 const authOrigin = process.env.INTEGRATION_BASE_URL || 'http://localhost:3000';
 
 // Auth Lab's address-space policy is not under test; this spec focuses on popup messaging.
@@ -11,7 +10,13 @@ test.use({
 });
 
 test('popup sign-in returns the profile to an allowed consumer and closes itself', async ({ page }) => {
-  test.skip(!testKey, 'Requires a test-enabled deployment');
+  const setupPage = await page.context().newPage();
+  const fixture = await createAgentFixture(setupPage);
+  await setupPage.close();
+  if (!fixture) {
+    test.skip(true, 'Requires a deployment built with test fixture routes');
+    return;
+  }
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(error.message));
   page.on('console', (message) => {
@@ -27,7 +32,7 @@ test('popup sign-in returns the profile to an allowed consumer and closes itself
         import { events, signIn } from ${JSON.stringify(authModuleUrl)};
         window.authLoaded = true;
         events.addEventListener('state', ({ detail }) => {
-          if (detail) document.querySelector('#state').textContent = detail.email;
+          if (detail) document.querySelector('#state').textContent = detail.id;
         });
         document.querySelector('#signin').addEventListener('click', () => signIn(true));
       </script>`,
@@ -42,9 +47,18 @@ test('popup sign-in returns the profile to an allowed consumer and closes itself
     throw new Error(`Popup did not open (moduleLoaded=${loaded}); ${runtimeErrors.join(' | ')}`);
   });
   await expect(popup).toHaveURL(/\/login\?/);
-  await popup.getByLabel('Test API key').fill(testKey!);
+  await popup.getByText('Try another way', { exact: true }).click();
+  await popup.getByText('Sign in as an Agent', { exact: true }).click();
+  await popup.getByLabel('Agent ID').fill(fixture.agentId);
+  await popup.getByLabel('Sign-in token').fill(fixture.token);
   await popup.getByRole('button', { name: 'Sign in' }).click();
 
-  await expect(page.locator('#state')).toContainText(/@example\.test/);
-  await expect.poll(() => popup.isClosed()).toBe(true);
+  try {
+    await expect(page.locator('#state')).toHaveText(fixture.agentId);
+    await expect.poll(() => popup.isClosed()).toBe(true);
+  } finally {
+    const cleanupPage = await page.context().newPage();
+    await deleteAgentFixture(cleanupPage, fixture);
+    await cleanupPage.close();
+  }
 });

@@ -1,16 +1,61 @@
 <template component="v2-app-editor"
-  ><v2-callback-editor bind-app="app" bind-admin="admin"></v2-callback-editor>
+  ><div class="mt-3 grid gap-3 rounded-xl bg-brand/5 p-3 text-sm dark:bg-[#c8e6a8]/[0.06]">
+    <template if="admin"
+      ><form class="flex flex-wrap items-center gap-2" on-submit.prevent="saveName()">
+        <label class="sr-only" attr-for="'app-name-' + app.id">Application name</label>
+        <input
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+          attr-id="'app-name-' + app.id"
+          bind-value="nameInput"
+          on-input="setNameInput($event.target.value)"
+          maxlength="80"
+          required
+        />
+        <button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-[#c8e6a8]">
+          Save name
+        </button>
+      </form></template
+    >
+    <div class="flex flex-wrap items-center gap-2">
+      <strong>Immutable client ID</strong>
+      <code class="min-w-0 flex-1 break-all font-mono text-xs">{{ app.id }}</code>
+      <button
+        class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold dark:border-[#2d3a31]"
+        type="button"
+        on-click="copyClientId()"
+      >
+        Copy
+      </button>
+    </div>
+  </div>
+  <v2-callback-editor bind-app="app" bind-admin="admin"></v2-callback-editor>
   <v2-logout-redirect-editor bind-app="app" bind-admin="admin"></v2-logout-redirect-editor>
   <div class="mt-3 grid gap-4">
     <v2-scope-editor bind-app="app" bind-admin="admin"></v2-scope-editor>
-    <v2-token-editor bind-app="app"></v2-token-editor>
   </div>
   <script setup>
-    import { defineProp } from '@li3/web';
+    import { defineProp, hook } from '@li3/web';
+    import { updateOidcClientName } from '/ui/dashboard.mjs';
     export default function () {
       const app = defineProp('app'),
-        admin = defineProp('admin', { default: false });
-      return { app, admin };
+        admin = defineProp('admin', { default: false }),
+        [nameInput, setNameInput] = hook(app.value?.name || '');
+      const saveName = async () => {
+        try {
+          const result = await updateOidcClientName(app.value.id, nameInput.value);
+          app.value.name = result.name;
+        } catch (error) {
+          alert(error.message || 'Could not save application name.');
+        }
+      };
+      const copyClientId = async () => {
+        try {
+          await navigator.clipboard.writeText(app.value.id);
+        } catch {
+          alert('Could not copy client ID. Select and copy it instead.');
+        }
+      };
+      return { app, admin, nameInput, setNameInput, saveName, copyClientId };
     }
   </script></template
 >
@@ -222,246 +267,6 @@
         app.value.scopes = result.scopes;
       };
       return { app, admin, scopeInput, setScopeInput, addScope, removeScope };
-    }
-  </script></template
->
-
-<template component="v2-token-editor"
-  ><div>
-    <h3 class="font-bold">Tokens</h3>
-    <div class="mt-2 grid gap-2 rounded-lg bg-brand/5 p-2 dark:bg-[#c8e6a8]/[0.06]">
-      <input
-        class="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
-        bind-value="tokenLabel"
-        on-input="setTokenLabel($event.target.value)"
-        placeholder="Token label"
-        required
-      />
-      <div class="grid gap-1">
-        <template for="scope of app.scopes"
-          ><label
-            class="flex items-center gap-2 rounded-lg border border-brand/20 bg-white px-2 py-1 text-xs text-brand dark:border-[#c8e6a8]/25 dark:bg-[#17211b] dark:text-[#c8e6a8]"
-          >
-            <input
-              class="mr-1 accent-brand dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
-              type="checkbox"
-              attr-checked.bool="tokenScopes.includes(scope)"
-              on-change="toggleTokenScope(scope)"
-            />{{ scope }}
-          </label></template
-        >
-      </div>
-      <p class="text-xs text-red-600 dark:text-[#ffb8ae]">{{ tokenError }}</p>
-      <div class="flex justify-end">
-        <button
-          class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-hover dark:bg-[#376d46]"
-          type="button"
-          on-click="createToken()"
-        >
-          Generate token
-        </button>
-      </div>
-    </div>
-    <template if="createdToken"
-      ><v2-copy-value-box
-        bind-token="createdToken"
-        message="Copy this downstream API token now. It is only shown once."
-      ></v2-copy-value-box
-    ></template>
-    <p class="mt-2 text-sm text-slate-500 dark:text-[#aab7ad]" hidden="false" bind-hidden.bool="app.tokens.length > 0">
-      No tokens yet.
-    </p>
-    <div class="mt-2 grid gap-2">
-      <template for="token of app.tokens"
-        ><article class="rounded-lg border border-slate-100 p-2 text-sm dark:border-[#2d3a31]">
-          <strong>{{ token.label }}</strong>
-          <p class="font-mono text-xs text-slate-500 dark:text-[#aab7ad]">{{ token.tokenHint || 'ID unavailable' }}</p>
-          <p class="text-slate-600 dark:text-[#aab7ad]">Created {{ token.createdAt }}</p>
-          <p class="break-words text-slate-600 dark:text-[#aab7ad]">Scopes: {{ token.scopes.join(', ') }}</p>
-          <template if="token.revokedAt"
-            ><p
-              class="mt-2 inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-[#ffb8ae]"
-            >
-              Revoked {{ token.revokedAt }}
-            </p></template
-          >
-          <template if="!token.revokedAt"
-            ><p
-              class="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-[#c5e8c5]"
-            >
-              Active
-            </p></template
-          >
-          <template if="!token.revokedAt">
-            <div class="mt-2 flex flex-wrap items-start gap-2">
-              <details class="min-w-0 flex-1 rounded-md border border-slate-200 p-2 dark:border-[#2d3a31]">
-                <summary
-                  class="cursor-pointer text-xs font-semibold text-slate-700 dark:text-[#edf3ee]"
-                  on-click="startEditScopes(token)"
-                >
-                  Edit scopes
-                </summary>
-                <div class="mt-2 grid gap-2">
-                  <p class="text-xs font-semibold text-slate-600 dark:text-[#aab7ad]">Token scopes</p>
-                  <template for="scope of app.scopes"
-                    ><label class="flex items-center gap-2 text-xs"
-                      ><input
-                        type="checkbox"
-                        attr-checked.bool="editScopes.includes(scope)"
-                        on-change="toggleEditScope(scope)"
-                      />{{ scope }}</label
-                    ></template
-                  >
-                  <p class="text-xs text-red-600 dark:text-[#ffb8ae]">{{ editError }}</p>
-                  <div class="flex gap-2">
-                    <button
-                      class="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white dark:bg-[#376d46]"
-                      type="button"
-                      on-click="saveScopes(token, $event)"
-                    >
-                      Save scopes
-                    </button>
-                    <button
-                      class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold dark:border-[#526157]"
-                      type="button"
-                      on-click="cancelEditScopes($event)"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </details>
-              <button
-                class="rounded-md border border-slate-300 p-2 text-slate-600 hover:bg-slate-50 dark:border-[#526157] dark:text-[#c8d1ca] dark:hover:bg-[#243128]"
-                type="button"
-                on-click="rotateToken(token)"
-                aria-label="Rotate token"
-                title="Generate a replacement with the same label and scopes"
-              >
-                <lucide-icon icon="refresh-cw" size="16"></lucide-icon>
-              </button>
-              <button
-                class="rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-[#ffb8ae]"
-                type="button"
-                on-click="revokeToken(token)"
-              >
-                Revoke token
-              </button>
-            </div>
-          </template>
-        </article></template
-      >
-    </div>
-  </div>
-  <script setup>
-    import { defineProp, hook, ref } from '@li3/web';
-    import { createApiToken, getApiTokens, revokeApiToken, updateApiTokenScopes } from '/ui/dashboard.mjs';
-    export default function () {
-      const app = defineProp('app'),
-        createdToken = ref(''),
-        tokenScopes = ref([]),
-        tokenError = ref(''),
-        editScopes = ref([]),
-        editError = ref(''),
-        [tokenLabel, setTokenLabel] = hook('');
-      const load = async () => {
-        if (!app.value?.id) return;
-        app.value.tokens = await getApiTokens(app.value.id);
-        app.value.tokensLoaded = true;
-      };
-      const toggleTokenScope = (scope) => {
-        tokenScopes.value = tokenScopes.value.includes(scope)
-          ? tokenScopes.value.filter((value) => value !== scope)
-          : [...tokenScopes.value, scope];
-      };
-      const startEditScopes = (token) => {
-        editScopes.value = [...token.scopes];
-        editError.value = '';
-      };
-      const toggleEditScope = (scope) => {
-        editScopes.value = editScopes.value.includes(scope)
-          ? editScopes.value.filter((value) => value !== scope)
-          : [...editScopes.value, scope];
-      };
-      const cancelEditScopes = (event) => {
-        event?.target?.closest('details')?.removeAttribute('open');
-        editScopes.value = [];
-        editError.value = '';
-      };
-      const saveScopes = async (token, event) => {
-        const scopeEditor = event?.target?.closest('details');
-        if (!editScopes.value.length) {
-          editError.value = 'Choose at least one scope.';
-          return;
-        }
-        try {
-          await updateApiTokenScopes(app.value.id, token.tokenId, editScopes.value);
-          scopeEditor?.removeAttribute('open');
-          editScopes.value = [];
-          editError.value = '';
-          await load();
-        } catch (error) {
-          editError.value = error.message || 'Could not update token scopes.';
-        }
-      };
-      const createToken = async () => {
-        if (!tokenScopes.value.length) {
-          tokenError.value = 'Choose at least one scope.';
-          return;
-        }
-        try {
-          const result = await createApiToken(app.value.id, tokenLabel.value, tokenScopes.value);
-          setTokenLabel('');
-          tokenScopes.value = [];
-          tokenError.value = '';
-          createdToken.value = result.token;
-          await load();
-        } catch (error) {
-          tokenError.value = error.message || 'Could not create token.';
-        }
-      };
-      const revokeToken = async (token) => {
-        if (confirm('Revoke this token?')) {
-          await revokeApiToken(app.value.id, token.tokenId);
-          await load();
-        }
-      };
-      const rotateToken = async (token) => {
-        if (!confirm(`Generate a replacement for "${token.label}" with the same scopes and revoke this token?`)) return;
-        try {
-          const result = await createApiToken(app.value.id, token.label, token.scopes);
-          createdToken.value = result.token;
-          try {
-            await revokeApiToken(app.value.id, token.tokenId);
-          } catch {
-            tokenError.value = 'Replacement created, but the old token could not be revoked. Revoke it manually.';
-            await load();
-            return;
-          }
-          tokenError.value = '';
-          await load();
-        } catch (error) {
-          tokenError.value = error.message || 'Could not rotate token.';
-        }
-      };
-      return {
-        app,
-        createdToken,
-        tokenScopes,
-        tokenError,
-        editScopes,
-        editError,
-        tokenLabel,
-        setTokenLabel,
-        toggleTokenScope,
-        startEditScopes,
-        toggleEditScope,
-        cancelEditScopes,
-        saveScopes,
-        createToken,
-        revokeToken,
-        rotateToken,
-      };
     }
   </script></template
 >
