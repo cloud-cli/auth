@@ -159,7 +159,7 @@ test('public modules, OpenAPI, and OIDC discovery are served', async ({ request 
     '/ui/dashboard.mjs',
     '/ui/lib.mjs',
     '/ui/lucide-icon.html',
-    '/ui/lucide-icons.mjs',
+    '/ui/lucide-icons.svg',
     '/ui/embed.html',
   ]) {
     const response = await request.get(path);

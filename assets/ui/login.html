@@ -193,6 +193,9 @@
               <details class="mt-4 border-t border-gray-100 pt-4">
                 <summary class="cursor-pointer text-sm font-bold text-gray-500">Sign in as an Agent</summary>
                 <form class="mt-3 grid gap-3" on-submit.prevent="agentLogin()">
+                  <p class="text-xs text-gray-500">
+                    Use the generated Agent ID shown when the Agent was created. Its name is only a display label.
+                  </p>
                   <label class="grid gap-1 text-sm font-semibold" for="agent-id">Agent ID</label>
                   <input
                     id="agent-id"
