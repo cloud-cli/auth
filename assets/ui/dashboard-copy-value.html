@@ -5,13 +5,13 @@
     <p class="mb-2 text-sm font-semibold">{{ message }}</p>
     <div class="flex min-w-0 flex-col gap-2 sm:flex-row">
       <button
-        class="flex min-h-10 min-w-0 flex-1 select-none items-center rounded-lg border border-emerald-200 bg-white px-3 py-2 text-left font-mono text-sm dark:border-[#345a3d] dark:bg-[#17211b] dark:text-[#edf3ee]"
+        class="flex min-h-10 min-w-0 flex-1 select-none items-center justify-stretch rounded-lg border border-emerald-200 bg-white px-3 py-2 text-left font-mono text-sm dark:border-[#345a3d] dark:bg-[#17211b] dark:text-[#edf3ee]"
         type="button"
         aria-label="Copy full value to clipboard"
         title="Tap or click to copy the full value"
         on-click="copy()"
       >
-        <span class="min-w-0 flex-1 truncate">{{ tokenPrefix }}…</span><span class="shrink-0">{{ tokenSuffix }}</span>
+        <span class="min-w-0 flex-0 truncate">{{ tokenPrefix }}</span><span>{{ tokenSuffix }}</span>
       </button>
       <button
         class="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-900 dark:bg-[#376d46]"

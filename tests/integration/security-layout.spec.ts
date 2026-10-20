@@ -47,9 +47,12 @@ test('administrator signing keys and Auth API tokens are under Recovery codes in
     await page.getByPlaceholder('Token label').fill('Security Auth API token');
     await page.getByRole('button', { name: 'Generate Auth API token' }).click();
     const tokenField = page.getByRole('button', { name: 'Copy full value to clipboard' });
-    await expect(tokenField).toContainText(/…\s*[A-Za-z0-9_-]{3}$/);
     await tokenField.click();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^auth_/);
+    const token = await page.evaluate(() => navigator.clipboard.readText());
+    expect(token).toMatch(/^auth_/);
+    const preview = (await tokenField.innerText()).replace(/\s/g, '');
+    expect(preview.endsWith(token.slice(-3))).toBe(true);
+    expect(preview).not.toContain('…');
     await expect(page.getByText('Security Auth API token', { exact: true })).toBeVisible();
 
     await appSelector.selectOption('');

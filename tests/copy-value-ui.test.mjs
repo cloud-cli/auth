@@ -9,11 +9,14 @@ for (const path of ['assets/ui/copy-value.html', 'assets/ui/dashboard-copy-value
     assert.match(source, /value\.length - 3/);
     assert.match(source, /tokenPrefix\.value = value\.slice\(0, splitAt\)/);
     assert.match(source, /tokenSuffix\.value = value\.slice\(splitAt\)/);
-    assert.match(source, /<span class="min-w-0 flex-1 truncate">\{\{ tokenPrefix \}\}…<\/span>/);
-    assert.match(source, /<span class="shrink-0">\{\{ tokenSuffix \}\}<\/span>/);
+    assert.match(
+      source,
+      /class="[^"]*justify-stretch[^"]*"[\s\S]*?<span class="min-w-0 flex-0 truncate">\{\{ tokenPrefix \}\}<\/span>/,
+    );
+    assert.match(source, /<span>\{\{ tokenSuffix \}\}<\/span>/);
     assert.match(source, /aria-label="Copy full value to clipboard"/);
     assert.match(source, /on-click="copy\(\)"/);
     assert.match(source, /navigator\.clipboard\.writeText\(token\.value\)/);
-    assert.doesNotMatch(source, /<input\b|selectText|select-all/);
+    assert.doesNotMatch(source, /<input\b|selectText|select-all|\{\{ tokenPrefix \}\}…/);
   });
 }

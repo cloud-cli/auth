@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import {
   createAdminFixture,
   createAgentFixture,
@@ -9,6 +9,12 @@ import {
   type AdminFixture,
   type AgentFixture,
 } from './agent-fixture.js';
+
+async function expectValueSuffix(field: Locator, value: string) {
+  const preview = (await field.innerText()).replace(/\s/g, '');
+  expect(preview.endsWith(value.slice(-3))).toBe(true);
+  expect(preview).not.toContain('…');
+}
 
 test('Agents sign in as distinct accounts and cannot use human or admin security APIs', async ({ page }) => {
   const fixture = await createAgentFixture(page);
@@ -77,10 +83,10 @@ test('Applications creates a private app with a generated ID and no downstream-t
     await form.getByRole('button', { name: 'Create app' }).click();
     await expect(page.getByText('Copy this new client secret now. It is only shown once.')).toBeVisible();
     const secretField = form.getByRole('button', { name: 'Copy full value to clipboard' });
-    await expect(secretField).toContainText(/…\s*[A-Za-z0-9_-]{3}$/);
     await secretField.click();
     const initialSecret = await page.evaluate(() => navigator.clipboard.readText());
     expect(initialSecret).toMatch(/^[A-Za-z0-9_-]+$/);
+    await expectValueSuffix(secretField, initialSecret);
 
     const apps = await page.evaluate(async () => (await fetch('/api/v1/oidc/apps')).json());
     const app = apps.find((item) => item.name === 'Agent UI application');
@@ -89,6 +95,9 @@ test('Applications creates a private app with a generated ID and no downstream-t
 
     const details = page.locator('details').filter({ hasText: app.id });
     await details.locator('summary').click();
+    const privateBadge = details.getByText('Private', { exact: true });
+    await expect(privateBadge).toHaveCSS('font-size', '10px');
+    await expect(privateBadge).toHaveCSS('padding-left', '8px');
     const row = page.getByRole('listitem').filter({ hasText: app.id });
     await expect(row.getByText('https://agent-ui.example/callback', { exact: true })).toBeVisible();
     await expect(row.getByText('agent-ui:read', { exact: true })).toBeVisible();
@@ -111,7 +120,7 @@ test('Applications creates a private app with a generated ID and no downstream-t
     expect(regenerated.secret).toBeTruthy();
     expect(regenerated.secret).not.toBe(initialSecret);
     const regeneratedField = row.getByRole('button', { name: 'Copy full value to clipboard' });
-    await expect(regeneratedField).toContainText(new RegExp(`…\\s*${regenerated.secret.slice(-3)}`));
+    await expectValueSuffix(regeneratedField, regenerated.secret);
     await regeneratedField.click();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(regenerated.secret);
 
@@ -154,6 +163,7 @@ test('Agent creation shows the Agent ID and sign-in token as copyable values', a
     await copyFields.nth(1).click();
     const agentId = await page.evaluate(() => navigator.clipboard.readText());
     expect(agentId).toMatch(/^agent_[A-Za-z0-9_-]+$/);
+    await expectValueSuffix(copyFields.nth(1), agentId);
     const childRow = page.getByRole('listitem').filter({ hasText: 'Copy UI child' });
     await expect(childRow.locator('code')).toHaveText(agentId);
 
@@ -235,9 +245,10 @@ test('Agents own private OIDC apps and manage scoped downstream tokens from Toke
     await page.getByLabel('agent:read').check();
     await createButton.click();
     const createdTokenField = page.getByRole('button', { name: 'Copy full value to clipboard' });
-    await expect(createdTokenField).toContainText(/…\s*[A-Za-z0-9_-]{3}$/);
     await createdTokenField.click();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^auth_/);
+    const createdToken = await page.evaluate(() => navigator.clipboard.readText());
+    expect(createdToken).toMatch(/^auth_/);
+    await expectValueSuffix(createdTokenField, createdToken);
 
     const appFilter = page.getByLabel('Filter by app');
     await appFilter.selectOption(created.body.id);
@@ -252,9 +263,10 @@ test('Agents own private OIDC apps and manage scoped downstream tokens from Toke
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Rotate' }).click();
     const rotatedTokenField = page.getByRole('button', { name: 'Copy full value to clipboard' });
-    await expect(rotatedTokenField).toContainText(/…\s*[A-Za-z0-9_-]{3}$/);
     await rotatedTokenField.click();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^auth_/);
+    const rotatedToken = await page.evaluate(() => navigator.clipboard.readText());
+    expect(rotatedToken).toMatch(/^auth_/);
+    await expectValueSuffix(rotatedTokenField, rotatedToken);
     await expect(page.getByText('Revoked', { exact: false })).toBeVisible();
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Revoke' }).click();
@@ -345,6 +357,12 @@ test('private apps stay owner-scoped until an administrator publishes them', asy
       availableToUsers: true,
     });
     expect(visibility.tokenStatus).toBe(200);
+
+    await consumerPage.goto('/me#applications');
+    const sharedAppRow = consumerPage.getByRole('listitem').filter({ hasText: created.body.id });
+    await sharedAppRow.locator('summary').click();
+    await expect(sharedAppRow.getByText('Callback URLs', { exact: true })).toBeVisible();
+    await expect(sharedAppRow.getByText('Post-logout return URLs', { exact: true })).toHaveCount(0);
 
     const nonOwnerEditStatus = await consumerPage.evaluate(async (clientId) => {
       const response = await fetch(`/api/v1/oidc/clients/${encodeURIComponent(clientId)}/name`, {

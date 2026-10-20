@@ -45,7 +45,7 @@
                   >
                   <span
                     class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                    attr-class="app.availableToUsers ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-[#c5e8c5]' : 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-[#f1d38e]'"
+                    bind-class="{ 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-[#c5e8c5]': app.availableToUsers, 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-[#f1d38e]': !app.availableToUsers }"
                   >
                     {{ app.availableToUsers ? 'Published' : 'Private' }}
                   </span>
