@@ -17,7 +17,6 @@ test('Tailwind is built locally with a shared CSS-first theme', async () => {
   assert.match(tailwindConfig, /--spacing-property-field:/);
   assert.match(builtCss, /\.app-visibility-published/);
   assert.match(builtCss, /\.dark\\:bg-dark-surface/);
-  assert.match(builtCss, /\.flex-0/);
   assert.match(builtCss, /\.justify-stretch/);
   assert.doesNotMatch(uiSource, /cdn\.tailwindcss\.com|tailwind\.config/);
   for (const page of [

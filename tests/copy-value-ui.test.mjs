@@ -11,7 +11,7 @@ for (const path of ['assets/ui/copy-value.html', 'assets/ui/dashboard-copy-value
     assert.match(source, /tokenSuffix\.value = value\.slice\(splitAt\)/);
     assert.match(
       source,
-      /class="[^"]*justify-stretch[^"]*"[\s\S]*?<span class="min-w-0 flex-0 truncate">\{\{ tokenPrefix \}\}<\/span>/,
+      /class="[^"]*justify-stretch[^"]*"[\s\S]*?<span class="min-w-0 truncate">\{\{ tokenPrefix \}\}<\/span>/,
     );
     assert.match(source, /<span>\{\{ tokenSuffix \}\}<\/span>/);
     assert.match(source, /aria-label="Copy full value to clipboard"/);
