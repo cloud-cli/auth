@@ -127,12 +127,13 @@
           <button
             class="text-sm font-semibold text-rose-600"
             type="button"
-            if="!entry.token.revokedAt"
+            hidden="false"
+            bind-hidden.bool="entry.token.revokedAt"
             on-click="revoke(entry)"
           >
             Revoke
           </button>
-          <span class="text-sm text-slate-400" if="entry.token.revokedAt">revoked</span>
+          <span class="text-sm text-slate-400" hidden="false" bind-hidden.bool="!entry.token.revokedAt">revoked</span>
         </article></template
       >
     </div>

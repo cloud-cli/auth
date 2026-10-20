@@ -77,13 +77,15 @@
                 class="text-red-600 hover:text-red-800 text-sm font-semibold transition-colors dark:text-dark-danger"
                 type="button"
                 on-click="revoke(entry)"
-                if="!entry.token.revokedAt"
+                hidden="false"
+                bind-hidden.bool="entry.token.revokedAt"
               >
                 Revoke
               </button>
               <span
                 class="text-sm text-gray-400 line-through decoration-gray-300 dark:text-dark-muted"
-                if="entry.token.revokedAt"
+                hidden="false"
+                bind-hidden.bool="!entry.token.revokedAt"
                 >revoked</span
               >
             </div>

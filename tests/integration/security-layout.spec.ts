@@ -67,6 +67,8 @@ test('administrator signing keys and Auth API tokens are under Recovery codes in
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Revoke', exact: true }).click();
     await expect(page.getByText('Security Auth API token', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Revoke', exact: true })).toHaveCount(0);
+    await expect(page.getByText('revoked', { exact: true })).toBeVisible();
   } finally {
     await deleteAdminFixture(page, fixture);
   }
