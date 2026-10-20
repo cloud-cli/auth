@@ -30,8 +30,13 @@
     <p class="mb-4 text-sm text-red-600 dark:text-[#ffb8ae]" role="alert">{{ error }}</p>
 
     <template if="createdToken">
-      <v2-copy-value-box bind-token="createdToken" bind-message="secretMessage"></v2-copy-value-box>
-      <p class="mb-4 break-all text-xs text-gray-500 dark:text-[#aab7ad]">Agent ID: {{ createdAgentId }}</p>
+      <div class="mb-4 grid gap-3 sm:grid-cols-2">
+        <v2-copy-value-box bind-token="createdToken" bind-message="secretMessage"></v2-copy-value-box>
+        <v2-copy-value-box
+          bind-token="createdAgentId"
+          message="Agent ID — use this with the sign-in token when configuring Agent access."
+        ></v2-copy-value-box>
+      </div>
     </template>
 
     <ul class="divide-y divide-gray-100 rounded-xl border border-gray-100 dark:divide-[#2d3a31] dark:border-[#2d3a31]">

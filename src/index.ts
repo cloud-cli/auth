@@ -147,8 +147,37 @@ const uiAssets = Object.fromEntries(
     'dashboard-profile.html',
     'dashboard-copy-value.html',
     'lucide-icon.html',
-    'lucide-icons.svg',
   ].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]),
+);
+const lucideIconVersion = 'v1.59.0';
+const lucideIconNames = [
+  'app-window',
+  'bot',
+  'chevron-down',
+  'chevron-right',
+  'copy',
+  'crown',
+  'key-round',
+  'life-buoy',
+  'list-ordered',
+  'menu',
+  'monitor',
+  'moon',
+  'plus',
+  'scan-line',
+  'shield-check',
+  'smartphone',
+  'sun',
+  'tag',
+  'tags',
+  'timeline',
+  'trash',
+  'user-round',
+  'users',
+  'x',
+];
+const lucideIconAssets = Object.fromEntries(
+  lucideIconNames.map((name) => [name, readFileSync(`./assets/ui/icons/${lucideIconVersion}/${name}.svg`, 'utf8')]),
 );
 
 function protectedRoute(req, res, next) {
@@ -1466,6 +1495,16 @@ app.get('/node.mjs', serveEsModule(nodeLibrary));
 app.get('/ui/dashboard.mjs', serveEsModule(dashboardLibrary));
 app.get('/ui/lib.mjs', serveEsModule(esHelper));
 app.get('/ui/google.svg', (_req, res) => res.type('image/svg+xml').send(readFileSync('./assets/google.svg', 'utf8')));
+app.get('/ui/icons/:version/:name.svg', (req, res) => {
+  if (req.params.version !== lucideIconVersion) {
+    return res.sendStatus(404);
+  }
+  const icon = lucideIconAssets[req.params.name];
+  if (!icon) {
+    return res.sendStatus(404);
+  }
+  res.set('Cache-Control', 'public, max-age=31536000, immutable').type('image/svg+xml').send(icon);
+});
 app.get('/ui/:asset', (req, res) => {
   const asset = uiAssets[req.params.asset];
   if (!asset) return res.sendStatus(404);

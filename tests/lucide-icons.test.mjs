@@ -2,10 +2,14 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('local Lucide SVG sprite covers every icon used by the UI templates', async () => {
+test('individual local Lucide SVGs cover every icon used by the UI templates', async () => {
   const files = await readdir('assets/ui');
   const iconNames = new Set();
-  const sprite = await readFile('assets/ui/lucide-icons.svg', 'utf8');
+  const iconDirectory = 'assets/ui/icons/v1.59.0';
+  const iconFiles = new Set(await readdir(iconDirectory));
+  const serverSource = await readFile('src/index.ts', 'utf8');
+  const serverIconNames = serverSource.split('const lucideIconNames = [')[1]?.split('];')[0];
+  assert.ok(serverIconNames, 'The server should explicitly allowlist local icon assets.');
 
   for (const file of files.filter((name) => name.endsWith('.html'))) {
     const source = await readFile(`assets/ui/${file}`, 'utf8');
@@ -20,6 +24,10 @@ test('local Lucide SVG sprite covers every icon used by the UI templates', async
   }
 
   for (const name of iconNames) {
-    assert.ok(sprite.includes(`id="icon-${name}"`), `Missing local SVG sprite entry: ${name}`);
+    const file = `${name}.svg`;
+    assert.ok(iconFiles.has(file), `Missing local SVG asset: ${name}`);
+    const source = await readFile(`${iconDirectory}/${file}`, 'utf8');
+    assert.ok(source.includes(`id="icon-${name}"`), `Local SVG has the wrong icon ID: ${name}`);
+    assert.ok(serverIconNames.includes(`'${name}'`), `The server does not serve the local SVG asset: ${name}`);
   }
 });

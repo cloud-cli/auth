@@ -41,9 +41,15 @@ test('administrator signing keys and Auth API tokens are under Recovery codes in
 
     const appSelector = page.getByRole('combobox');
     await appSelector.selectOption(apps[0].id);
+    await page
+      .context()
+      .grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
     await page.getByPlaceholder('Token label').fill('Security Auth API token');
     await page.getByRole('button', { name: 'Generate Auth API token' }).click();
-    await expect(page.getByLabel('Value to copy')).toHaveValue(/^auth_/);
+    const tokenField = page.getByRole('button', { name: 'Copy full value to clipboard' });
+    await expect(tokenField).toContainText(/…\s*[A-Za-z0-9_-]{3}$/);
+    await tokenField.click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^auth_/);
     await expect(page.getByText('Security Auth API token', { exact: true })).toBeVisible();
 
     await appSelector.selectOption('');

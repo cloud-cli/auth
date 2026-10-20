@@ -5,6 +5,7 @@
     import { defineProp, effect, templateRef } from '@li3/web';
 
     const svgNamespace = 'http://www.w3.org/2000/svg';
+    const iconVersion = 'v1.59.0';
 
     export default function () {
       const container = templateRef('container').value;
@@ -44,7 +45,7 @@
         }
 
         const use = document.createElementNS(svgNamespace, 'use');
-        use.setAttribute('href', `/ui/lucide-icons.svg#icon-${name}`);
+        use.setAttribute('href', `/ui/icons/${iconVersion}/${name}.svg#icon-${name}`);
         svg.appendChild(use);
 
         container.appendChild(svg);

@@ -62,6 +62,9 @@ test('Applications creates a private app with a generated ID and no downstream-t
 
   try {
     await signInAsAgent(page, fixture);
+    await page
+      .context()
+      .grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
     await page.goto('/me#applications');
     await page.getByRole('button', { name: 'Add app' }).click();
     const form = page.locator('v2-app-form');
@@ -73,7 +76,10 @@ test('Applications creates a private app with a generated ID and no downstream-t
     await expect(form.getByPlaceholder('Application ID')).toHaveCount(0);
     await form.getByRole('button', { name: 'Create app' }).click();
     await expect(page.getByText('Copy this new client secret now. It is only shown once.')).toBeVisible();
-    const initialSecret = await form.getByLabel('Value to copy').inputValue();
+    const secretField = form.getByRole('button', { name: 'Copy full value to clipboard' });
+    await expect(secretField).toContainText(/…\s*[A-Za-z0-9_-]{3}$/);
+    await secretField.click();
+    const initialSecret = await page.evaluate(() => navigator.clipboard.readText());
     expect(initialSecret).toMatch(/^[A-Za-z0-9_-]+$/);
 
     const apps = await page.evaluate(async () => (await fetch('/api/v1/oidc/apps')).json());
@@ -104,7 +110,10 @@ test('Applications creates a private app with a generated ID and no downstream-t
     const regenerated = await secretResponse.json();
     expect(regenerated.secret).toBeTruthy();
     expect(regenerated.secret).not.toBe(initialSecret);
-    await expect(row.getByLabel('Value to copy')).toHaveValue(regenerated.secret);
+    const regeneratedField = row.getByRole('button', { name: 'Copy full value to clipboard' });
+    await expect(regeneratedField).toContainText(new RegExp(`…\\s*${regenerated.secret.slice(-3)}`));
+    await regeneratedField.click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(regenerated.secret);
 
     const deleteResponsePromise = page.waitForResponse(
       (response) =>
@@ -120,6 +129,41 @@ test('Applications creates a private app with a generated ID and no downstream-t
   }
 });
 
+test('Agent creation shows the Agent ID and sign-in token as copyable values', async ({ page }) => {
+  const fixture = await createAgentFixture(page);
+  if (!fixture) {
+    test.skip(true, 'Requires a deployment built with test fixture routes');
+    return;
+  }
+
+  try {
+    await signInAsAgent(page, fixture);
+    await page
+      .context()
+      .grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
+    await page.goto('/me#agents');
+    await page.getByPlaceholder('Agent name').fill('Copy UI child');
+    await page.getByRole('button', { name: 'Create Agent' }).click();
+
+    const valueBoxes = page.locator('v2-copy-value-box');
+    await expect(valueBoxes).toHaveCount(2);
+    const copyFields = page.getByRole('button', { name: 'Copy full value to clipboard' });
+    await expect(copyFields).toHaveCount(2);
+    await expect(valueBoxes.nth(1)).toContainText('Agent ID');
+
+    await copyFields.nth(1).click();
+    const agentId = await page.evaluate(() => navigator.clipboard.readText());
+    expect(agentId).toMatch(/^agent_[A-Za-z0-9_-]+$/);
+    const childRow = page.getByRole('listitem').filter({ hasText: 'Copy UI child' });
+    await expect(childRow.locator('code')).toHaveText(agentId);
+
+    await copyFields.nth(0).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^agt_[A-Za-z0-9_-]+$/);
+  } finally {
+    await deleteAgentFixture(page, fixture);
+  }
+});
+
 test('Agents own private OIDC apps and manage scoped downstream tokens from Tokens', async ({ page }) => {
   const fixture = await createAgentFixture(page);
   if (!fixture) {
@@ -129,6 +173,9 @@ test('Agents own private OIDC apps and manage scoped downstream tokens from Toke
 
   try {
     await signInAsAgent(page, fixture);
+    await page
+      .context()
+      .grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
     const created = await page.evaluate(async () => {
       const response = await fetch('/api/v1/oidc/clients', {
         method: 'POST',
@@ -187,7 +234,10 @@ test('Agents own private OIDC apps and manage scoped downstream tokens from Toke
     await expect(page.getByLabel('agent:read')).toBeVisible();
     await page.getByLabel('agent:read').check();
     await createButton.click();
-    await expect(page.getByLabel('Value to copy')).toHaveValue(/^auth_/);
+    const createdTokenField = page.getByRole('button', { name: 'Copy full value to clipboard' });
+    await expect(createdTokenField).toContainText(/…\s*[A-Za-z0-9_-]{3}$/);
+    await createdTokenField.click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^auth_/);
 
     const appFilter = page.getByLabel('Filter by app');
     await appFilter.selectOption(created.body.id);
@@ -201,7 +251,10 @@ test('Agents own private OIDC apps and manage scoped downstream tokens from Toke
 
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Rotate' }).click();
-    await expect(page.getByLabel('Value to copy')).toHaveValue(/^auth_/);
+    const rotatedTokenField = page.getByRole('button', { name: 'Copy full value to clipboard' });
+    await expect(rotatedTokenField).toContainText(/…\s*[A-Za-z0-9_-]{3}$/);
+    await rotatedTokenField.click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^auth_/);
     await expect(page.getByText('Revoked', { exact: false })).toBeVisible();
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'Revoke' }).click();

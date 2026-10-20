@@ -159,12 +159,15 @@ test('public modules, OpenAPI, and OIDC discovery are served', async ({ request 
     '/ui/dashboard.mjs',
     '/ui/lib.mjs',
     '/ui/lucide-icon.html',
-    '/ui/lucide-icons.svg',
+    '/ui/icons/v1.59.0/menu.svg',
     '/ui/embed.html',
   ]) {
     const response = await request.get(path);
     expect(response.ok(), path).toBeTruthy();
   }
+  const menuIcon = await request.get('/ui/icons/v1.59.0/menu.svg');
+  expect(menuIcon.headers()['content-type']).toContain('image/svg+xml');
+  expect(menuIcon.headers()['cache-control']).toContain('immutable');
 
   const response = await request.get('/api');
   expect(response.ok()).toBeTruthy();
