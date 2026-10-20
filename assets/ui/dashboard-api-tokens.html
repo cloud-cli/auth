@@ -29,7 +29,7 @@
               on-change="selectClient($event.target.value)"
             >
               <option value="">Choose an application</option>
-              <template for="app of apps"><option attr-value="app.id">{{ app.name }} · {{ app.id }}</option></template>
+              <template for="app of apps"><option attr-value="app.id">{{ app.name }}</option></template>
             </select>
           </label>
 
@@ -109,7 +109,8 @@
               <div class="min-w-0">
                 <h4 class="font-semibold text-gray-900 dark:text-[#eef3ef]">{{ token.label }}</h4>
                 <p class="mt-0.5 break-all text-xs text-gray-500 dark:text-[#aab7ad]">
-                  {{ token.clientName }} · {{ token.clientId }}
+                  {{ token.clientName === token.clientId ? token.clientName : token.clientName + ' · ' + token.clientId
+                  }}
                 </p>
                 <p class="mt-1 font-mono text-xs text-gray-500 dark:text-[#aab7ad]">
                   {{ token.tokenHint || 'Token hint unavailable' }}

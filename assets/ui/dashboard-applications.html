@@ -40,7 +40,9 @@
                     class="text-gray-400 shrink-0 dark:text-[#aab7ad]"
                   ></lucide-icon>
                   <span class="font-semibold text-gray-900 text-sm truncate dark:text-[#eef3ef]">{{ app.name }}</span>
-                  <code class="break-all font-mono text-xs text-gray-500 dark:text-[#aab7ad]">{{ app.id }}</code>
+                  <code if="app.name !== app.id" class="break-all font-mono text-xs text-gray-500 dark:text-[#aab7ad]"
+                    >{{ app.id }}</code
+                  >
                   <span
                     class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
                     attr-class="app.availableToUsers ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-[#c5e8c5]' : 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-[#f1d38e]'"

@@ -38,7 +38,7 @@
             </div>
             <details>
               <summary class="cursor-pointer pr-20 text-sm font-bold">
-                {{ app.name }} · {{ app.id }}
+                {{ app.name === app.id ? app.name : app.name + ' · ' + app.id }}
                 <lucide-icon
                   attr-icon="app.isPublic ? 'smartphone' : 'monitor'"
                   size="16"
