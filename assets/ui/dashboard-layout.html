@@ -32,11 +32,25 @@
           </div>
           <button
             id="close-menu-btn"
-            class="md:hidden p-2 text-gray-500 hover:bg-gray-200/50 rounded-lg dark:text-[#aab7ad] dark:hover:bg-[#1b2720]"
+            type="button"
+            class="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-gray-500 hover:bg-gray-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:text-[#aab7ad] dark:hover:bg-[#1b2720]"
             aria-label="Close menu"
+            aria-controls="sidebar"
+            aria-expanded="true"
             on-click="closeMenu()"
           >
-            <lucide-icon icon="x" size="20"></lucide-icon>
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
           </button>
         </div>
 
@@ -136,11 +150,25 @@
         <div class="flex items-center gap-3">
           <button
             id="mobile-menu-btn"
-            class="md:hidden text-gray-700 p-1.5 -ml-2 hover:bg-gray-200/50 rounded-md transition-colors dark:text-[#aab7ad] dark:hover:bg-[#1b2720]"
+            type="button"
+            class="md:hidden inline-flex min-h-11 min-w-11 -ml-2 items-center justify-center rounded-md p-1.5 text-gray-700 transition-colors hover:bg-gray-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:text-[#aab7ad] dark:hover:bg-[#1b2720]"
             aria-label="Open menu"
+            aria-controls="sidebar"
+            attr-aria-expanded="mobileMenuOpen"
             on-click="openMenu()"
           >
-            <lucide-icon icon="menu" size="24"></lucide-icon>
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M4 5h16M4 12h16M4 19h16"></path>
+            </svg>
           </button>
         </div>
 
@@ -202,7 +230,7 @@
     </main>
   </div>
 
-  <link rel="component" href="https://sodium.static.apphor.de/lucide-icon.html" />
+  <link rel="component" href="/ui/lucide-icon.html" />
   <style>
     #nav-menu > .dashboard-link {
       display: flex;

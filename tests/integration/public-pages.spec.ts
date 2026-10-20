@@ -153,7 +153,15 @@ test('Agent sessions survive duplicate stale cookies and expose only Agent dashb
 });
 
 test('public modules, OpenAPI, and OIDC discovery are served', async ({ request }) => {
-  for (const path of ['/index.mjs', '/node.mjs', '/ui/dashboard.mjs', '/ui/lib.mjs', '/ui/embed.html']) {
+  for (const path of [
+    '/index.mjs',
+    '/node.mjs',
+    '/ui/dashboard.mjs',
+    '/ui/lib.mjs',
+    '/ui/lucide-icon.html',
+    '/ui/lucide-icons.mjs',
+    '/ui/embed.html',
+  ]) {
     const response = await request.get(path);
     expect(response.ok(), path).toBeTruthy();
   }

@@ -146,6 +146,8 @@ const uiAssets = Object.fromEntries(
     'dashboard-activity.html',
     'dashboard-profile.html',
     'dashboard-copy-value.html',
+    'lucide-icon.html',
+    'lucide-icons.mjs',
   ].map((name) => [name, readFileSync('./assets/ui/' + name, 'utf8')]),
 );
 

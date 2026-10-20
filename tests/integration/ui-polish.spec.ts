@@ -59,10 +59,17 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/me#applications');
     await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible();
+    await expect(page.locator('#nav-menu lucide-icon svg').first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-    await page.getByRole('button', { name: 'Open menu' }).click();
+    const menuButton = page.getByRole('button', { name: 'Open menu' });
+    await expect(menuButton).toBeVisible();
+    await expect(menuButton.locator('svg')).toBeVisible();
+    await menuButton.click();
+    await expect(page.locator('#sidebar')).toHaveClass(/translate-x-0/);
+    await expect(page.getByRole('button', { name: 'Close menu' })).toBeVisible();
     await page.getByRole('button', { name: 'Tokens' }).click();
     await expect(page.getByRole('heading', { name: 'Tokens' })).toBeVisible();
+    await expect(page.locator('#sidebar')).toHaveClass(/-translate-x-full/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   } finally {
     await deleteAgentFixture(page, fixture);

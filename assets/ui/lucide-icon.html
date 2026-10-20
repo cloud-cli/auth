@@ -1,0 +1,62 @@
+<template component="lucide-icon">
+  <span ref="container" attr-aria-label="label || ''"></span>
+
+  <script setup>
+    import { defineProp, effect, templateRef } from '@li3/web';
+    import { iconData } from '/ui/lucide-icons.mjs';
+
+    const svgNamespace = 'http://www.w3.org/2000/svg';
+
+    export default function () {
+      const container = templateRef('container').value;
+      const icon = defineProp('icon', { attribute: true });
+      const iconClasses = defineProp('iconClasses', { attribute: true });
+      const label = defineProp('label', { attribute: true });
+      const size = defineProp('size', { attribute: true });
+
+      function renderIcon() {
+        container.replaceChildren();
+        const name = String(icon.value || '')
+          .trim()
+          .replace(/^['"]|['"]$/g, '');
+        const data = iconData[name];
+        if (!data) {
+          return;
+        }
+
+        const svg = document.createElementNS(svgNamespace, 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('width', String(size.value || 24));
+        svg.setAttribute('height', String(size.value || 24));
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('focusable', 'false');
+
+        if (iconClasses.value) {
+          svg.setAttribute('class', String(iconClasses.value));
+        }
+        if (label.value) {
+          svg.setAttribute('role', 'img');
+          svg.setAttribute('aria-label', String(label.value));
+        } else {
+          svg.setAttribute('aria-hidden', 'true');
+        }
+
+        for (const [tag, attributes] of data) {
+          const element = document.createElementNS(svgNamespace, tag);
+          for (const [attribute, value] of Object.entries(attributes)) {
+            element.setAttribute(attribute, value);
+          }
+          svg.appendChild(element);
+        }
+
+        container.appendChild(svg);
+      }
+
+      effect(() => icon.value + iconClasses.value + label.value + size.value, renderIcon);
+    }
+  </script>
+</template>
