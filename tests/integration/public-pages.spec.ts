@@ -213,8 +213,15 @@ test('profile API stays protected and admin-only page errors are branded', async
 
 test('administrator Users page lists accounts and prevents disabling its active administrator', async ({ page }) => {
   await allowLocalLi3Imports(page);
+  const agentFixture = await createAgentFixture(page);
+  if (!agentFixture) {
+    test.skip(true, 'Requires a deployment built with test fixture routes');
+    return;
+  }
+
   const fixture = await createAdminFixture(page);
   if (!fixture) {
+    await deleteAgentFixture(page, agentFixture);
     test.skip(true, 'Requires a deployment built with test fixture routes');
     return;
   }
@@ -225,6 +232,9 @@ test('administrator Users page lists accounts and prevents disabling its active 
     const users = await page.evaluate(async () => (await fetch('/api/v1/admin/users')).json());
     const currentUser = users.find((user) => user.id === fixture.userId);
     expect(currentUser).toMatchObject({ role: 'admin', name: 'Integration Test Administrator' });
+    expect(users.some((user) => user.role === 'agent')).toBe(false);
+    expect(users.some((user) => user.id === agentFixture.agentId)).toBe(false);
+    await expect(page.getByText(agentFixture.agentId, { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: currentUser.email }).click();
     await expect(page.getByText('UUID:', { exact: true })).toBeVisible();
     await expect(page.locator('input[name="preferred_username"]')).toBeVisible();
@@ -240,6 +250,7 @@ test('administrator Users page lists accounts and prevents disabling its active 
     expect(disableStatus).toBe(409);
   } finally {
     await deleteAdminFixture(page, fixture);
+    await deleteAgentFixture(page, agentFixture);
   }
 });
 

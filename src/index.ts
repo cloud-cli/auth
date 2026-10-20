@@ -346,14 +346,15 @@ function registerUserAdminRoutes() {
                 EXISTS (SELECT 1 FROM auth_blocked_identity b WHERE b.profile_id = auth_user.profile_id) AS blocked
          FROM auth_user
          LEFT JOIN (
-           SELECT user_id, MAX(timestamp) AS last_authenticated
-           FROM auth_audit_event
+            SELECT user_id, MAX(timestamp) AS last_authenticated
+            FROM auth_audit_event
             WHERE result = 'success' AND event IN (
               'google-authentication', 'agent-authentication', 'recovery-authentication',
              'passkey-authentication', 'qr-approval', 'oidc-authorization', 'oidc-token-exchange'
            )
-           GROUP BY user_id
-         ) auth_activity ON auth_activity.user_id = auth_user.user_id
+            GROUP BY user_id
+          ) auth_activity ON auth_activity.user_id = auth_user.user_id
+         WHERE auth_user.role <> 'agent'
          ORDER BY auth_user.email COLLATE NOCASE`,
       ),
     );
