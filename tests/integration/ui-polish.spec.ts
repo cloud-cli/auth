@@ -71,6 +71,9 @@ test('v2 navigation, profile, and dashboard sections render cleanly', async ({ p
     await expect(page.getByRole('heading', { name: 'Tokens' })).toBeVisible();
     await expect(page.locator('#sidebar')).toHaveClass(/-translate-x-full/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.getByRole('button', { name: 'Open profile' }).click();
+    await expect(page).toHaveURL(/#profile$/);
+    await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
   } finally {
     await deleteAgentFixture(page, fixture);
   }

@@ -164,8 +164,12 @@
             <template if="!darkTheme"><lucide-icon icon="moon" size="18" aria-hidden="true"></lucide-icon></template>
           </button>
           <!-- User Profile -->
-          <div
-            class="flex items-center gap-4 bg-white border border-gray-200 rounded-full pl-1.5 pr-4 py-1.5 shadow-sm dark:bg-[#17211b] dark:border-[#2d3a31]"
+          <button
+            type="button"
+            on-click="navigate('profile')"
+            aria-label="Open profile"
+            title="Open profile"
+            class="flex items-center gap-4 rounded-full border border-gray-200 bg-white py-1.5 pl-1.5 pr-4 text-left shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:hover:bg-[#243128] dark:focus-visible:outline-[#c8e6a8]"
           >
             <div
               class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm shrink-0 dark:bg-[#376d46]"
@@ -187,7 +191,7 @@
                 <lucide-icon icon="crown" size="12" class="fill-current"></lucide-icon>
               </div>
             </template>
-          </div>
+          </button>
         </div>
       </header>
 
