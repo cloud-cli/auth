@@ -31,6 +31,16 @@ test('Agents sign in as distinct accounts and cannot use human or admin security
     });
     expect(profile.role).toBe('agent');
     expect(profile.id).toBe(fixture.agentId);
+    const agents = await page.evaluate(async () => {
+      const response = await fetch('/api/v1/agents');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(agents.status).toBe(200);
+    expect(agents.body).toEqual([expect.objectContaining({ id: fixture.agentId, self: true })]);
+    await page.goto('/me#agents');
+    const selfAgent = page.getByRole('listitem').filter({ hasText: fixture.agentId });
+    await expect(selfAgent.getByText('This Agent', { exact: true })).toBeVisible();
+    await expect(selfAgent.getByRole('button', { name: 'Disable Agent' })).toHaveCount(0);
 
     for (const section of ['Profile', 'Properties', 'Applications', 'Agents', 'Tokens']) {
       await expect(page.getByRole('button', { name: section })).toBeVisible();

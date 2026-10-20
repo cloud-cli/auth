@@ -7,7 +7,7 @@
     <div class="mt-3 grid gap-2">
       <template for="property of properties"
         ><div
-          class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border border-slate-100 p-2 sm:grid-cols-[minmax(7rem,.8fr)_minmax(0,2fr)_auto]"
+          class="grid grid-cols-properties gap-2 rounded-xl border border-slate-100 p-2 sm:grid-cols-properties-wide"
         >
           <span class="col-span-2 truncate px-1 text-sm font-semibold text-slate-600 sm:col-span-1 sm:self-center">
             {{ property.key }}
@@ -26,7 +26,7 @@
         </div></template
       >
       <form
-        class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl bg-violet/5 p-2 sm:grid-cols-[minmax(7rem,.8fr)_minmax(0,2fr)_auto]"
+        class="grid grid-cols-properties gap-2 rounded-xl bg-violet/5 p-2 sm:grid-cols-properties-wide"
         on-submit.prevent="add()"
       >
         <input

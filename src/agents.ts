@@ -162,7 +162,7 @@ export async function listAgentsForUser(userId: string, role: User['role']) {
 
   const filter =
     role === 'agent'
-      ? `user_id IN (
+      ? `auth_agent.user_id IN (
            WITH RECURSIVE descendants(user_id) AS (
              SELECT user_id FROM auth_agent WHERE created_by_user_id = ?
              UNION ALL

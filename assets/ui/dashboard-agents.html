@@ -1,8 +1,8 @@
 <template component="v2-agents">
   <section class="content-section animate-fade-in max-w-4xl">
     <div class="mb-6">
-      <h2 class="text-xl font-bold tracking-tight text-gray-900 dark:text-[#eef3ef]">Agents</h2>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-[#aab7ad]">
+      <h2 class="text-xl font-bold tracking-tight text-gray-900 dark:text-dark-text">Agents</h2>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-dark-muted">
         The name is only a display label. Agents are independent accounts with their own OIDC subject and sign in using
         their generated Agent ID and a rotatable token. They can create apps and child Agents without gaining server
         administration rights.
@@ -10,24 +10,24 @@
     </div>
 
     <form
-      class="mb-6 flex flex-col gap-3 rounded-xl border border-brand/10 bg-brand/5 p-4 sm:flex-row dark:bg-[#c8e6a8]/[0.06]"
+      class="mb-6 flex flex-col gap-3 rounded-xl border border-brand/10 bg-brand/5 p-4 sm:flex-row dark:bg-dark-accent/6"
       on-submit.prevent="addAgent()"
     >
       <label class="sr-only" for="new-agent-name">Agent name</label>
       <input
         id="new-agent-name"
-        class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+        class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft"
         placeholder="Agent name"
         bind-value="agentName"
         on-input="setAgentName($event.target.value)"
         maxlength="40"
         required
       />
-      <button class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white dark:bg-[#376d46]" type="submit">
+      <button class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white dark:bg-dark-brand" type="submit">
         Create Agent
       </button>
     </form>
-    <p class="mb-4 text-sm text-red-600 dark:text-[#ffb8ae]" role="alert">{{ error }}</p>
+    <p class="mb-4 text-sm text-red-600 dark:text-dark-danger" role="alert">{{ error }}</p>
 
     <template if="createdToken">
       <div class="mb-4 grid gap-3 sm:grid-cols-2">
@@ -39,35 +39,37 @@
       </div>
     </template>
 
-    <ul class="divide-y divide-gray-100 rounded-xl border border-gray-100 dark:divide-[#2d3a31] dark:border-[#2d3a31]">
+    <ul
+      class="divide-y divide-gray-100 rounded-xl border border-gray-100 dark:divide-dark-border dark:border-dark-border"
+    >
       <template if="agents.length === 0">
-        <li class="p-6 text-center text-sm text-gray-500 dark:text-[#aab7ad]">No Agents yet. Create one above.</li>
+        <li class="p-6 text-center text-sm text-gray-500 dark:text-dark-muted">No Agents yet. Create one above.</li>
       </template>
       <template for="agent of agents">
         <li class="p-4">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
-                <h3 class="font-semibold text-gray-900 dark:text-[#eef3ef]">{{ agent.name }}</h3>
+                <h3 class="font-semibold text-gray-900 dark:text-dark-text">{{ agent.name }}</h3>
                 <span
                   if="agent.self"
-                  class="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand dark:text-[#c8e6a8]"
+                  class="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand dark:text-dark-accent"
                   >This Agent</span
                 >
                 <span
                   if="agent.disabled"
-                  class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-[#ffb8ae]"
+                  class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-dark-danger"
                   >Disabled</span
                 >
               </div>
-              <code class="mt-1 block break-all font-mono text-xs text-gray-500 dark:text-[#aab7ad]"
+              <code class="mt-1 block break-all font-mono text-xs text-gray-500 dark:text-dark-muted"
                 >{{ agent.id }}</code
               >
-              <p class="mt-1 text-xs text-gray-500 dark:text-[#aab7ad]">Created {{ agent.createdAt }}</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-dark-muted">Created {{ agent.createdAt }}</p>
             </div>
             <button
-              if="!agent.self && !agent.disabled"
-              class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-[#ffb8ae]"
+              if="agent.canDisable"
+              class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-dark-danger"
               type="button"
               on-click="disable(agent)"
             >
@@ -76,16 +78,16 @@
           </div>
 
           <details
-            class="mt-3 rounded-lg border border-gray-100 p-3 dark:border-[#2d3a31]"
+            class="mt-3 rounded-lg border border-gray-100 p-3 dark:border-dark-border"
             on-toggle="loadTokens(agent, $event)"
           >
-            <summary class="cursor-pointer text-sm font-semibold text-brand dark:text-[#c8e6a8]">
+            <summary class="cursor-pointer text-sm font-semibold text-brand dark:text-dark-accent">
               Manage sign-in tokens
             </summary>
             <form class="mt-3 flex flex-col gap-2 sm:flex-row" on-submit.prevent="addToken(agent)">
               <label class="sr-only" attr-for="'agent-token-label-' + agent.id">Token label</label>
               <input
-                class="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+                class="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft"
                 attr-id="'agent-token-label-' + agent.id"
                 placeholder="Token label"
                 bind-value="tokenLabel"
@@ -95,7 +97,7 @@
                 attr-disabled.bool="agent.disabled"
               />
               <button
-                class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-[#376d46]"
+                class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-dark-brand"
                 type="submit"
                 attr-disabled.bool="agent.disabled"
               >
@@ -103,27 +105,27 @@
               </button>
             </form>
             <template if="agent.tokensLoading"
-              ><p class="mt-3 text-sm text-gray-500 dark:text-[#aab7ad]">Loading tokens…</p></template
+              ><p class="mt-3 text-sm text-gray-500 dark:text-dark-muted">Loading tokens…</p></template
             >
             <template if="!agent.tokensLoading && agent.tokens && agent.tokens.length === 0"
-              ><p class="mt-3 text-sm text-gray-500 dark:text-[#aab7ad]">No sign-in tokens.</p></template
+              ><p class="mt-3 text-sm text-gray-500 dark:text-dark-muted">No sign-in tokens.</p></template
             >
             <template for="token of agent.tokens || []">
               <div
-                class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-3 text-sm dark:bg-[#1c2820]"
+                class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-3 text-sm dark:bg-dark-surface-raised"
               >
                 <div class="min-w-0">
                   <strong>{{ token.label }}</strong>
-                  <p class="font-mono text-xs text-gray-500 dark:text-[#aab7ad]">
+                  <p class="font-mono text-xs text-gray-500 dark:text-dark-muted">
                     {{ token.tokenHint }} · expires {{ token.expiresAt }}
                   </p>
-                  <p if="token.revokedAt" class="text-xs text-red-700 dark:text-[#ffb8ae]">
+                  <p if="token.revokedAt" class="text-xs text-red-700 dark:text-dark-danger">
                     Revoked {{ token.revokedAt }}
                   </p>
                 </div>
                 <button
                   if="!token.revokedAt && !agent.disabled"
-                  class="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand dark:text-[#c8e6a8]"
+                  class="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand dark:text-dark-accent"
                   type="button"
                   on-click="rotateToken(agent, token)"
                 >
@@ -131,7 +133,7 @@
                 </button>
                 <button
                   if="!token.revokedAt && !agent.disabled"
-                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-[#ffb8ae]"
+                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-dark-danger"
                   type="button"
                   on-click="revokeToken(agent, token)"
                 >
@@ -167,7 +169,10 @@
       const [agentName, setAgentName] = hook('');
       const [tokenLabel, setTokenLabel] = hook('');
       const load = async () => {
-        agents.value = await getAgents();
+        agents.value = (await getAgents()).map((agent) => ({
+          ...agent,
+          canDisable: !agent.self && !agent.disabled,
+        }));
       };
 
       const addAgent = async () => {

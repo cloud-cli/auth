@@ -10,7 +10,7 @@ test('Tokens lists downstream tokens across apps and filters by app', async ({ p
 
   try {
     await signInAsAgent(page, fixture);
-    const clients = await page.evaluate(async () => {
+    const setup = await page.evaluate(async () => {
       const result = [];
       for (const name of ['Token dashboard A', 'Token dashboard B']) {
         const response = await fetch('/api/v1/oidc/clients', {
@@ -35,13 +35,22 @@ test('Tokens lists downstream tokens across apps and filters by app', async ({ p
       }
       return result;
     });
+    const clients = setup;
 
     await page.goto('/me#tokens');
     await expect(page.getByRole('heading', { name: 'Tokens' })).toBeVisible();
     await expect(page.getByText('Dashboard token 1', { exact: true })).toBeVisible();
     await expect(page.getByText('Dashboard token 2', { exact: true })).toBeVisible();
-    await expect(page.getByText(`Token dashboard A · ${clients[0].id}`, { exact: true })).toBeVisible();
-    await expect(page.getByText(`Token dashboard B · ${clients[1].id}`, { exact: true })).toBeVisible();
+    await expect(page.getByText(clients[0].id, { exact: true })).toBeVisible();
+    await expect(page.getByText(clients[1].id, { exact: true })).toBeVisible();
+
+    const revokedToken = page.locator('#token-list article').filter({ hasText: 'Dashboard token 2' });
+    page.once('dialog', (dialog) => dialog.accept());
+    await revokedToken.getByRole('button', { name: 'Revoke' }).click();
+    await expect(page.getByRole('heading', { name: 'Revoked tokens' })).toBeVisible();
+    const tokenOrder = await page.locator('#token-list').innerText();
+    expect(tokenOrder.indexOf('Dashboard token 1')).toBeLessThan(tokenOrder.indexOf('Revoked tokens'));
+    expect(tokenOrder.indexOf('Revoked tokens')).toBeLessThan(tokenOrder.indexOf('Dashboard token 2'));
 
     await page.getByLabel('Filter by app').selectOption(clients[0].id);
     await expect(page.getByText('Dashboard token 1', { exact: true })).toBeVisible();

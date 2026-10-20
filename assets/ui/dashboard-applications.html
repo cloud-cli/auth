@@ -2,14 +2,14 @@
   <section class="content-section animate-fade-in">
     <div class="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
       <div>
-        <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Applications</h2>
-        <p class="text-sm text-gray-500 mt-1 max-w-2xl dark:text-[#aab7ad]">
+        <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-dark-text">Applications</h2>
+        <p class="text-sm text-gray-500 mt-1 max-w-2xl dark:text-dark-muted">
           Create OIDC clients for your apps. Client IDs are generated and immutable. New apps are private to you until
           an administrator publishes them.
         </p>
       </div>
       <button
-        class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-[#376d46]"
+        class="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm shrink-0 dark:bg-dark-brand"
         on-click="toggleForm()"
       >
         <lucide-icon icon="plus" size="16"></lucide-icon>Add app
@@ -20,15 +20,13 @@
       <v2-app-form bind-form-open="formOpen" on-created="load()"></v2-app-form>
     </template>
 
-    <div
-      class="mt-3 border border-gray-100 rounded-xl overflow-hidden shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] dark:border-[#2d3a31]"
-    >
-      <ul class="divide-y divide-gray-100 dark:divide-[#2d3a31]">
+    <div class="mt-3 border border-gray-100 rounded-xl overflow-hidden shadow-list-soft dark:border-dark-border">
+      <ul class="divide-y divide-gray-100 dark:divide-dark-border">
         <template if="apps.length === 0">
-          <li class="p-8 text-center text-gray-500 dark:text-[#aab7ad]">No applications configured yet.</li>
+          <li class="p-8 text-center text-gray-500 dark:text-dark-muted">No applications configured yet.</li>
         </template>
         <template for="app of apps">
-          <li class="p-4 hover:bg-gray-50/80 transition-colors group relative dark:hover:bg-[#243128]">
+          <li class="p-4 hover:bg-gray-50/80 transition-colors group relative dark:hover:bg-dark-hover">
             <div class="flex items-center justify-between gap-3">
               <details class="min-w-0 flex-1" on-toggle="toggleApp(app, $event)">
                 <summary
@@ -37,22 +35,19 @@
                   <lucide-icon
                     icon="chevron-right"
                     size="14"
-                    class="text-gray-400 shrink-0 dark:text-[#aab7ad]"
+                    class="text-gray-400 shrink-0 dark:text-dark-muted"
                   ></lucide-icon>
-                  <span class="font-semibold text-gray-900 text-sm truncate dark:text-[#eef3ef]">{{ app.name }}</span>
-                  <code if="app.name !== app.id" class="break-all font-mono text-xs text-gray-500 dark:text-[#aab7ad]"
-                    >{{ app.id }}</code
-                  >
+                  <span class="font-semibold text-gray-900 text-sm truncate dark:text-dark-text">{{ app.name }}</span>
                   <span
-                    class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                    bind-class="{ 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-[#c5e8c5]': app.availableToUsers, 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-[#f1d38e]': !app.availableToUsers }"
+                    class="rounded-full px-2 py-0.5 text-xxs font-semibold"
+                    bind-class="{ 'app-visibility-published': app.availableToUsers, 'app-visibility-private': !app.availableToUsers }"
                   >
                     {{ app.availableToUsers ? 'Published' : 'Private' }}
                   </span>
                   <lucide-icon
                     attr-icon="app.isPublic ? 'smartphone' : 'monitor'"
                     size="16"
-                    class="text-gray-500 shrink-0 dark:text-[#aab7ad]"
+                    class="text-gray-500 shrink-0 dark:text-dark-muted"
                     aria-hidden="true"
                     attr-title="app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)'"
                   ></lucide-icon>
@@ -65,7 +60,7 @@
                 <template if="app.canManage">
                   <template if="!app.isPublic">
                     <button
-                      class="p-1.5 text-gray-400 hover:text-brand bg-white border border-gray-200 hover:border-brand rounded-md transition-colors dark:text-[#aab7ad] dark:bg-[#17211b] dark:border-[#2d3a31]"
+                      class="p-1.5 text-gray-400 hover:text-brand bg-white border border-gray-200 hover:border-brand rounded-md transition-colors dark:text-dark-muted dark:bg-dark-surface dark:border-dark-border"
                       on-click="regenSecret(app.id, $event)"
                       aria-label="Regenerate secret"
                     >
@@ -73,7 +68,7 @@
                     </button>
                   </template>
                   <button
-                    class="p-1.5 text-gray-400 hover:text-red-600 bg-white border border-gray-200 hover:border-red-300 rounded-md transition-colors dark:text-[#aab7ad] dark:bg-[#17211b] dark:border-[#2d3a31]"
+                    class="p-1.5 text-gray-400 hover:text-red-600 bg-white border border-gray-200 hover:border-red-300 rounded-md transition-colors dark:text-dark-muted dark:bg-dark-surface dark:border-dark-border"
                     on-click="deleteApp(app.id, $event)"
                     aria-label="Delete application"
                   >
@@ -82,7 +77,7 @@
                 </template>
                 <template if="admin && !app.availableToUsers">
                   <button
-                    class="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-semibold dark:border-[#2d3a31] dark:bg-[#17211b]"
+                    class="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-semibold dark:border-dark-border dark:bg-dark-surface"
                     on-click="setAvailability(app, true, $event)"
                   >
                     Publish
@@ -90,7 +85,7 @@
                 </template>
                 <template if="admin && app.availableToUsers">
                   <button
-                    class="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-semibold dark:border-[#2d3a31] dark:bg-[#17211b]"
+                    class="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-semibold dark:border-dark-border dark:bg-dark-surface"
                     on-click="setAvailability(app, false, $event)"
                   >
                     Unpublish

@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script>
+      document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches);
+    </script>
     <meta name="theme-color" content="#f4f7f6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#101713" media="(prefers-color-scheme: dark)" />
     <link rel="manifest" href="/ui/manifest.webmanifest" />
     <title>Auth</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = { theme: { extend: { colors: { 'app-bg': '#f4f7f6', brand: '#263d32', accent: '#c8e6a8' } } } };
-    </script>
+    <link rel="stylesheet" href="/ui/tailwind.generated.css" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
       rel="stylesheet"
@@ -36,13 +36,13 @@
           color: #edf3ee;
           color-scheme: dark;
         }
-        .text-brand {
+        .text-legacy-brand {
           color: #d5edc2 !important;
         }
         .text-slate-500 {
           color: #aab8ad !important;
         }
-        .bg-brand {
+        .bg-legacy-brand {
           background-color: #376d46 !important;
           color: #f2f7f2 !important;
         }
@@ -52,7 +52,7 @@
       }
     </style>
   </head>
-  <body data-page="landing" class="min-h-dvh bg-app-bg text-brand">
+  <body data-page="landing" class="min-h-dvh bg-legacy-app-bg text-legacy-brand">
     <template app
       ><div class="absolute left-6 top-6 flex items-center gap-2.5 md:left-10 md:top-10">
         <svg
@@ -69,11 +69,11 @@
           <path d="M12 8v4" />
           <path d="M12 16h.01" stroke-width="2.5" />
         </svg>
-        <span class="text-2xl font-black tracking-tight">auth<span class="text-[#c8e6a8]">.</span></span>
+        <span class="text-2xl font-black tracking-tight">auth<span class="text-legacy-accent">.</span></span>
       </div>
       <main class="mx-auto grid min-h-dvh max-w-6xl items-center gap-12 px-5 py-24 md:grid-cols-2 md:px-10 lg:gap-24">
         <section class="text-center md:text-left">
-          <h1 class="max-w-xl text-5xl font-black leading-[1.05] tracking-[-.04em] sm:text-6xl lg:text-7xl">
+          <h1 class="max-w-xl text-5xl font-black leading-display tracking-display sm:text-6xl lg:text-7xl">
             Your cloud, connected securely.
           </h1>
           <p class="mx-auto mt-6 max-w-lg text-lg font-medium leading-relaxed text-slate-500 md:mx-0 md:text-xl">
@@ -82,14 +82,14 @@
         </section>
         <section
           data-testid="landing-card"
-          class="relative mx-auto grid w-full max-w-md gap-4 overflow-hidden rounded-[2rem] border border-white/70 bg-white bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.4),transparent_50%)] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] sm:p-10 dark:border-[#2b3a30] dark:bg-[#17211b] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.12),transparent_52%)]"
+          class="relative mx-auto grid w-full max-w-md gap-4 overflow-hidden rounded-hero border border-white/70 bg-white bg-hero-glow p-8 shadow-card-soft sm:p-10 dark:border-dark-border-subtle dark:bg-dark-surface dark:bg-hero-glow-dark"
         >
           <h2 class="text-2xl font-extrabold tracking-tight">Ready when you are.</h2>
           <p class="text-sm font-medium text-slate-500">
             Sign in to manage your account, passkeys, and connected apps.
           </p>
           <a
-            class="flex min-h-12 items-center justify-center rounded-xl bg-brand px-4 font-bold text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            class="flex min-h-12 items-center justify-center rounded-xl bg-legacy-brand px-4 font-bold text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-legacy-brand"
             href="/login"
             >Sign in</a
           >

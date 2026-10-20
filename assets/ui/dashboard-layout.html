@@ -26,14 +26,14 @@
                 stroke-linejoin="round"
               />
             </svg>
-            <span class="text-2xl font-black tracking-tight text-brand dark:text-[#c8e6a8]"
-              >auth<span class="text-[#c8e6a8]">.</span></span
+            <span class="text-2xl font-black tracking-tight text-brand dark:text-dark-accent"
+              >auth<span class="text-legacy-accent">.</span></span
             >
           </div>
           <button
             id="close-menu-btn"
             type="button"
-            class="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-gray-500 hover:bg-gray-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:text-[#aab7ad] dark:hover:bg-[#1b2720]"
+            class="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-gray-500 hover:bg-gray-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:text-dark-muted dark:hover:bg-dark-hover-subtle"
             aria-label="Close menu"
             aria-controls="sidebar"
             aria-expanded="true"
@@ -98,8 +98,8 @@
           <template if="admin">
             <button
               data-target="users"
-              class="px-3 py-2.5 rounded-lg text-sm font-semibold border flex items-center gap-3 transition-all text-left w-full text-gray-600 border-transparent hover:bg-white hover:text-gray-800 dark:text-[#aab7ad] dark:hover:bg-[#1b2720] dark:hover:text-[#edf3ee]"
-              bind-class="{ 'bg-white': section === 'users', 'border-nav-active': section === 'users', 'text-nav-active': section === 'users', 'shadow-sm': section === 'users', 'hover:!bg-white': section === 'users', 'hover:!border-nav-active': section === 'users', 'hover:!text-nav-active': section === 'users', 'dark:bg-nav-active-dark-bg': section === 'users', 'dark:border-nav-active-dark-border': section === 'users', 'dark:text-nav-active-dark-text': section === 'users', 'dark:hover:!bg-nav-active-dark-bg': section === 'users', 'dark:hover:!border-nav-active-dark-border': section === 'users', 'dark:hover:!text-nav-active-dark-text': section === 'users' }"
+              class="dashboard-link"
+              bind-class="{ 'dashboard-link-active': section === 'users' }"
               on-click="navigate('users')"
             >
               <lucide-icon
@@ -140,7 +140,7 @@
           <button
             id="mobile-menu-btn"
             type="button"
-            class="md:hidden inline-flex min-h-11 min-w-11 -ml-2 items-center justify-center rounded-md p-1.5 text-gray-700 transition-colors hover:bg-gray-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:text-[#aab7ad] dark:hover:bg-[#1b2720]"
+            class="md:hidden inline-flex min-h-11 min-w-11 -ml-2 items-center justify-center rounded-md p-1.5 text-gray-700 transition-colors hover:bg-gray-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:text-dark-muted dark:hover:bg-dark-hover-subtle"
             aria-label="Open menu"
             aria-controls="sidebar"
             attr-aria-expanded="mobileMenuOpen"
@@ -154,7 +154,7 @@
           <button
             type="button"
             id="theme-toggle"
-            class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#aab7ad] dark:hover:bg-[#243128]"
+            class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-dark-border dark:bg-dark-surface dark:text-dark-muted dark:hover:bg-dark-hover"
             aria-label="Switch to dark theme"
             attr-aria-label="darkTheme ? 'Switch to light theme' : 'Switch to dark theme'"
             title="Switch theme"
@@ -169,23 +169,23 @@
             on-click="navigate('profile')"
             aria-label="Open profile"
             title="Open profile"
-            class="flex items-center gap-4 rounded-full border border-gray-200 bg-white py-1.5 pl-1.5 pr-4 text-left shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:hover:bg-[#243128] dark:focus-visible:outline-[#c8e6a8]"
+            class="flex items-center gap-4 rounded-full border border-gray-200 bg-white py-1.5 pl-1.5 pr-4 text-left shadow-sm transition-colors hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:border-dark-border dark:bg-dark-surface dark:hover:bg-dark-hover dark:focus-visible:outline-dark-accent"
           >
             <div
-              class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm shrink-0 dark:bg-[#376d46]"
+              class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center font-bold text-sm shrink-0 dark:bg-dark-brand"
               aria-hidden="true"
             >
               {{ userInitial }}
             </div>
             <div class="flex flex-col justify-center hidden sm:flex">
-              <span class="text-sm font-semibold text-gray-900 leading-tight dark:text-[#eef3ef]"
+              <span class="text-sm font-semibold text-gray-900 leading-tight dark:text-dark-text"
                 >{{ user.name || 'User' }}</span
               >
-              <span class="text-[10px] text-gray-500 leading-tight dark:text-[#aab7ad]">{{ user.email }}</span>
+              <span class="text-xxs text-gray-500 leading-tight dark:text-dark-muted">{{ user.email }}</span>
             </div>
             <template if="user.role === 'admin'">
               <div
-                class="flex items-center gap-1 ml-2 text-yellow-500 bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100 dark:text-[#f1d38e] dark:bg-[#302918] dark:border-[#51462c]"
+                class="flex items-center gap-1 ml-2 text-yellow-500 bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100 dark:text-dark-warning dark:bg-dark-surface-warning dark:border-dark-border-warning"
                 aria-label="Administrator"
               >
                 <lucide-icon icon="crown" size="12" class="fill-current"></lucide-icon>
@@ -197,7 +197,7 @@
 
       <!-- White Canvas Card -->
       <div
-        class="bg-white border border-gray-200 rounded-2xl shadow-sm flex-1 overflow-y-auto m-4 sm:ml-4 md:m-6 md:mt-0 p-6 pb-12 md:p-10 md:pb-16 relative dark:bg-[#17211b] dark:border-[#2d3a31]"
+        class="bg-white border border-gray-200 rounded-2xl shadow-sm flex-1 overflow-y-auto m-4 sm:ml-4 md:m-6 md:mt-0 p-6 pb-12 md:p-10 md:pb-16 relative dark:bg-dark-surface dark:border-dark-border"
       >
         <!-- Section Components -->
         <template if="section === 'security' && user.role !== 'agent'"><v2-security></v2-security></template>

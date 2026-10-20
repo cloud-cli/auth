@@ -3,17 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script>
+      document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches);
+    </script>
     <meta name="theme-color" content="#f4f7f6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#101713" media="(prefers-color-scheme: dark)" />
     <link rel="manifest" href="/ui/manifest.webmanifest" />
     <title>Approve on phone</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: { extend: { colors: { 'app-bg': '#f4f7f6', brand: '#263d32', accent: '#c8e6a8' } } },
-      };
-    </script>
-    <link rel="stylesheet" href="/ui/qr.css" />
+    <link rel="stylesheet" href="/ui/tailwind.generated.css" />
     <script type="importmap">
       { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
     </script>
@@ -26,25 +23,29 @@
   </head>
   <body
     data-page="qr"
-    class="grid min-h-dvh place-items-center bg-app-bg p-5 text-brand dark:bg-[#101713] dark:text-[#edf3ee]"
+    class="grid min-h-dvh place-items-center bg-legacy-app-bg p-5 text-legacy-brand dark:bg-dark-page dark:text-dark-text-soft"
   >
     <template app
       ><section
-        class="grid w-full max-w-md gap-4 rounded-[2rem] border border-white/70 bg-white bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.4),transparent_50%)] p-8 text-center shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:border-[#2b3a30] dark:bg-[#17211b] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.12),transparent_52%)]"
+        class="grid w-full max-w-md gap-4 rounded-hero border border-white/70 bg-white bg-hero-glow p-8 text-center shadow-card-soft dark:border-dark-border-subtle dark:bg-dark-surface dark:bg-hero-glow-dark"
       >
-        <span class="text-xs font-extrabold tracking-[.18em] text-brand dark:text-[#c8e6a8]">PHONE APPROVAL</span>
-        <h1 class="text-3xl font-extrabold tracking-[-.03em]">Scan to unlock</h1>
-        <p class="text-slate-500 dark:text-[#aab8ad]">Open Auth on your phone and scan this one-time code.</p>
+        <span class="text-xs font-extrabold tracking-label text-legacy-brand dark:text-dark-accent"
+          >PHONE APPROVAL</span
+        >
+        <h1 class="text-3xl font-extrabold tracking-heading">Scan to unlock</h1>
+        <p class="text-slate-500 dark:text-dark-muted-alt">Open Auth on your phone and scan this one-time code.</p>
         <div
-          class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent/40 to-brand/5 p-4 dark:from-[#c8e6a8]/[0.12] dark:to-[#c8e6a8]/[0.03]"
+          class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-legacy-accent/40 to-legacy-brand/5 p-4 dark:from-dark-accent/12 dark:to-dark-accent/3"
         >
           <img class="w-full rounded-2xl" attr-src="qr" alt="Login QR code" />
           <div
-            class="absolute inset-x-4 top-4 h-1 animate-[qr-scan_2.4s_ease-in-out_infinite] bg-brand shadow-lg shadow-brand dark:bg-[#c8e6a8] dark:shadow-[#c8e6a8]"
+            class="absolute inset-x-4 top-4 h-1 animate-qr-scan bg-legacy-brand shadow-lg shadow-legacy-brand dark:bg-dark-accent dark:shadow-dark-accent"
           ></div>
         </div>
-        <p class="font-semibold text-[#376d46] dark:text-[#c8e6a8]">{{ status }}</p>
-        <a class="font-semibold text-brand hover:underline dark:text-[#c8e6a8]" attr-href="pwaUrl">Open Auth PWA</a>
+        <p class="font-semibold text-legacy-brand-focus dark:text-dark-accent">{{ status }}</p>
+        <a class="font-semibold text-legacy-brand hover:underline dark:text-dark-accent" attr-href="pwaUrl"
+          >Open Auth PWA</a
+        >
       </section>
       <script setup src="/ui/app.mjs"></script
     ></template>

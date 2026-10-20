@@ -6,10 +6,7 @@
     <meta name="theme-color" content="#7257f5" />
     <link rel="manifest" href="/ui/manifest.webmanifest" />
     <title>Recovery sign-in</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = { theme: { extend: { colors: { violet: '#7257f5' } } } };
-    </script>
+    <link rel="stylesheet" href="/ui/tailwind.generated.css" />
     <script type="importmap">
       { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
     </script>
@@ -23,11 +20,11 @@
   <body data-page="recovery" class="grid min-h-dvh place-items-center bg-violet/5 p-5 text-slate-900">
     <template app
       ><form
-        class="grid w-full max-w-md gap-4 rounded-[2rem] bg-white p-8 shadow-2xl shadow-violet/10"
+        class="grid w-full max-w-md gap-4 rounded-hero bg-white p-8 shadow-2xl shadow-violet/10"
         action="/api/v1/recovery"
         method="post"
       >
-        <span class="text-xs font-extrabold tracking-[.18em] text-violet">ACCOUNT RECOVERY</span>
+        <span class="text-xs font-extrabold tracking-label text-violet">ACCOUNT RECOVERY</span>
         <h1 class="text-3xl font-extrabold tracking-tight">Use a recovery code</h1>
         <p class="text-slate-500">Each code works once. Keep the rest somewhere safe.</p>
         <input

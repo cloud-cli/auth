@@ -6,10 +6,7 @@
     <meta name="theme-color" content="#7257f5" />
     <link rel="manifest" href="/ui/manifest.webmanifest" />
     <title>Your account</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = { theme: { extend: { colors: { ink: '#18213b', violet: '#7257f5' } } } };
-    </script>
+    <link rel="stylesheet" href="/ui/tailwind.generated.css" />
     <script type="importmap">
       { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
     </script>
@@ -27,6 +24,10 @@
       .profile-card-expanded {
         width: min(100%, 36rem);
         max-width: 100%;
+        border-color: color-mix(in oklab, var(--color-violet) 20%, transparent);
+        box-shadow:
+          0 4px 6px -1px rgb(0 0 0 / 0.1),
+          0 2px 4px -2px rgb(0 0 0 / 0.1);
       }
       .profile-avatar {
         width: 2.25rem;
@@ -140,7 +141,7 @@
           >
           <div
             class="profile-card ml-auto rounded-xl border border-violet/10 bg-white shadow-sm"
-            attr-class="profileExpanded ? 'profile-card profile-card-expanded ml-auto rounded-xl border border-violet/20 bg-white shadow-md' : 'profile-card ml-auto rounded-xl border border-violet/10 bg-white shadow-sm'"
+            bind-class="{ 'profile-card-expanded': profileExpanded }"
           >
             <button
               id="profile-summary"

@@ -1,9 +1,9 @@
 <template component="dashboard-activity"
   ><section class="rounded-b-lg bg-white p-4 shadow-md shadow-violet/5 sm:p-5">
-    <h2 class="flex items-center gap-2 text-xl font-extrabold tracking-[-.03em]">
+    <h2 class="flex items-center gap-2 text-xl font-extrabold tracking-heading">
       <lucide-icon icon="'timeline'" size="22" icon-classes="text-violet"></lucide-icon>Authentication history
     </h2>
-    <div class="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+    <div class="mt-4 grid gap-2 sm:grid-cols-activity">
       <select ref="app" class="rounded-xl border border-slate-200 px-3 py-2" on-change="filter()">
         <option value="">All apps</option>
         <template for="name of apps"><option attr-value="name">{{ name }}</option></template></select
@@ -14,7 +14,7 @@
     </div>
     <div class="mt-5 divide-y divide-slate-100">
       <template for="entry of audit"
-        ><article class="grid gap-2 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
+        ><article class="grid gap-2 py-4 sm:grid-cols-activity-compact sm:items-center">
           <div>
             <strong>{{ entry.app }}</strong>
             <p class="text-sm text-slate-500">

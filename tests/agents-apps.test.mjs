@@ -70,6 +70,10 @@ export const exec = async (sql) => database.exec(sql);
       new Set((await agents.listAgentsForUser(owner.userId, owner.role)).map((agent) => agent.userId)),
       new Set([parent.agent.userId, child.agent.userId]),
     );
+    assert.deepEqual(
+      (await agents.listAgentsForUser(parent.agent.userId, 'agent')).map((agent) => agent.userId),
+      [child.agent.userId],
+    );
 
     const replacement = await agents.rotateAgentToken(parent.agent.userId, parent.tokenId);
     assert.equal(await agents.verifyAgentToken(parent.agent.userId, parent.token), false);

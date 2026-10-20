@@ -1,15 +1,15 @@
 <template component="v2-api-tokens">
   <section class="content-section animate-fade-in max-w-5xl">
     <div class="mb-6">
-      <h2 class="text-xl font-bold tracking-tight text-gray-900 dark:text-[#eef3ef]">Tokens</h2>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-[#aab7ad]">
+      <h2 class="text-xl font-bold tracking-tight text-gray-900 dark:text-dark-text">Tokens</h2>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500 dark:text-dark-muted">
         Create and manage downstream API tokens for applications available to your account. Tokens are tied to your own
         OIDC subject and can be scoped, rotated, or revoked independently.
       </p>
     </div>
 
     <button
-      class="flex min-h-11 w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-semibold text-gray-800 hover:border-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+      class="flex min-h-11 w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-left text-sm font-semibold text-gray-800 hover:border-brand dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft"
       type="button"
       on-click="toggleCreate()"
       attr-aria-expanded="createOpen"
@@ -18,13 +18,15 @@
     </button>
 
     <template if="createOpen">
-      <div class="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-[#2d3a31] dark:bg-[#1c2820]">
+      <div
+        class="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-dark-border dark:bg-dark-surface-raised"
+      >
         <div class="grid gap-4">
           <label class="grid gap-1 text-sm font-semibold" for="token-app-select">
             OIDC application
             <select
               id="token-app-select"
-              class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+              class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft"
               bind-value="selectedClientId"
               on-change="selectClient($event.target.value)"
             >
@@ -37,13 +39,13 @@
             <fieldset class="grid gap-2">
               <legend class="mb-1 text-sm font-semibold">Choose token scopes</legend>
               <template if="selectedApp.scopes.length === 0">
-                <p class="text-sm text-gray-500 dark:text-[#aab7ad]">
+                <p class="text-sm text-gray-500 dark:text-dark-muted">
                   This application has no token scopes configured.
                 </p>
               </template>
               <template for="scope of selectedApp.scopes">
                 <label
-                  class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b]"
+                  class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface"
                 >
                   <input
                     type="checkbox"
@@ -58,7 +60,7 @@
 
           <div>
             <button
-              class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#376d46]"
+              class="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-dark-brand"
               type="button"
               bind-disabled.bool="!selectedClientId || selectedScopes.length === 0 || creating"
               on-click="createToken()"
@@ -69,7 +71,7 @@
               <v2-copy-value-box bind-token="createdToken" bind-message="createdMessage"></v2-copy-value-box>
             </template>
           </div>
-          <p class="text-sm text-red-600 dark:text-[#ffb8ae]" role="alert">{{ createError }}</p>
+          <p class="text-sm text-red-600 dark:text-dark-danger" role="alert">{{ createError }}</p>
         </div>
       </div>
     </template>
@@ -77,13 +79,13 @@
     <div class="mt-8">
       <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 class="text-base font-bold text-gray-900 dark:text-[#eef3ef]">Your tokens</h3>
-          <p class="text-xs text-gray-500 dark:text-[#aab7ad]">Tokens issued for your account across applications.</p>
+          <h3 class="text-base font-bold text-gray-900 dark:text-dark-text">Your tokens</h3>
+          <p class="text-xs text-gray-500 dark:text-dark-muted">Tokens issued for your account across applications.</p>
         </div>
-        <label class="grid gap-1 text-xs font-semibold text-gray-600 dark:text-[#aab7ad]">
+        <label class="grid gap-1 text-xs font-semibold text-gray-600 dark:text-dark-muted">
           Filter by app
           <select
-            class="max-w-[18rem] rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+            class="max-w-token-picker rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft"
             bind-value="filterClientId"
             on-change="setFilter($event.target.value)"
           >
@@ -93,40 +95,35 @@
         </label>
       </div>
 
-      <p if="error" class="mb-3 text-sm text-red-600 dark:text-[#ffb8ae]" role="alert">{{ error }}</p>
+      <p if="error" class="mb-3 text-sm text-red-600 dark:text-dark-danger" role="alert">{{ error }}</p>
       <div
-        class="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100 dark:divide-[#2d3a31] dark:border-[#2d3a31]"
+        id="token-list"
+        class="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100 dark:divide-dark-border dark:border-dark-border"
       >
         <template if="loading"
-          ><p class="p-6 text-center text-sm text-gray-500 dark:text-[#aab7ad]">Loading tokens…</p></template
+          ><p class="p-6 text-center text-sm text-gray-500 dark:text-dark-muted">Loading tokens…</p></template
         >
-        <template if="!loading && visibleTokens.length === 0">
-          <p class="p-6 text-center text-sm text-gray-500 dark:text-[#aab7ad]">No tokens match this app filter.</p>
+        <template if="!loading && activeTokens.length === 0 && revokedTokens.length === 0">
+          <p class="p-6 text-center text-sm text-gray-500 dark:text-dark-muted">No tokens match this app filter.</p>
         </template>
-        <template for="token of visibleTokens">
+        <template for="token of activeTokens">
           <article class="p-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
-                <h4 class="font-semibold text-gray-900 dark:text-[#eef3ef]">{{ token.label }}</h4>
-                <p class="mt-0.5 break-all text-xs text-gray-500 dark:text-[#aab7ad]">
-                  {{ token.clientName === token.clientId ? token.clientName : token.clientName + ' · ' + token.clientId
-                  }}
-                </p>
-                <p class="mt-1 font-mono text-xs text-gray-500 dark:text-[#aab7ad]">
+                <h4 class="font-semibold text-gray-900 dark:text-dark-text">{{ token.label }}</h4>
+                <p class="mt-0.5 break-all text-xs text-gray-500 dark:text-dark-muted">{{ token.clientId }}</p>
+                <p class="mt-1 font-mono text-xs text-gray-500 dark:text-dark-muted">
                   {{ token.tokenHint || 'Token hint unavailable' }}
                 </p>
-                <p class="mt-1 break-words text-xs text-gray-600 dark:text-[#aab7ad]">
+                <p class="mt-1 break-words text-xs text-gray-600 dark:text-dark-muted">
                   Scopes: {{ token.scopes.join(', ') }}
                 </p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-[#aab7ad]">Expires {{ token.expiresAt }}</p>
-                <p if="token.revokedAt" class="mt-1 text-xs font-semibold text-red-700 dark:text-[#ffb8ae]">
-                  Revoked {{ token.revokedAt }}
-                </p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-dark-muted">Expires {{ token.expiresAt }}</p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <button
                   if="!token.revokedAt && token.canRotate"
-                  class="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand dark:text-[#c8e6a8]"
+                  class="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand dark:text-dark-accent"
                   type="button"
                   on-click="rotateToken(token)"
                 >
@@ -134,7 +131,7 @@
                 </button>
                 <button
                   if="!token.revokedAt && token.canEdit"
-                  class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold dark:border-[#2d3a31]"
+                  class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold dark:border-dark-border"
                   type="button"
                   on-click="toggleEdit(token)"
                 >
@@ -142,7 +139,7 @@
                 </button>
                 <button
                   if="!token.revokedAt"
-                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-[#ffb8ae]"
+                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-dark-danger"
                   type="button"
                   on-click="revokeToken(token)"
                 >
@@ -151,7 +148,7 @@
               </div>
             </div>
             <template if="editingTokenId === token.tokenId">
-              <div class="mt-3 grid gap-2 rounded-lg bg-gray-50 p-3 dark:bg-[#1c2820]">
+              <div class="mt-3 grid gap-2 rounded-lg bg-gray-50 p-3 dark:bg-dark-surface-raised">
                 <template for="scope of scopesFor(token)">
                   <label class="flex items-center gap-2 text-sm">
                     <input
@@ -161,10 +158,10 @@
                     />{{ scope }}
                   </label>
                 </template>
-                <p class="text-xs text-red-600 dark:text-[#ffb8ae]">{{ editError }}</p>
+                <p class="text-xs text-red-600 dark:text-dark-danger">{{ editError }}</p>
                 <div class="flex gap-2">
                   <button
-                    class="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 dark:bg-[#376d46]"
+                    class="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 dark:bg-dark-brand"
                     type="button"
                     bind-disabled.bool="editScopes.length === 0"
                     on-click="saveScopes(token)"
@@ -172,7 +169,7 @@
                     Save scopes
                   </button>
                   <button
-                    class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold dark:border-[#2d3a31]"
+                    class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold dark:border-dark-border"
                     type="button"
                     on-click="cancelEdit()"
                   >
@@ -181,6 +178,28 @@
                 </div>
               </div>
             </template>
+          </article>
+        </template>
+        <h4
+          if="!loading && revokedTokens.length > 0"
+          class="bg-gray-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-gray-500 dark:bg-dark-surface-raised dark:text-dark-muted"
+        >
+          Revoked tokens
+        </h4>
+        <template for="token of revokedTokens">
+          <article class="p-4 opacity-75">
+            <div class="min-w-0">
+              <h4 class="font-semibold text-gray-900 dark:text-dark-text">{{ token.label }}</h4>
+              <p class="mt-0.5 break-all text-xs text-gray-500 dark:text-dark-muted">{{ token.clientId }}</p>
+              <p class="mt-1 font-mono text-xs text-gray-500 dark:text-dark-muted">
+                {{ token.tokenHint || 'Token hint unavailable' }}
+              </p>
+              <p class="mt-1 break-words text-xs text-gray-600 dark:text-dark-muted">
+                Scopes: {{ token.scopes.join(', ') }}
+              </p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-dark-muted">Expires {{ token.expiresAt }}</p>
+              <p class="mt-1 text-xs font-semibold text-red-700 dark:text-dark-danger">Revoked {{ token.revokedAt }}</p>
+            </div>
           </article>
         </template>
       </div>
@@ -202,7 +221,8 @@
       const apps = ref([]);
       const filterApps = ref([]);
       const tokens = ref([]);
-      const visibleTokens = ref([]);
+      const activeTokens = ref([]);
+      const revokedTokens = ref([]);
       const loading = ref(true);
       const error = ref('');
       const createError = ref('');
@@ -227,9 +247,11 @@
             options.set(token.clientId, { id: token.clientId, name: token.clientName || token.clientId });
         }
         filterApps.value = [...options.values()].sort((left, right) => left.name.localeCompare(right.name));
-        visibleTokens.value = filterClientId.value
+        const matchingTokens = filterClientId.value
           ? tokens.value.filter((token) => token.clientId === filterClientId.value)
           : tokens.value;
+        activeTokens.value = matchingTokens.filter((token) => !token.revokedAt);
+        revokedTokens.value = matchingTokens.filter((token) => Boolean(token.revokedAt));
       };
 
       const load = async () => {
@@ -363,7 +385,8 @@
       return {
         apps,
         filterApps,
-        visibleTokens,
+        activeTokens,
+        revokedTokens,
         loading,
         error,
         createError,

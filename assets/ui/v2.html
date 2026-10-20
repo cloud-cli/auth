@@ -22,32 +22,7 @@
     </script>
     <link rel="manifest" href="/ui/manifest.webmanifest" />
     <title>Flow Auth - Identity & Access</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              'app-bg': '#eef2ec',
-              brand: '#1E3A2F',
-              'brand-hover': '#13271f',
-              accent: '#3b714b',
-              'accent-hover': '#2f563b',
-              'text-main': '#1c201e',
-              'nav-active': '#1e3a2f',
-              'nav-active-dark-bg': '#1c2a20',
-              'nav-active-dark-border': '#416b48',
-              'nav-active-dark-text': '#d7edc8',
-              'nav-active-dark-icon': '#c8e6a8',
-            },
-            fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
-            },
-          },
-        },
-      };
-    </script>
+    <link rel="stylesheet" href="/ui/tailwind.generated.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script type="importmap">
       { "imports": { "@li3/": "https://cdn.li3.dev/@li3/" } }
@@ -96,7 +71,7 @@
   </head>
   <body
     data-page="v2"
-    class="h-screen w-screen flex overflow-hidden bg-app-bg font-sans text-text-main dark:bg-[#0e1511] dark:text-[#e8efe9] dark:scheme-dark"
+    class="h-screen w-screen flex overflow-hidden bg-app-bg font-sans text-text-main dark:bg-dark-dashboard dark:text-dark-dashboard-text dark:scheme-dark"
   >
     <template app>
       <v2-layout class="block h-full w-full"></v2-layout>

@@ -1,17 +1,17 @@
 <template component="v2-app-editor"
-  ><div class="mt-3 grid gap-3 rounded-xl bg-brand/5 p-3 text-sm dark:bg-[#c8e6a8]/[0.06]">
+  ><div class="mt-3 grid gap-3 rounded-xl bg-brand/5 p-3 text-sm dark:bg-dark-accent/6">
     <template if="admin"
       ><form class="flex flex-wrap items-center gap-2" on-submit.prevent="saveName()">
         <label class="sr-only" attr-for="'app-name-' + app.id">Application name</label>
         <input
-          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee]"
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft"
           attr-id="'app-name-' + app.id"
           bind-value="nameInput"
           on-input="setNameInput($event.target.value)"
           maxlength="80"
           required
         />
-        <button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-[#c8e6a8]">
+        <button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-dark-accent">
           Save name
         </button>
       </form></template
@@ -20,7 +20,7 @@
       <strong>Immutable client ID</strong>
       <code class="min-w-0 flex-1 break-all font-mono text-xs">{{ app.id }}</code>
       <button
-        class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold dark:border-[#2d3a31]"
+        class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold dark:border-dark-border"
         type="button"
         on-click="copyClientId()"
       >
@@ -67,13 +67,13 @@
 <link rel="component" href="/ui/dashboard-copy-value.html" />
 
 <template component="v2-callback-editor"
-  ><div class="mt-5 rounded-xl bg-brand/5 p-3 text-sm dark:bg-[#c8e6a8]/[0.06]">
+  ><div class="mt-5 rounded-xl bg-brand/5 p-3 text-sm dark:bg-dark-accent/6">
     <strong>Callback URLs</strong>
     <template for="uri of app.redirectUris"
-      ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 dark:bg-[#17211b]">
-        <span class="min-w-0 flex-1 break-all text-slate-600 dark:text-[#aab7ad]">{{ uri }}</span
+      ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 dark:bg-dark-surface">
+        <span class="min-w-0 flex-1 break-all text-slate-600 dark:text-dark-muted">{{ uri }}</span
         ><template if="admin"
-          ><button class="text-red-600 dark:text-[#ffb8ae]" type="button" on-click="removeCallback(uri)">
+          ><button class="text-red-600 dark:text-dark-danger" type="button" on-click="removeCallback(uri)">
             Remove
           </button></template
         >
@@ -82,16 +82,16 @@
     <template if="admin"
       ><form class="mt-6 flex gap-2 border-t border-brand/10 pt-3" on-submit.prevent="addCallback()">
         <input
-          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
           bind-value="callbackInput"
           on-input="setCallbackInput($event.target.value)"
           placeholder="https://app.example/callback"
           required
-        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-[#c8e6a8]">
+        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-dark-accent">
           Add
         </button>
       </form>
-      <p class="mt-2 text-xs text-red-600 dark:text-[#ffb8ae]">{{ callbackError }}</p></template
+      <p class="mt-2 text-xs text-red-600 dark:text-dark-danger">{{ callbackError }}</p></template
     >
   </div>
   <script setup>
@@ -138,13 +138,13 @@
 >
 
 <template component="v2-logout-redirect-editor"
-  ><div class="mt-4 rounded-xl bg-brand/5 p-3 text-sm dark:bg-[#c8e6a8]/[0.06]">
+  ><div class="mt-4 rounded-xl bg-brand/5 p-3 text-sm dark:bg-dark-accent/6">
     <strong>Post-logout return URLs</strong>
     <template for="uri of app.postLogoutRedirectUris || []"
-      ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 dark:bg-[#17211b]">
-        <span class="min-w-0 flex-1 break-all text-slate-600 dark:text-[#aab7ad]">{{ uri }}</span
+      ><div class="mt-2 flex items-center gap-2 rounded-lg bg-white px-3 py-2 dark:bg-dark-surface">
+        <span class="min-w-0 flex-1 break-all text-slate-600 dark:text-dark-muted">{{ uri }}</span
         ><template if="admin"
-          ><button class="text-red-600 dark:text-[#ffb8ae]" type="button" on-click="removeRedirect(uri)">
+          ><button class="text-red-600 dark:text-dark-danger" type="button" on-click="removeRedirect(uri)">
             Remove
           </button></template
         >
@@ -153,16 +153,16 @@
     <template if="admin"
       ><form class="mt-4 flex gap-2 border-t border-brand/10 pt-3" on-submit.prevent="addRedirect()">
         <input
-          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
           bind-value="redirectInput"
           on-input="setRedirectInput($event.target.value)"
           placeholder="https://app.example/signed-out"
           required
-        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-[#c8e6a8]">
+        /><button class="rounded-lg border border-brand px-3 py-2 font-semibold text-brand dark:text-dark-accent">
           Add
         </button>
       </form>
-      <p class="mt-2 text-xs text-red-600 dark:text-[#ffb8ae]">{{ redirectError }}</p></template
+      <p class="mt-2 text-xs text-red-600 dark:text-dark-danger">{{ redirectError }}</p></template
     >
   </div>
   <script setup>
@@ -217,14 +217,15 @@
       <template for="scope of app.scopes"
         ><template if="admin"
           ><button
-            class="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-[#c8e6a8]/10 dark:text-[#c8e6a8]"
+            class="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-dark-accent/10 dark:text-dark-accent"
             type="button"
             on-click="removeScope(scope)"
           >
             <span>{{ scope }}</span><span aria-hidden="true">x</span>
           </button></template
         ><template if="!admin"
-          ><span class="rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-[#c8e6a8]/10 dark:text-[#c8e6a8]"
+          ><span
+            class="rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-dark-accent/10 dark:text-dark-accent"
             >{{ scope }}</span
           ></template
         ></template
@@ -233,13 +234,13 @@
     <template if="admin"
       ><div class="mt-2 flex gap-2">
         <input
-          class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
           placeholder="new:scope"
           bind-value="scopeInput"
           on-input="setScopeInput($event.target.value)"
         />
         <button
-          class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white dark:bg-[#376d46]"
+          class="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white dark:bg-dark-brand"
           type="button"
           on-click="addScope($event)"
         >

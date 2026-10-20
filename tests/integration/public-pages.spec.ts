@@ -49,7 +49,7 @@ test('passkey action stays legible on keyboard focus in either color scheme', as
   await page.locator('body').evaluate((body) => {
     const passkey = document.createElement('a');
     passkey.className =
-      'flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-4 font-bold text-accent transition hover:bg-[#1a2a22] hover:shadow-md focus-visible:bg-[#376d46] focus-visible:text-white focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[3px] focus-visible:outline-accent focus-visible:ring-2 focus-visible:ring-accent dark:focus-visible:outline-[#c8e6a8]';
+      'flex min-h-12 items-center justify-center gap-2 rounded-xl bg-legacy-brand px-4 font-bold text-legacy-accent transition hover:bg-legacy-brand-hover hover:shadow-md focus-visible:bg-legacy-brand-focus focus-visible:text-white focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-legacy-accent focus-visible:ring-2 focus-visible:ring-legacy-accent dark:focus-visible:outline-dark-accent';
     passkey.href = '#passkey-focus-test';
     passkey.textContent = 'Use a passkey';
     body.prepend(passkey);
@@ -77,6 +77,11 @@ test('dashboard assets expose Agent and separate token components', async ({ req
   expect(page).toContain('dashboard-agents.html');
   expect(page).toContain('dashboard-api-tokens.html');
   expect(page).not.toContain('Management /');
+
+  const stylesheet = await request.get('/ui/tailwind.generated.css');
+  expect(stylesheet.ok()).toBeTruthy();
+  expect(stylesheet.headers()['content-type']).toContain('text/css');
+  expect(await stylesheet.text()).toContain('.app-visibility-published');
 
   for (const asset of [
     'dashboard-layout.html',

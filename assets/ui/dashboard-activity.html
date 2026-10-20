@@ -1,15 +1,15 @@
 <template component="v2-activity">
   <section class="content-section animate-fade-in">
     <div class="mb-6 flex items-center gap-3">
-      <lucide-icon icon="list-ordered" size="28" class="text-brand dark:text-[#c8e6a8]"></lucide-icon>
-      <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Authentication history</h2>
+      <lucide-icon icon="list-ordered" size="28" class="text-brand dark:text-dark-accent"></lucide-icon>
+      <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-dark-text">Authentication history</h2>
     </div>
 
     <!-- Filters -->
     <div class="flex flex-col sm:flex-row gap-3 mb-6">
       <div class="relative flex-1">
         <select
-          class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5 pr-10 shadow-sm outline-none dark:bg-[#17211b] dark:border-[#2d3a31] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5 pr-10 shadow-sm outline-none dark:bg-dark-surface dark:border-dark-border dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
           ref="app"
           on-change="filter()"
         >
@@ -17,14 +17,14 @@
           <template for="name of apps"><option attr-value="name">{{ name }}</option></template>
         </select>
         <div
-          class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 dark:text-[#aab7ad]"
+          class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 dark:text-dark-muted"
         >
           <lucide-icon icon="chevron-down" size="16"></lucide-icon>
         </div>
       </div>
       <div class="relative flex-1">
         <select
-          class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5 pr-10 shadow-sm outline-none dark:bg-[#17211b] dark:border-[#2d3a31] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="w-full appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-brand focus:border-brand block p-2.5 pr-10 shadow-sm outline-none dark:bg-dark-surface dark:border-dark-border dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
           ref="event"
           on-change="filter()"
         >
@@ -32,13 +32,13 @@
           <template for="name of events"><option attr-value="name">{{ name }}</option></template>
         </select>
         <div
-          class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 dark:text-[#aab7ad]"
+          class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 dark:text-dark-muted"
         >
           <lucide-icon icon="chevron-down" size="16"></lucide-icon>
         </div>
       </div>
       <button
-        class="bg-brand hover:bg-brand-hover text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm shrink-0 dark:bg-[#376d46]"
+        class="bg-brand hover:bg-brand-hover text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm shrink-0 dark:bg-dark-brand"
         on-click="filter()"
       >
         Filter
@@ -46,37 +46,38 @@
     </div>
 
     <!-- Log List -->
-    <div
-      class="border border-gray-100 rounded-xl overflow-hidden shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] dark:border-[#2d3a31]"
-    >
-      <ul class="divide-y divide-gray-100 dark:divide-[#2d3a31]">
+    <div class="border border-gray-100 rounded-xl overflow-hidden shadow-list-soft dark:border-dark-border">
+      <ul class="divide-y divide-gray-100 dark:divide-dark-border">
         <template if="loading">
-          <li class="p-8 text-center text-gray-500 dark:text-[#aab7ad]" role="status">
+          <li class="p-8 text-center text-gray-500 dark:text-dark-muted" role="status">
             Loading authentication history…
           </li>
         </template>
         <template if="!loading &amp;&amp; error">
-          <li class="p-8 text-center text-red-600 dark:text-[#ffb8ae]" role="alert">{{ error }}</li>
+          <li class="p-8 text-center text-red-600 dark:text-dark-danger" role="alert">{{ error }}</li>
         </template>
         <template if="!loading &amp;&amp; !error &amp;&amp; audit.length === 0">
-          <li class="p-8 text-center text-gray-500 dark:text-[#aab7ad]">No authentication activity found.</li>
+          <li class="p-8 text-center text-gray-500 dark:text-dark-muted">No authentication activity found.</li>
         </template>
         <template for="entry of audit">
           <li
-            class="p-4 hover:bg-gray-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 dark:hover:bg-[#243128]"
+            class="p-4 hover:bg-gray-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 dark:hover:bg-dark-hover"
           >
             <div>
-              <div class="font-bold text-gray-900 text-sm mb-0.5 dark:text-[#eef3ef]">{{ entry.app }}</div>
-              <div class="text-xs text-gray-500 font-mono dark:text-[#aab7ad]">
+              <div class="font-bold text-gray-900 text-sm mb-0.5 dark:text-dark-text">{{ entry.app }}</div>
+              <div class="text-xs text-gray-500 font-mono dark:text-dark-muted">
                 {{ entry.event }}<template if="entry.redirectUri"> · {{ entry.redirectUri }}</template>
               </div>
             </div>
             <div class="flex flex-col sm:items-end gap-0.5">
               <span
-                class="text-xs font-bold {{ entry.result === 'success' ? 'text-emerald-600 dark:text-[#c5e8c5]' : 'text-red-600 dark:text-[#ffb8ae]' }}"
+                class="text-xs font-bold"
+                bind-class="{ 'activity-result-success': entry.result === 'success', 'activity-result-failure': entry.result !== 'success' }"
                 >{{ entry.result }}</span
               >
-              <span class="text-xs text-gray-400 font-mono dark:text-[#aab7ad]">{{ formatDate(entry.timestamp) }}</span>
+              <span class="text-xs text-gray-400 font-mono dark:text-dark-muted"
+                >{{ formatDate(entry.timestamp) }}</span
+              >
             </div>
           </li>
         </template>
@@ -84,17 +85,17 @@
     </div>
 
     <!-- Pagination -->
-    <div class="mt-5 flex items-center justify-between border-t border-gray-100 pt-4 dark:border-[#2d3a31]">
+    <div class="mt-5 flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-border">
       <button
-        class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold disabled:border-transparent disabled:bg-gray-100 disabled:text-gray-400 dark:border-[#2d3a31]"
+        class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold disabled:border-transparent disabled:bg-gray-100 disabled:text-gray-400 dark:border-dark-border"
         on-click="previous()"
         bind-disabled.bool="offset === 0 || loading"
       >
         Previous
       </button>
-      <span class="text-sm text-gray-500 dark:text-[#aab7ad]">{{ Math.floor(offset / 20) + 1 }} / {{ pages }}</span>
+      <span class="text-sm text-gray-500 dark:text-dark-muted">{{ Math.floor(offset / 20) + 1 }} / {{ pages }}</span>
       <button
-        class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold disabled:border-transparent disabled:bg-gray-100 disabled:text-gray-400 dark:border-[#2d3a31]"
+        class="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold disabled:border-transparent disabled:bg-gray-100 disabled:text-gray-400 dark:border-dark-border"
         on-click="next()"
         bind-disabled.bool="loading || offset + 20 >= total"
       >

@@ -1,0 +1,177 @@
+@import 'tailwindcss' source(none);
+
+@source "./assets/ui";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: Inter, system-ui, sans-serif;
+
+  --color-app-bg: #eef2ec;
+  --color-brand: #1e3a2f;
+  --color-brand-hover: #13271f;
+  --color-accent: #3b714b;
+  --color-accent-hover: #2f563b;
+  --color-text-main: #1c201e;
+  --color-nav-active: #1e3a2f;
+  --color-nav-active-dark-bg: #1c2a20;
+  --color-nav-active-dark-border: #416b48;
+  --color-nav-active-dark-text: #d7edc8;
+  --color-nav-active-dark-icon: #c8e6a8;
+
+  --color-legacy-app-bg: #f4f7f6;
+  --color-legacy-brand: #263d32;
+  --color-legacy-brand-hover: #1a2a22;
+  --color-legacy-brand-focus: #376d46;
+  --color-legacy-brand-muted: #4b6b5a;
+  --color-legacy-accent: #c8e6a8;
+
+  --color-violet: #7257f5;
+  --color-ink: #18213b;
+  --color-violet-soft: #f0edff;
+  --color-profile-badge-bg: #edf5e4;
+  --color-profile-badge-border: #dce9ca;
+  --color-profile-badge-text: #385642;
+  --color-profile-identity-bg: #f8faf7;
+  --color-profile-identity-hover: #f2f7ed;
+
+  --color-dark-page: #101713;
+  --color-dark-dashboard: #0e1511;
+  --color-dark-dashboard-text: #e8efe9;
+  --color-dark-surface: #17211b;
+  --color-dark-surface-raised: #1c2820;
+  --color-dark-surface-profile: #19251d;
+  --color-dark-surface-input: #202b24;
+  --color-dark-surface-option: #26312a;
+  --color-dark-surface-admin: #273523;
+  --color-dark-surface-brand: #2b4432;
+  --color-dark-surface-success: #1d3022;
+  --color-dark-surface-warning: #302918;
+  --color-dark-surface-danger: #36211f;
+  --color-dark-hover-subtle: #1b2720;
+  --color-dark-hover: #243128;
+  --color-dark-hover-strong: #29372f;
+  --color-dark-border-subtle: #2b3a30;
+  --color-dark-border: #2d3a31;
+  --color-dark-border-input: #344239;
+  --color-dark-border-success: #345a3d;
+  --color-dark-border-strong: #3a4940;
+  --color-dark-border-profile: #435538;
+  --color-dark-border-warning: #51462c;
+  --color-dark-border-danger: #68403a;
+  --color-dark-brand: #376d46;
+  --color-dark-muted: #aab7ad;
+  --color-dark-muted-alt: #aab8ad;
+  --color-dark-placeholder: #87948a;
+  --color-dark-text: #eef3ef;
+  --color-dark-text-soft: #edf3ee;
+  --color-dark-text-dim: #d2d9d3;
+  --color-dark-text-success: #c5e8c5;
+  --color-dark-accent: #c8e6a8;
+  --color-dark-accent-bright: #d9f0c9;
+  --color-dark-accent-muted: #d4e8bc;
+  --color-dark-warning: #f1d38e;
+  --color-dark-danger: #ffb8ae;
+
+  --text-xxs: 0.625rem;
+  --radius-hero: 2rem;
+  --shadow-card-soft: 0 8px 30px rgb(0 0 0 / 0.06);
+  --shadow-list-soft: 0 2px 10px -4px rgb(0 0 0 / 0.05);
+  --leading-display: 1.05;
+  --tracking-display: -0.04em;
+  --tracking-heading: -0.03em;
+  --tracking-label: 0.18em;
+  --container-token-picker: 18rem;
+  --spacing-property-field: 150px;
+  --spacing-camera-height: 38dvh;
+  --grid-template-columns-activity: 1fr 1fr auto;
+  --grid-template-columns-activity-compact: 1fr auto;
+  --grid-template-columns-properties: minmax(0, 1fr) auto;
+  --grid-template-columns-properties-wide: minmax(7rem, 0.8fr) minmax(0, 2fr) auto;
+  --animate-qr-scan: qr-scan 2.4s ease-in-out infinite;
+
+  @keyframes qr-scan {
+    50% {
+      transform: translateY(17rem);
+    }
+  }
+}
+
+@utility bg-hero-glow {
+  background-image: radial-gradient(circle at 100% 0%, rgb(200 230 168 / 0.4), transparent 50%);
+}
+
+@utility bg-hero-glow-dark {
+  background-image: radial-gradient(circle at 100% 0%, rgb(200 230 168 / 0.12), transparent 52%);
+}
+
+@utility app-card-open {
+  &:has(details[open]) {
+    border-color: var(--color-slate-200);
+  }
+}
+
+@utility flex-0 {
+  flex: 0 1 auto;
+}
+
+@utility justify-stretch {
+  justify-content: stretch;
+}
+
+@utility activity-result-success {
+  color: var(--color-emerald-600);
+
+  @variant dark {
+    color: var(--color-dark-text-success);
+  }
+}
+
+@utility activity-result-failure {
+  color: var(--color-red-600);
+
+  @variant dark {
+    color: var(--color-dark-danger);
+  }
+}
+
+@utility identity-status-active {
+  color: var(--color-emerald-600);
+
+  @variant dark {
+    color: var(--color-dark-text-success);
+  }
+}
+
+@utility identity-status-blocked {
+  color: var(--color-red-600);
+
+  @variant dark {
+    color: var(--color-dark-danger);
+  }
+}
+
+@utility app-visibility-published {
+  background-color: var(--color-emerald-50);
+  color: var(--color-emerald-700);
+
+  @variant dark {
+    background-color: var(--color-emerald-950);
+    color: var(--color-dark-text-success);
+  }
+}
+
+@utility app-visibility-private {
+  background-color: var(--color-amber-50);
+  color: var(--color-amber-800);
+
+  @variant dark {
+    background-color: var(--color-amber-950);
+    color: var(--color-dark-warning);
+  }
+}
+
+@utility auth-nav-active {
+  background-color: var(--color-violet-soft);
+  color: var(--color-violet);
+}

@@ -1,43 +1,41 @@
 <template component="v2-users">
   <section class="content-section animate-fade-in">
     <div class="mb-6">
-      <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-[#eef3ef]">Users</h2>
-      <p class="text-sm text-gray-500 mt-1 max-w-3xl dark:text-[#aab7ad]">
+      <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-dark-text">Users</h2>
+      <p class="text-sm text-gray-500 mt-1 max-w-3xl dark:text-dark-muted">
         Suspend or block access without revoking API tokens; access returns when restored. Deletion permanently erases
         account data.
       </p>
     </div>
 
-    <div
-      class="border border-gray-100 rounded-xl overflow-hidden shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] dark:border-[#2d3a31]"
-    >
-      <ul class="divide-y divide-gray-100 dark:divide-[#2d3a31]">
+    <div class="border border-gray-100 rounded-xl overflow-hidden shadow-list-soft dark:border-dark-border">
+      <ul class="divide-y divide-gray-100 dark:divide-dark-border">
         <template if="users.length === 0">
-          <li class="p-8 text-center text-gray-500 dark:text-[#aab7ad]">No users found.</li>
+          <li class="p-8 text-center text-gray-500 dark:text-dark-muted">No users found.</li>
         </template>
         <template for="user of users">
           <li
-            class="p-4 hover:bg-gray-50/80 transition-colors flex items-center gap-2 cursor-pointer group dark:hover:bg-[#243128]"
+            class="p-4 hover:bg-gray-50/80 transition-colors flex items-center gap-2 cursor-pointer group dark:hover:bg-dark-hover"
           >
             <button class="flex w-full items-center gap-2 text-left" type="button" on-click="selectUser(user)">
               <lucide-icon
                 icon="chevron-right"
                 size="14"
-                class="text-gray-400 group-hover:text-brand transition-colors shrink-0 dark:text-[#aab7ad]"
+                class="text-gray-400 group-hover:text-brand transition-colors shrink-0 dark:text-dark-muted"
               ></lucide-icon>
               <div class="flex-1 min-w-0">
-                <span class="font-semibold text-gray-900 text-sm truncate block dark:text-[#eef3ef]"
+                <span class="font-semibold text-gray-900 text-sm truncate block dark:text-dark-text"
                   >{{ user.email }}</span
                 >
                 <template if="user.disabled">
                   <span
-                    class="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded inline-block mt-0.5 dark:text-[#f1d38e] dark:bg-[#302918]"
+                    class="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded inline-block mt-0.5 dark:text-dark-warning dark:bg-dark-surface-warning"
                     >Suspended</span
                   >
                 </template>
                 <template if="user.blocked">
                   <span
-                    class="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded inline-block mt-0.5 ml-1 dark:text-[#ffb8ae] dark:bg-[#36211f]"
+                    class="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded inline-block mt-0.5 ml-1 dark:text-dark-danger dark:bg-dark-surface-danger"
                     >Blocked</span
                   >
                 </template>
@@ -50,12 +48,12 @@
 
     <template if="selectedUser">
       <div
-        class="mt-6 border border-gray-100 rounded-xl overflow-hidden shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] bg-gray-50/50 p-6 animate-fade-in dark:border-[#2d3a31] dark:bg-[#1c2820]"
+        class="mt-6 border border-gray-100 rounded-xl overflow-hidden shadow-list-soft bg-gray-50/50 p-6 animate-fade-in dark:border-dark-border dark:bg-dark-surface-raised"
       >
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-gray-900 dark:text-[#eef3ef]">{{ selectedUser.email }}</h3>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-dark-text">{{ selectedUser.email }}</h3>
           <button
-            class="text-gray-400 hover:text-gray-600 dark:text-[#aab7ad]"
+            class="text-gray-400 hover:text-gray-600 dark:text-dark-muted"
             on-click="closeUserDetail()"
             aria-label="Close"
           >
@@ -64,62 +62,63 @@
         </div>
         <div class="grid gap-4 sm:grid-cols-2 text-sm">
           <div>
-            <span class="text-gray-500 dark:text-[#aab7ad]">Name:</span>
-            <span class="ml-2 font-medium text-gray-900 dark:text-[#eef3ef]">{{ selectedUser.name }}</span>
+            <span class="text-gray-500 dark:text-dark-muted">Name:</span>
+            <span class="ml-2 font-medium text-gray-900 dark:text-dark-text">{{ selectedUser.name }}</span>
           </div>
           <div>
-            <span class="text-gray-500 dark:text-[#aab7ad]">UUID:</span>
-            <code class="ml-2 font-mono text-gray-900 dark:text-[#eef3ef]">{{ selectedUser.id }}</code>
+            <span class="text-gray-500 dark:text-dark-muted">UUID:</span>
+            <code class="ml-2 font-mono text-gray-900 dark:text-dark-text">{{ selectedUser.id }}</code>
           </div>
           <div>
-            <span class="text-gray-500 dark:text-[#aab7ad]">Google identity:</span>
-            <code class="ml-2 font-mono text-gray-900 dark:text-[#eef3ef]">{{ selectedUser.profileId }}</code>
+            <span class="text-gray-500 dark:text-dark-muted">Google identity:</span>
+            <code class="ml-2 font-mono text-gray-900 dark:text-dark-text">{{ selectedUser.profileId }}</code>
           </div>
           <div>
-            <span class="text-gray-500 dark:text-[#aab7ad]">Last authenticated:</span>
-            <span class="ml-2 font-medium text-gray-900 dark:text-[#eef3ef]"
+            <span class="text-gray-500 dark:text-dark-muted">Last authenticated:</span>
+            <span class="ml-2 font-medium text-gray-900 dark:text-dark-text"
               >{{ selectedUser.lastSeen || 'Never' }}</span
             >
           </div>
           <div>
-            <span class="text-gray-500 dark:text-[#aab7ad]">Role:</span>
-            <span class="ml-2 font-medium text-gray-900 capitalize dark:text-[#eef3ef]">{{ selectedUser.role }}</span>
+            <span class="text-gray-500 dark:text-dark-muted">Role:</span>
+            <span class="ml-2 font-medium text-gray-900 capitalize dark:text-dark-text">{{ selectedUser.role }}</span>
           </div>
           <div>
-            <span class="text-gray-500 dark:text-[#aab7ad]">Identity:</span>
+            <span class="text-gray-500 dark:text-dark-muted">Identity:</span>
             <span
-              class="ml-2 font-medium {{ selectedUser.blocked ? 'text-red-600 dark:text-[#ffb8ae]' : 'text-emerald-600 dark:text-[#c5e8c5]' }}"
+              class="ml-2 font-medium"
+              bind-class="{ 'identity-status-blocked': selectedUser.blocked, 'identity-status-active': !selectedUser.blocked }"
               >{{ selectedUser.blocked ? 'Blocked' : 'Allowed' }}</span
             >
           </div>
           <div class="sm:col-span-2">
             <form class="flex gap-2" on-submit.prevent="saveUsername(selectedUser, $event)">
               <input
-                class="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+                class="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
                 name="preferred_username"
                 placeholder="Preferred username"
                 bind-value="selectedUser.preferredUsername"
               />
-              <button class="text-brand font-semibold hover:text-brand-hover dark:text-[#c8e6a8]" type="submit">
+              <button class="text-brand font-semibold hover:text-brand-hover dark:text-dark-accent" type="submit">
                 Save username
               </button>
             </form>
           </div>
           <div class="sm:col-span-2 flex flex-wrap gap-2">
             <button
-              class="text-brand font-semibold hover:text-brand-hover dark:text-[#c8e6a8]"
+              class="text-brand font-semibold hover:text-brand-hover dark:text-dark-accent"
               on-click="toggleDisabled(selectedUser)"
             >
               {{ selectedUser.disabled ? 'Enable' : 'Disable' }}
             </button>
             <button
-              class="text-brand font-semibold hover:text-brand-hover dark:text-[#c8e6a8]"
+              class="text-brand font-semibold hover:text-brand-hover dark:text-dark-accent"
               on-click="toggleBlocked(selectedUser)"
             >
               {{ selectedUser.blocked ? 'Unblock' : 'Block identity' }}
             </button>
             <button
-              class="text-red-600 font-semibold hover:text-red-700 dark:text-[#ffb8ae]"
+              class="text-red-600 font-semibold hover:text-red-700 dark:text-dark-danger"
               on-click="removeUser(selectedUser)"
             >
               Delete

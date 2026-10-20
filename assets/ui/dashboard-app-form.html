@@ -1,11 +1,11 @@
 <template component="v2-app-form">
   <form
-    class="mt-3 grid gap-3 rounded-xl bg-brand/5 p-4 border border-brand/10 dark:bg-[#c8e6a8]/[0.06]"
+    class="mt-3 grid gap-3 rounded-xl bg-brand/5 p-4 border border-brand/10 dark:bg-dark-accent/6"
     on-submit.prevent="createApp()"
   >
     <div class="grid gap-2 sm:grid-cols-2">
       <input
-        class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+        class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
         placeholder="Application name"
         bind-value="newName"
         on-input="setNewName($event.target.value)"
@@ -17,7 +17,7 @@
           type="checkbox"
           bind-checked="isPublic"
           on-change="setIsPublic($event.target.checked)"
-          class="dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
         />
         Public/native app (mobile or desktop; no client secret)
       </label>
@@ -27,11 +27,11 @@
       <strong class="text-sm">Callback URLs</strong>
       <template for="uri of newCallbacks">
         <div
-          class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b]"
+          class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface"
         >
           <span class="min-w-0 flex-1 break-all">{{ uri }}</span>
           <button
-            class="text-red-400 hover:text-red-600 dark:text-[#ffb8ae]"
+            class="text-red-400 hover:text-red-600 dark:text-dark-danger"
             type="button"
             on-click="removeNewCallback(uri)"
           >
@@ -41,13 +41,13 @@
       </template>
       <div class="flex gap-2">
         <input
-          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
           placeholder="https://app.example/callback"
           bind-value="newCallbackInput"
           on-input="setNewCallbackInput($event.target.value)"
         />
         <button
-          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand dark:text-[#c8e6a8]"
+          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand dark:text-dark-accent"
           type="button"
           on-click="addNewCallback()"
         >
@@ -60,11 +60,11 @@
       <strong class="text-sm">Post-logout return URLs (optional)</strong>
       <template for="uri of newLogoutRedirects">
         <div
-          class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b]"
+          class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface"
         >
           <span class="min-w-0 flex-1 break-all">{{ uri }}</span>
           <button
-            class="text-red-400 hover:text-red-600 dark:text-[#ffb8ae]"
+            class="text-red-400 hover:text-red-600 dark:text-dark-danger"
             type="button"
             on-click="removeNewLogoutRedirect(uri)"
           >
@@ -74,13 +74,13 @@
       </template>
       <div class="flex gap-2">
         <input
-          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
           placeholder="https://app.example/signed-out"
           bind-value="newLogoutRedirectInput"
           on-input="setNewLogoutRedirectInput($event.target.value)"
         />
         <button
-          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand dark:text-[#c8e6a8]"
+          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand dark:text-dark-accent"
           type="button"
           on-click="addNewLogoutRedirect()"
         >
@@ -94,7 +94,7 @@
       <div class="flex flex-wrap gap-1">
         <template for="scope of newScopes">
           <button
-            class="rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-[#c8e6a8]/10 dark:text-[#c8e6a8]"
+            class="rounded-full bg-brand/10 px-2 py-1 text-xs text-brand dark:bg-dark-accent/10 dark:text-dark-accent"
             type="button"
             on-click="removeNewScope(scope)"
           >
@@ -104,13 +104,13 @@
       </div>
       <div class="flex gap-2">
         <input
-          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-[#2d3a31] dark:bg-[#17211b] dark:text-[#edf3ee] dark:placeholder:text-[#87948a]"
+          class="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-border dark:bg-dark-surface dark:text-dark-text-soft dark:placeholder:text-dark-placeholder"
           placeholder="new:scope"
           bind-value="newScopeInput"
           on-input="setNewScopeInput($event.target.value)"
         />
         <button
-          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand dark:text-[#c8e6a8]"
+          class="rounded-lg border border-brand px-3 py-2 text-sm font-semibold text-brand dark:text-dark-accent"
           type="button"
           on-click="addNewScope()"
         >
@@ -119,8 +119,8 @@
       </div>
     </div>
 
-    <p class="text-sm text-red-600 dark:text-[#ffb8ae]">{{ formError }}</p>
-    <button class="rounded-lg bg-brand hover:bg-brand-hover px-4 py-2 font-bold text-white dark:bg-[#376d46]">
+    <p class="text-sm text-red-600 dark:text-dark-danger">{{ formError }}</p>
+    <button class="rounded-lg bg-brand hover:bg-brand-hover px-4 py-2 font-bold text-white dark:bg-dark-brand">
       Create app
     </button>
   </form>

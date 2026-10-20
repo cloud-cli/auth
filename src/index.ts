@@ -127,7 +127,7 @@ const uiAssets = Object.fromEntries(
     'pwa.html',
     'app.mjs',
     'pwa.mjs',
-    'qr.css',
+    'tailwind.generated.css',
     'manifest.webmanifest',
     'auth-qr-icon.svg',
     'embed.html',
@@ -716,27 +716,32 @@ app.head('/api/v1/profile', browserCors, protectedRoute, (_req, res) => {
 });
 app.delete('/api/v1/profile', protectedRoute, logout);
 app.get('/api/v1/agents', protectedRoute, async (req, res) => {
-  const user = await findByUserId(req.user!.id);
-  if (!user) {
-    return res.sendStatus(401);
-  }
-  const agents = await listAgentsForUser(user.userId, user.role);
-  if (user.role === 'agent') {
-    const self = await getAgent(user.userId);
-    if (self) {
-      agents.unshift({ ...self, disabled: Number(Boolean(user.disabled)) });
+  try {
+    const user = await findByUserId(req.user!.id);
+    if (!user) {
+      return res.sendStatus(401);
     }
+    const agents = await listAgentsForUser(user.userId, user.role);
+    if (user.role === 'agent') {
+      const self = await getAgent(user.userId);
+      if (self) {
+        agents.unshift({ ...self, disabled: Number(Boolean(user.disabled)) });
+      }
+    }
+    res.json(
+      agents.map(({ userId, createdByUserId, name, createdAt, disabled }) => ({
+        id: userId,
+        createdByUserId,
+        name,
+        createdAt,
+        disabled: Boolean(disabled),
+        self: user.role === 'agent' && userId === user.userId,
+      })),
+    );
+  } catch (error) {
+    log('Could not list Agents', error);
+    res.status(500).json({ error: 'Could not list Agents.' });
   }
-  res.json(
-    agents.map(({ userId, createdByUserId, name, createdAt, disabled }) => ({
-      id: userId,
-      createdByUserId,
-      name,
-      createdAt,
-      disabled: Boolean(disabled),
-      self: user.role === 'agent' && userId === user.userId,
-    })),
-  );
 });
 app.post('/api/v1/agents', express.json(), protectedRoute, async (req, res) => {
   try {

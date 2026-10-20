@@ -5,11 +5,12 @@
   "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc && esbuild dist/src/index.js --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --define:__TEST__=${BUILD_TEST_ROUTES:-false}",
+    "build": "tsc && esbuild dist/src/index.js --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --define:__TEST__=${BUILD_TEST_ROUTES:-false} && pnpm build:css",
+    "build:css": "tailwindcss -i ./tailwind.config.css -o ./assets/ui/tailwind.generated.css --minify",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "test:unit": "node --test tests/*.test.mjs",
+    "test:unit": "pnpm build:css && node --test tests/*.test.mjs",
     "test:integration": "playwright test",
     "migrate": "pnpm build && node ./dist/db/migrations/008_oidc_refresh_tokens.js",
     "start": "node ./dist/index.js"
@@ -27,6 +28,7 @@
     "@cloud-cli/typescript-config": "^1.0.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
+    "@tailwindcss/cli": "^4.3.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.17.7",
@@ -37,6 +39,7 @@
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.8",
+    "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   },
   "dependencies": {

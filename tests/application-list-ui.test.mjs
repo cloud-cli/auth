@@ -11,7 +11,11 @@ test('empty callback and post-logout sections are hidden from non-managers', () 
 });
 
 test('Published and Private badges retain compact padding and typography', () => {
-  assert.match(applications, /class="rounded-full px-2 py-0\.5 text-\[10px\] font-semibold"/);
-  assert.match(applications, /bind-class="\{ 'bg-emerald-50[\s\S]*app\.availableToUsers[\s\S]*bg-amber-50/);
+  assert.match(applications, /class="rounded-full px-2 py-0\.5 text-xxs font-semibold"/);
+  assert.match(
+    applications,
+    /bind-class="\{ 'app-visibility-published': app\.availableToUsers, 'app-visibility-private': !app\.availableToUsers \}"/,
+  );
   assert.doesNotMatch(applications, /attr-class="app\.availableToUsers/);
+  assert.doesNotMatch(applications, /<code if="app\.name !== app\.id"/);
 });
