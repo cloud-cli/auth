@@ -27,36 +27,34 @@
         </template>
         <template for="app of apps">
           <li class="p-4 hover:bg-gray-50/80 transition-colors group relative dark:hover:bg-dark-hover">
-            <div class="flex items-center justify-between gap-3">
-              <details class="min-w-0 flex-1" on-toggle="toggleApp(app, $event)">
-                <summary
-                  class="flex cursor-pointer list-none items-center gap-2 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+            <details class="min-w-0" on-toggle="toggleApp(app, $event)">
+              <summary
+                class="flex cursor-pointer list-none items-center gap-2 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+              >
+                <lucide-icon
+                  icon="chevron-right"
+                  size="14"
+                  class="text-gray-400 shrink-0 dark:text-dark-muted"
+                ></lucide-icon>
+                <span class="font-semibold text-gray-900 text-sm truncate dark:text-dark-text">{{ app.name }}</span>
+                <span
+                  class="rounded-full px-2 py-0.5 text-xxs font-semibold"
+                  bind-class="{ 'app-visibility-published': app.availableToUsers, 'app-visibility-private': !app.availableToUsers }"
                 >
-                  <lucide-icon
-                    icon="chevron-right"
-                    size="14"
-                    class="text-gray-400 shrink-0 dark:text-dark-muted"
-                  ></lucide-icon>
-                  <span class="font-semibold text-gray-900 text-sm truncate dark:text-dark-text">{{ app.name }}</span>
-                  <span
-                    class="rounded-full px-2 py-0.5 text-xxs font-semibold"
-                    bind-class="{ 'app-visibility-published': app.availableToUsers, 'app-visibility-private': !app.availableToUsers }"
-                  >
-                    {{ app.availableToUsers ? 'Published' : 'Private' }}
-                  </span>
-                  <lucide-icon
-                    attr-icon="app.isPublic ? 'smartphone' : 'monitor'"
-                    size="16"
-                    class="text-gray-500 shrink-0 dark:text-dark-muted"
-                    aria-hidden="true"
-                    attr-title="app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)'"
-                  ></lucide-icon>
-                  <span class="sr-only"
-                    >{{ app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)' }}</span
-                  >
-                </summary>
-              </details>
-              <div class="flex gap-2 shrink-0">
+                  {{ app.availableToUsers ? 'Published' : 'Private' }}
+                </span>
+                <lucide-icon
+                  attr-icon="app.isPublic ? 'smartphone' : 'monitor'"
+                  size="16"
+                  class="text-gray-500 shrink-0 dark:text-dark-muted"
+                  aria-hidden="true"
+                  attr-title="app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)'"
+                ></lucide-icon>
+                <span class="sr-only"
+                  >{{ app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)' }}</span
+                >
+              </summary>
+              <div class="mt-3 flex flex-wrap items-center gap-2">
                 <template if="app.canManage">
                   <template if="!app.isPublic">
                     <button
@@ -92,7 +90,7 @@
                   </button>
                 </template>
               </div>
-            </div>
+            </details>
             <v2-app-editor
               bind-app="app"
               bind-admin="app.canManage"

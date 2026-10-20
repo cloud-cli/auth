@@ -19,3 +19,18 @@ test('Published and Private badges retain compact padding and typography', () =>
   assert.doesNotMatch(applications, /attr-class="app\.availableToUsers/);
   assert.doesNotMatch(applications, /<code if="app\.name !== app\.id"/);
 });
+
+test('application management controls are inside the expandable details row', () => {
+  const detailsStart = applications.indexOf('<details class="min-w-0"');
+  const summaryEnd = applications.indexOf('</summary>', detailsStart);
+  const secretButton = applications.indexOf('aria-label="Regenerate secret"', summaryEnd);
+  const deleteButton = applications.indexOf('aria-label="Delete application"', summaryEnd);
+  const publishButton = applications.indexOf('Publish\n                  </button>', summaryEnd);
+  const detailsEnd = applications.indexOf('</details>', detailsStart);
+
+  assert.ok(detailsStart >= 0);
+  assert.ok(summaryEnd > detailsStart);
+  assert.ok(secretButton > summaryEnd && secretButton < detailsEnd);
+  assert.ok(deleteButton > summaryEnd && deleteButton < detailsEnd);
+  assert.ok(publishButton > summaryEnd && publishButton < detailsEnd);
+});

@@ -15,27 +15,6 @@
       <div class="mt-3 grid gap-2">
         <template for="app of apps"
           ><article class="app-card-open relative rounded-xl border border-transparent p-3">
-            <div class="absolute right-2 top-2 flex items-center gap-1">
-              <button
-                class="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-                type="button"
-                aria-label="Delete app"
-                title="Delete app"
-                on-click="deleteApp(app.id)"
-              >
-                <lucide-icon icon="trash" size="16"></lucide-icon>
-              </button>
-              <template if="!app.isPublic"
-                ><button
-                  class="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-violet/30 hover:bg-violet/5 hover:text-violet"
-                  type="button"
-                  aria-label="Regenerate secret"
-                  title="Regenerate secret"
-                  on-click="regenAppSecret(app.id)"
-                >
-                  <lucide-icon icon="key-round" size="16"></lucide-icon></button
-              ></template>
-            </div>
             <details>
               <summary class="cursor-pointer pr-20 text-sm font-bold">
                 {{ app.name === app.id ? app.name : app.name + ' · ' + app.id }}
@@ -50,6 +29,27 @@
                   >{{ app.isPublic ? 'Native app (PKCE)' : 'Browser/server app (client secret)' }}</span
                 >
               </summary>
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  class="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                  type="button"
+                  aria-label="Delete app"
+                  title="Delete app"
+                  on-click="deleteApp(app.id)"
+                >
+                  <lucide-icon icon="trash" size="16"></lucide-icon>
+                </button>
+                <template if="!app.isPublic"
+                  ><button
+                    class="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-violet/30 hover:bg-violet/5 hover:text-violet"
+                    type="button"
+                    aria-label="Regenerate secret"
+                    title="Regenerate secret"
+                    on-click="regenAppSecret(app.id)"
+                  >
+                    <lucide-icon icon="key-round" size="16"></lucide-icon></button
+                ></template>
+              </div>
               <app-editor bind-app="app" bind-admin="admin"></app-editor>
             </details>
             <template if="app.secret">
