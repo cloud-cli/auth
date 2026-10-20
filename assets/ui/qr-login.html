@@ -3,12 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#7257f5" />
+    <meta name="theme-color" content="#f4f7f6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101713" media="(prefers-color-scheme: dark)" />
     <link rel="manifest" href="/ui/manifest.webmanifest" />
     <title>Approve on phone</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      tailwind.config = { theme: { extend: { colors: { violet: '#7257f5' } } } };
+      tailwind.config = {
+        theme: { extend: { colors: { 'app-bg': '#f4f7f6', brand: '#263d32', accent: '#c8e6a8' } } },
+      };
     </script>
     <link rel="stylesheet" href="/ui/qr.css" />
     <script type="importmap">
@@ -21,20 +24,27 @@
       }
     </script>
   </head>
-  <body data-page="qr" class="grid min-h-dvh place-items-center bg-violet/5 p-5 text-slate-900">
+  <body
+    data-page="qr"
+    class="grid min-h-dvh place-items-center bg-app-bg p-5 text-brand dark:bg-[#101713] dark:text-[#edf3ee]"
+  >
     <template app
-      ><section class="grid w-full max-w-md gap-4 rounded-[2rem] bg-white p-8 text-center shadow-2xl shadow-violet/10">
-        <span class="text-xs font-extrabold tracking-[.18em] text-violet">PHONE APPROVAL</span>
+      ><section
+        class="grid w-full max-w-md gap-4 rounded-[2rem] border border-white/70 bg-white bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.4),transparent_50%)] p-8 text-center shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:border-[#2b3a30] dark:bg-[#17211b] dark:bg-[radial-gradient(circle_at_100%_0%,rgba(200,230,168,0.12),transparent_52%)]"
+      >
+        <span class="text-xs font-extrabold tracking-[.18em] text-brand dark:text-[#c8e6a8]">PHONE APPROVAL</span>
         <h1 class="text-3xl font-extrabold tracking-[-.03em]">Scan to unlock</h1>
-        <p class="text-slate-500">Open Auth on your phone and scan this one-time code.</p>
-        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet/10 to-emerald-100 p-4">
+        <p class="text-slate-500 dark:text-[#aab8ad]">Open Auth on your phone and scan this one-time code.</p>
+        <div
+          class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent/40 to-brand/5 p-4 dark:from-[#c8e6a8]/[0.12] dark:to-[#c8e6a8]/[0.03]"
+        >
           <img class="w-full rounded-2xl" attr-src="qr" alt="Login QR code" />
           <div
-            class="absolute inset-x-4 top-4 h-1 animate-[qr-scan_2.4s_ease-in-out_infinite] bg-rose-400 shadow-lg shadow-rose-400"
+            class="absolute inset-x-4 top-4 h-1 animate-[qr-scan_2.4s_ease-in-out_infinite] bg-brand shadow-lg shadow-brand dark:bg-[#c8e6a8] dark:shadow-[#c8e6a8]"
           ></div>
         </div>
-        <p class="font-semibold text-emerald-600">{{ status }}</p>
-        <a class="font-semibold text-violet" attr-href="pwaUrl">Open Auth PWA</a>
+        <p class="font-semibold text-[#376d46] dark:text-[#c8e6a8]">{{ status }}</p>
+        <a class="font-semibold text-brand hover:underline dark:text-[#c8e6a8]" attr-href="pwaUrl">Open Auth PWA</a>
       </section>
       <script setup src="/ui/app.mjs"></script
     ></template>
