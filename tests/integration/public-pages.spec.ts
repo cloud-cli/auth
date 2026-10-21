@@ -29,10 +29,13 @@ test('landing page and login are available', async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-page', 'login');
   await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Use a passkey' })).toBeVisible();
-  await expect(page.getByText('Try another way', { exact: true })).toBeVisible();
-  await page.getByText('Try another way', { exact: true }).click();
-  await expect(page.getByText('Sign in as an Agent', { exact: true })).toBeVisible();
-  await page.getByText('Sign in as an Agent', { exact: true }).click();
+  await expect(page.getByText('or', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Scan QR code/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Use a recovery code/ })).toBeVisible();
+  const agentToggle = page.getByText('Sign in as an Agent', { exact: true });
+  await expect(agentToggle).toBeVisible();
+  await expect(page.getByLabel('Agent ID')).toBeHidden();
+  await agentToggle.click();
   await expect(page.getByLabel('Agent ID')).toBeVisible();
   await expect(page.getByLabel('Sign-in token')).toBeVisible();
 

@@ -131,11 +131,16 @@
                 Use a passkey</a
               >
             </div>
-            <details class="mt-3 border-t border-gray-100 pt-4">
+            <div class="flex items-center gap-3 py-1">
+              <span class="h-px flex-1 bg-gray-200 dark:bg-dark-border" aria-hidden="true"></span>
+              <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">or</span>
+              <span class="h-px flex-1 bg-gray-200 dark:bg-dark-border" aria-hidden="true"></span>
+            </div>
+            <details>
               <summary
-                class="group flex w-fit cursor-pointer list-none items-center gap-1.5 text-sm font-bold text-gray-400 transition hover:text-legacy-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-legacy-brand"
+                class="group flex min-h-12 cursor-pointer list-none items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-legacy-brand dark:border-dark-border-strong dark:bg-dark-surface-input dark:text-dark-text-soft dark:hover:bg-dark-hover-strong"
               >
-                Try another way
+                Sign in as an Agent
                 <svg
                   class="h-4 w-4 transition-transform group-open:rotate-180"
                   viewBox="0 0 20 20"
@@ -147,93 +152,85 @@
                   <path d="m5 7.5 5 5 5-5" />
                 </svg>
               </summary>
-              <div class="mt-3 grid gap-2">
-                <a
-                  class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-legacy-brand"
-                  attr-href="qrUrl"
-                  ><span
-                    class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-legacy-accent/30 text-legacy-brand transition-transform group-hover:scale-105 dark:bg-dark-surface-brand dark:text-dark-accent-bright"
-                    ><svg
-                      class="h-5 w-5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      aria-hidden="true"
-                    >
-                      <rect x="3" y="3" width="7" height="7" rx="1" />
-                      <rect x="14" y="3" width="7" height="7" rx="1" />
-                      <rect x="3" y="14" width="7" height="7" rx="1" />
-                      <path d="M14 14h3v3h-3zM20 14v2m-3 2h4v3h-4z" /></svg></span
-                  ><span
-                    ><span class="block text-sm font-bold text-gray-800">Scan QR code</span
-                    ><span class="block text-xs font-medium text-gray-500">Approve from another device</span></span
-                  ></a
-                ><a
-                  class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-legacy-brand"
-                  attr-href="recoveryUrl"
-                  ><span
-                    class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-600 transition-transform group-hover:scale-105 dark:bg-dark-surface-option dark:text-dark-text-dim"
-                    ><svg
-                      class="h-5 w-5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      aria-hidden="true"
-                    >
-                      <rect x="4" y="3" width="16" height="18" rx="2" />
-                      <path d="M8 7h8M8 11h8M8 15h2m3 0h3" /></svg></span
-                  ><span
-                    ><span class="block text-sm font-bold text-gray-800">Use a recovery code</span
-                    ><span class="block text-xs font-medium text-gray-500">Enter an offline backup code</span></span
-                  ></a
+              <form class="mt-3 grid gap-3" on-submit.prevent="agentLogin()">
+                <p class="text-xs text-gray-500">
+                  Use the generated Agent ID shown when the Agent was created. Its name is only a display label.
+                </p>
+                <label class="grid gap-1 text-sm font-semibold" for="agent-id">Agent ID</label>
+                <input
+                  id="agent-id"
+                  type="text"
+                  autocomplete="username"
+                  required
+                  bind-value="agentId"
+                  on-input="setAgentId($event.target.value)"
+                  class="min-h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-legacy-brand dark:border-dark-border-input dark:bg-dark-surface-input"
+                />
+                <label class="grid gap-1 text-sm font-semibold" for="agent-token">Sign-in token</label>
+                <input
+                  id="agent-token"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                  bind-value="agentToken"
+                  on-input="setAgentToken($event.target.value)"
+                  class="min-h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-legacy-brand dark:border-dark-border-input dark:bg-dark-surface-input"
+                />
+                <button
+                  type="submit"
+                  bind-disabled.bool="busy"
+                  class="flex min-h-12 items-center justify-center rounded-xl bg-legacy-brand px-4 font-bold text-legacy-accent shadow-lg disabled:opacity-60"
                 >
-              </div>
-              <details class="mt-4 border-t border-gray-100 pt-4">
-                <summary class="cursor-pointer text-sm font-bold text-gray-500">Sign in as an Agent</summary>
-                <form class="mt-3 grid gap-3" on-submit.prevent="agentLogin()">
-                  <p class="text-xs text-gray-500">
-                    Use the generated Agent ID shown when the Agent was created. Its name is only a display label.
-                  </p>
-                  <label class="grid gap-1 text-sm font-semibold" for="agent-id">Agent ID</label>
-                  <input
-                    id="agent-id"
-                    type="text"
-                    autocomplete="username"
-                    required
-                    bind-value="agentId"
-                    on-input="setAgentId($event.target.value)"
-                    class="min-h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-legacy-brand dark:border-dark-border-input dark:bg-dark-surface-input"
-                  />
-                  <label class="grid gap-1 text-sm font-semibold" for="agent-token">Sign-in token</label>
-                  <input
-                    id="agent-token"
-                    type="password"
-                    autocomplete="current-password"
-                    required
-                    bind-value="agentToken"
-                    on-input="setAgentToken($event.target.value)"
-                    class="min-h-12 rounded-xl border border-slate-200 px-4 outline-none focus:border-legacy-brand dark:border-dark-border-input dark:bg-dark-surface-input"
-                  />
-                  <button
-                    type="submit"
-                    bind-disabled.bool="busy"
-                    class="flex min-h-12 items-center justify-center rounded-xl bg-legacy-brand px-4 font-bold text-legacy-accent shadow-lg disabled:opacity-60"
-                  >
-                    {{ busy ? 'Signing in…' : 'Sign in' }}
-                  </button>
-                  <p
-                    if="message"
-                    class="text-sm"
-                    role="status"
-                    attr-class="error ? 'text-rose-600' : 'text-emerald-700'"
-                  >
-                    {{ message }}
-                  </p>
-                </form>
-              </details>
+                  {{ busy ? 'Signing in…' : 'Sign in' }}
+                </button>
+                <p if="message" class="text-sm" role="status" attr-class="error ? 'text-rose-600' : 'text-emerald-700'">
+                  {{ message }}
+                </p>
+              </form>
             </details>
+            <div class="grid gap-2">
+              <a
+                class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-legacy-brand"
+                attr-href="qrUrl"
+                ><span
+                  class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-legacy-accent/30 text-legacy-brand transition-transform group-hover:scale-105 dark:bg-dark-surface-brand dark:text-dark-accent-bright"
+                  ><svg
+                    class="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <path d="M14 14h3v3h-3zM20 14v2m-3 2h4v3h-4z" /></svg></span
+                ><span
+                  ><span class="block text-sm font-bold text-gray-800">Scan QR code</span
+                  ><span class="block text-xs font-medium text-gray-500">Approve from another device</span></span
+                ></a
+              ><a
+                class="group flex items-center gap-3 rounded-xl border border-transparent p-3 text-left transition hover:border-gray-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-legacy-brand"
+                attr-href="recoveryUrl"
+                ><span
+                  class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-600 transition-transform group-hover:scale-105 dark:bg-dark-surface-option dark:text-dark-text-dim"
+                  ><svg
+                    class="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                  >
+                    <rect x="4" y="3" width="16" height="18" rx="2" />
+                    <path d="M8 7h8M8 11h8M8 15h2m3 0h3" /></svg></span
+                ><span
+                  ><span class="block text-sm font-bold text-gray-800">Use a recovery code</span
+                  ><span class="block text-xs font-medium text-gray-500">Enter an offline backup code</span></span
+                ></a
+              >
+            </div>
           </section>
           <p class="mt-6 flex items-center justify-center gap-2 text-xs font-semibold text-gray-400">
             <svg
