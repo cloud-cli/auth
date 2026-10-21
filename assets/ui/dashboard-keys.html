@@ -1,15 +1,15 @@
 <template component="v2-keys">
-  <section class="content-section animate-fade-in">
+  <div class="animate-fade-in">
     <!-- Signing Keys -->
     <div class="mb-10 border-b border-gray-100 pb-8 dark:border-dark-border">
-      <div class="flex items-center gap-3 mb-2">
+      <div class="flex flex-wrap items-center gap-3 mb-2">
         <lucide-icon icon="key-round" size="28" class="text-brand dark:text-dark-accent"></lucide-icon>
         <h2 class="text-xl font-bold text-gray-900 tracking-tight dark:text-dark-text">Signing keys</h2>
       </div>
       <p class="text-sm text-gray-500 mb-6 dark:text-dark-muted">Rotate signing keys without changing OIDC clients.</p>
 
       <div
-        class="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-lg mb-4 dark:bg-dark-surface-raised dark:border-dark-border"
+        class="flex flex-wrap items-center justify-between gap-3 p-4 bg-gray-50 border border-gray-100 rounded-lg mb-4 dark:bg-dark-surface-raised dark:border-dark-border"
       >
         <template for="key of keys">
           <span class="font-mono text-sm text-gray-800 dark:text-dark-text">{{ key.kid }}</span>
@@ -126,7 +126,7 @@
         </form>
       </template>
     </div>
-  </section>
+  </div>
 
   <link rel="component" href="/ui/dashboard-copy-value.html" />
   <script setup>
