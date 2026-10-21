@@ -51,15 +51,17 @@
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <h3 class="font-semibold text-gray-900 dark:text-dark-text">{{ agent.name }}</h3>
-                <span
-                  if="agent.self"
-                  class="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand dark:text-dark-accent"
-                  >This Agent</span
+                <template if="agent.self"
+                  ><span
+                    class="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand dark:text-dark-accent"
+                    >This Agent</span
+                  ></template
                 >
-                <span
-                  if="agent.disabled"
-                  class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-dark-danger"
-                  >Disabled</span
+                <template if="agent.disabled"
+                  ><span
+                    class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950 dark:text-dark-danger"
+                    >Disabled</span
+                  ></template
                 >
               </div>
               <code class="mt-1 block break-all font-mono text-xs text-gray-500 dark:text-dark-muted"
@@ -67,14 +69,15 @@
               >
               <p class="mt-1 text-xs text-gray-500 dark:text-dark-muted">Created {{ agent.createdAt }}</p>
             </div>
-            <button
-              if="agent.canDisable"
-              class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-dark-danger"
-              type="button"
-              on-click="disable(agent)"
+            <template if="agent.canDisable"
+              ><button
+                class="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-dark-danger"
+                type="button"
+                on-click="disable(agent)"
+              >
+                Disable Agent
+              </button></template
             >
-              Disable Agent
-            </button>
           </div>
 
           <details
@@ -119,26 +122,26 @@
                   <p class="font-mono text-xs text-gray-500 dark:text-dark-muted">
                     {{ token.tokenHint }} · expires {{ token.expiresAt }}
                   </p>
-                  <p if="token.revokedAt" class="text-xs text-red-700 dark:text-dark-danger">
-                    Revoked {{ token.revokedAt }}
-                  </p>
+                  <template if="token.revokedAt"
+                    ><p class="text-xs text-red-700 dark:text-dark-danger">Revoked {{ token.revokedAt }}</p></template
+                  >
                 </div>
-                <button
-                  if="!token.revokedAt && !agent.disabled"
-                  class="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand dark:text-dark-accent"
-                  type="button"
-                  on-click="rotateToken(agent, token)"
+                <template if="!token.revokedAt && !agent.disabled"
+                  ><button
+                    class="rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand dark:text-dark-accent"
+                    type="button"
+                    on-click="rotateToken(agent, token)"
+                  >
+                    Rotate token
+                  </button>
+                  <button
+                    class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-dark-danger"
+                    type="button"
+                    on-click="revokeToken(agent, token)"
+                  >
+                    Revoke
+                  </button></template
                 >
-                  Rotate token
-                </button>
-                <button
-                  if="!token.revokedAt && !agent.disabled"
-                  class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:text-dark-danger"
-                  type="button"
-                  on-click="revokeToken(agent, token)"
-                >
-                  Revoke
-                </button>
               </div>
             </template>
           </details>
