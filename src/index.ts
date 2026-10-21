@@ -70,6 +70,7 @@ import {
   introspectApiToken,
   listApiTokens,
   listAuthApiTokens,
+  authenticateAdminKey,
   revokeApiToken,
   revokePresentedApiToken,
   updateApiTokenScopes,
@@ -78,6 +79,7 @@ import {
 import { parseBasicClientCredentials } from './oauth-client-auth.js';
 import {
   canManageAgent,
+  canManageAgentWithAdminKey,
   createAgent,
   createAgentToken,
   deleteAgentTree,
@@ -86,6 +88,7 @@ import {
   getAgent,
   listAgentTokens,
   listAgentsForUser,
+  listAgentsForAdminKey,
   managedAgentTree,
   revokeAgentToken,
   rotateAgentToken,
@@ -186,6 +189,27 @@ function protectedRoute(req, res, next) {
   }
 
   next();
+}
+
+async function agentApiRoute(req, res, next) {
+  if (req.isAuthenticated?.() && req.user?.id) {
+    const user = await findByUserId(req.user.id);
+    if (!user) return res.status(401).send('');
+    res.locals.agentActor = { userId: user.userId, role: user.role, adminKey: false };
+    return next();
+  }
+  const authorization = req.get('authorization') || '';
+  const token = authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : '';
+  const key = await authenticateAdminKey(token);
+  if (!key) return res.status(401).json({ error: 'invalid_admin_key' });
+  res.locals.agentActor = { userId: key.ownerUserId, role: key.ownerRole, adminKey: true };
+  next();
+}
+
+async function agentRouteAccess(res, agentId: string) {
+  const actor = res.locals.agentActor;
+  if (actor.adminKey) return canManageAgentWithAdminKey(actor.userId, actor.role, agentId);
+  return actor.userId === agentId || canManageAgent(actor.userId, agentId);
 }
 
 function protectedRouteWithRedirect(req, res, next) {
@@ -715,17 +739,16 @@ app.head('/api/v1/profile', browserCors, protectedRoute, (_req, res) => {
   res.status(204).send('');
 });
 app.delete('/api/v1/profile', protectedRoute, logout);
-app.get('/api/v1/agents', protectedRoute, async (req, res) => {
+app.get('/api/v1/agents', agentApiRoute, async (_req, res) => {
   try {
-    const user = await findByUserId(req.user!.id);
-    if (!user) {
-      return res.sendStatus(401);
-    }
-    const agents = await listAgentsForUser(user.userId, user.role);
-    if (user.role === 'agent') {
-      const self = await getAgent(user.userId);
+    const actor = res.locals.agentActor;
+    const agents = actor.adminKey
+      ? await listAgentsForAdminKey(actor.userId, actor.role)
+      : await listAgentsForUser(actor.userId, actor.role);
+    if (!actor.adminKey && actor.role === 'agent') {
+      const self = await getAgent(actor.userId);
       if (self) {
-        agents.unshift({ ...self, disabled: Number(Boolean(user.disabled)) });
+        agents.unshift({ ...self, disabled: Number(Boolean((await findByUserId(actor.userId))?.disabled)) });
       }
     }
     res.json(
@@ -735,7 +758,7 @@ app.get('/api/v1/agents', protectedRoute, async (req, res) => {
         name,
         createdAt,
         disabled: Boolean(disabled),
-        self: user.role === 'agent' && userId === user.userId,
+        self: !actor.adminKey && actor.role === 'agent' && userId === actor.userId,
       })),
     );
   } catch (error) {
@@ -743,9 +766,9 @@ app.get('/api/v1/agents', protectedRoute, async (req, res) => {
     res.status(500).json({ error: 'Could not list Agents.' });
   }
 });
-app.post('/api/v1/agents', express.json(), protectedRoute, async (req, res) => {
+app.post('/api/v1/agents', express.json(), agentApiRoute, async (req, res) => {
   try {
-    const result = await createAgent(req.user!.id, req.body?.name);
+    const result = await createAgent(res.locals.agentActor.userId, req.body?.name);
     res.status(201).json({
       agent: { id: result.agent.userId, name: result.agent.name, createdAt: result.agent.createdAt },
       token: result.token,
@@ -757,23 +780,21 @@ app.post('/api/v1/agents', express.json(), protectedRoute, async (req, res) => {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Could not create Agent.' });
   }
 });
-app.delete('/api/v1/agents/:agentId', protectedRoute, async (req, res) => {
-  if (!(await canManageAgent(req.user!.id, req.params.agentId))) {
+app.delete('/api/v1/agents/:agentId', agentApiRoute, async (req, res) => {
+  if (!(await agentRouteAccess(res, req.params.agentId))) {
     return res.sendStatus(404);
   }
   await disableAgentTree(req.params.agentId);
   res.sendStatus(204);
 });
-app.get('/api/v1/agents/:agentId/tokens', protectedRoute, async (req, res) => {
-  const isSelf = req.user!.id === req.params.agentId;
-  if (!isSelf && !(await canManageAgent(req.user!.id, req.params.agentId))) {
+app.get('/api/v1/agents/:agentId/tokens', agentApiRoute, async (req, res) => {
+  if (!(await agentRouteAccess(res, req.params.agentId))) {
     return res.sendStatus(404);
   }
   res.json(await listAgentTokens(req.params.agentId));
 });
-app.post('/api/v1/agents/:agentId/tokens', express.json(), protectedRoute, async (req, res) => {
-  const isSelf = req.user!.id === req.params.agentId;
-  if (!isSelf && !(await canManageAgent(req.user!.id, req.params.agentId))) {
+app.post('/api/v1/agents/:agentId/tokens', express.json(), agentApiRoute, async (req, res) => {
+  if (!(await agentRouteAccess(res, req.params.agentId))) {
     return res.sendStatus(404);
   }
   try {
@@ -782,16 +803,14 @@ app.post('/api/v1/agents/:agentId/tokens', express.json(), protectedRoute, async
     res.status(400).json({ error: error instanceof Error ? error.message : 'Could not create sign-in token.' });
   }
 });
-app.delete('/api/v1/agents/:agentId/tokens/:tokenId', protectedRoute, async (req, res) => {
-  const isSelf = req.user!.id === req.params.agentId;
-  if (!isSelf && !(await canManageAgent(req.user!.id, req.params.agentId))) {
+app.delete('/api/v1/agents/:agentId/tokens/:tokenId', agentApiRoute, async (req, res) => {
+  if (!(await agentRouteAccess(res, req.params.agentId))) {
     return res.sendStatus(404);
   }
   res.sendStatus((await revokeAgentToken(req.params.agentId, req.params.tokenId)) ? 204 : 404);
 });
-app.post('/api/v1/agents/:agentId/tokens/:tokenId/rotate', protectedRoute, async (req, res) => {
-  const isSelf = req.user!.id === req.params.agentId;
-  if (!isSelf && !(await canManageAgent(req.user!.id, req.params.agentId))) {
+app.post('/api/v1/agents/:agentId/tokens/:tokenId/rotate', agentApiRoute, async (req, res) => {
+  if (!(await agentRouteAccess(res, req.params.agentId))) {
     return res.sendStatus(404);
   }
   try {

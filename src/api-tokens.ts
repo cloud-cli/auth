@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'crypto';
-import { all, ApiToken, json, rows, run } from './database.js';
+import { all, ApiToken, json, rows, run, User } from './database.js';
 import { getClient, verifyClientSecret } from './oidc.js';
+import { isUserSuspended } from './user.js';
 
 const ttl = 365 * 24 * 60 * 60 * 1000;
 export const authTokenManagementScope = 'auth:tokens:write';
@@ -102,6 +103,33 @@ export async function verifyAuthApiToken(token: string, clientId: string) {
     item.tokenHash,
   ]);
   return true;
+}
+
+export async function authenticateAdminKey(token: string) {
+  if (!token) return null;
+  const item = (await rows<ApiToken>('auth_api_token', 'token_hash = ?', [hash(token)]))[0];
+  if (
+    !item ||
+    item.userId !== item.clientId ||
+    item.revokedAt ||
+    Date.parse(item.expiresAt) <= Date.now() ||
+    item.scopes.length !== 1 ||
+    item.scopes[0] !== authTokenManagementScope
+  ) {
+    return null;
+  }
+  const client = await getClient(item.clientId);
+  const ownerUserId = client?.ownerUserId;
+  if (!ownerUserId || (await isUserSuspended(ownerUserId))) return null;
+  const owner = (await rows<User>('auth_user', 'user_id = ?', [ownerUserId]))[0];
+  if (!owner) return null;
+  const ownerAgent = (await rows<{ rootOwnerUserId: string }>('auth_agent', 'user_id = ?', [ownerUserId]))[0];
+  if (ownerAgent && (await isUserSuspended(ownerAgent.rootOwnerUserId))) return null;
+  await run('UPDATE auth_api_token SET last_used_at = ? WHERE token_hash = ?', [
+    new Date().toISOString(),
+    item.tokenHash,
+  ]);
+  return { clientId: client.id, ownerUserId, ownerRole: owner.role };
 }
 
 export async function listApiTokens(userId: string, clientId?: string) {

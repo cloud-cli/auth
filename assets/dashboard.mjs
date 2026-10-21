@@ -407,7 +407,7 @@ export async function getAuthApiTokens(clientId) {
   const response = await fetch(new URL('/api/v1/auth-api-tokens/' + encodeURIComponent(clientId), authDomain), {
     credentials: 'include',
   });
-  if (!response.ok) throw new Error('Could not load Auth API tokens');
+  if (!response.ok) throw new Error('Could not load Admin keys');
   return response.json();
 }
 
@@ -419,7 +419,7 @@ export async function createAuthApiToken(clientId, label) {
     body: JSON.stringify({ label }),
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Could not create Auth API token');
+  if (!response.ok) throw new Error(result.error || 'Could not create Admin key');
   return result;
 }
 
@@ -428,7 +428,7 @@ export async function revokeAuthApiToken(clientId, tokenId) {
     new URL('/api/v1/auth-api-tokens/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(tokenId), authDomain),
     { credentials: 'include', method: 'DELETE' },
   );
-  if (!response.ok) throw new Error('Could not revoke Auth API token');
+  if (!response.ok) throw new Error('Could not revoke Admin key');
 }
 
 export async function rotateSigningKey() {

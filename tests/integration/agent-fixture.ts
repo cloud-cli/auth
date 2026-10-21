@@ -52,7 +52,6 @@ export async function createAgentFixture(page: Page): Promise<AgentFixture | nul
 
 export async function signInAsAgent(page: Page, fixture: AgentFixture, returnUrl = '/me') {
   await page.goto(`/login?url=${encodeURIComponent(returnUrl)}`);
-  await page.getByText('Try another way', { exact: true }).click();
   await page.getByText('Sign in as an Agent', { exact: true }).click();
   await page.getByLabel('Agent ID').fill(fixture.agentId);
   await page.getByLabel('Sign-in token').fill(fixture.token);

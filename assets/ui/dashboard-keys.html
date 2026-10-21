@@ -28,12 +28,12 @@
       </button>
     </div>
 
-    <!-- Auth API Tokens -->
+    <!-- Admin keys -->
     <div>
-      <h2 class="text-xl font-bold text-gray-900 tracking-tight mb-2 dark:text-dark-text">Auth API tokens</h2>
+      <h2 class="text-xl font-bold text-gray-900 tracking-tight mb-2 dark:text-dark-text">Admin keys</h2>
       <p class="text-sm text-gray-500 mb-6 dark:text-dark-muted">
-        Machine tokens for a registered client to call Auth's scoped API. These are not sign-in tokens and do not grant
-        dashboard access.
+        Keys let a registered app mint scoped API tokens, add app scopes, and create or manage Agents in that app
+        owner's Agent tree. They do not grant general server administration access.
       </p>
 
       <div class="relative mb-8">
@@ -52,12 +52,12 @@
         </div>
       </div>
 
-      <h3 class="text-sm font-bold text-gray-800 mb-4 dark:text-dark-text">Previously minted tokens across all apps</h3>
+      <h3 class="text-sm font-bold text-gray-800 mb-4 dark:text-dark-text">Previously created keys across all apps</h3>
 
       <template if="createdToken">
         <v2-copy-value-box
           bind-token="createdToken"
-          message="Copy this Auth API token now. It is only shown once."
+          message="Copy this Admin key now. It is only shown once."
         ></v2-copy-value-box>
       </template>
 
@@ -113,16 +113,15 @@
             required
           />
           <p class="rounded-lg bg-brand/5 p-3 text-sm text-gray-600 dark:bg-dark-accent/6 dark:text-dark-muted">
-            This token has one fixed permission: mint scoped API tokens and append downstream scopes for this client.
-            Existing scopes cannot be removed with this token; other clients and administrative operations are not
-            available to it.
+            This key can mint scoped API tokens and append downstream scopes for this client. It can also manage Agents
+            in this app owner's Agent tree, but it cannot access other apps or perform general server administration.
           </p>
           <button
             class="rounded-lg bg-brand hover:bg-brand-hover px-4 py-2 font-bold text-white dark:bg-dark-brand"
             type="button"
             on-click="createToken()"
           >
-            Generate Auth API token
+            Generate Admin key
           </button>
         </form>
       </template>
@@ -147,7 +146,7 @@
       const selectedClient = ref('');
       const allTokens = ref([]);
       const visibleTokens = ref([]);
-      const emptyMessage = ref('Loading Auth API tokens…');
+      const emptyMessage = ref('Loading Admin keys…');
       const createdToken = ref('');
       const error = ref('');
       const tokenLabel = ref('');
@@ -177,14 +176,14 @@
       const loadTokens = async () => {
         if (!selectedClient.value) {
           visibleTokens.value = allTokens.value;
-          emptyMessage.value = visibleTokens.value.length ? '' : 'No Auth API tokens have been minted for your apps.';
+          emptyMessage.value = visibleTokens.value.length ? '' : 'No Admin keys have been created for your apps.';
           return;
         }
         const clientId = selectedClient.value;
         const clientTokens = await getAuthApiTokens(clientId);
         if (selectedClient.value !== clientId) return;
         visibleTokens.value = clientTokens.map((token) => ({ appId: clientId, token }));
-        emptyMessage.value = visibleTokens.value.length ? '' : 'No Auth API tokens exist for this app.';
+        emptyMessage.value = visibleTokens.value.length ? '' : 'No Admin keys exist for this app.';
       };
 
       const createToken = async () => {
@@ -196,7 +195,7 @@
           await loadTokens();
           await loadOverview();
         } catch (reason) {
-          error.value = reason.message || 'Could not create Auth API token.';
+          error.value = reason.message || 'Could not create Admin key.';
         }
       };
 
@@ -230,13 +229,13 @@
               ? "Some apps' tokens could not be loaded. Select an app to retry its token list."
               : visibleTokens.value.length
                 ? ''
-                : 'No Auth API tokens have been minted for your apps.';
+                : 'No Admin keys have been created for your apps.';
           } else if (results.some((result) => result.tokens === null)) {
             error.value = "Some apps' tokens could not be loaded. Select an app to retry its token list.";
           }
         } catch (reason) {
           if (revision === overviewRevision) {
-            error.value = reason.message || 'Could not load apps and their Auth API tokens.';
+            error.value = reason.message || 'Could not load apps and their Admin keys.';
             if (!selectedClient.value) emptyMessage.value = error.value;
           }
         }

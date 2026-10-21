@@ -184,6 +184,10 @@ export async function listAgentsForUser(userId: string, role: User['role']) {
   );
 }
 
+export async function listAgentsForAdminKey(ownerUserId: string, role: User['role']) {
+  return listAgentsForUser(ownerUserId, role === 'agent' ? 'agent' : 'user');
+}
+
 export async function canManageAgent(actorUserId: string, targetUserId: string) {
   const target = await getAgent(targetUserId);
   if (!target) {
@@ -200,6 +204,18 @@ export async function canManageAgent(actorUserId: string, targetUserId: string) 
     return (await managedAgentTree(actorUserId)).includes(targetUserId);
   }
   return target.rootOwnerUserId === actorUserId;
+}
+
+export async function canManageAgentWithAdminKey(ownerUserId: string, ownerRole: User['role'], targetUserId: string) {
+  const target = await getAgent(targetUserId);
+  if (!target || targetUserId === ownerUserId) return false;
+  if (ownerRole === 'agent') {
+    return (
+      target.rootOwnerUserId === (await getAgent(ownerUserId))?.rootOwnerUserId &&
+      (await managedAgentTree(ownerUserId)).includes(targetUserId)
+    );
+  }
+  return target.rootOwnerUserId === ownerUserId;
 }
 
 export async function listAgentTokens(userId: string) {

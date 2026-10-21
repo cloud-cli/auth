@@ -36,7 +36,7 @@
     },
     {
       "name": "Admin-only APIs",
-      "description": "Administrator endpoints for managing OIDC clients, Auth API tokens, and JWT signing keys."
+      "description": "Administrator endpoints for managing OIDC clients, Admin keys, and JWT signing keys."
     },
     {
       "name": "UI-only APIs",
@@ -706,8 +706,8 @@
     "/api/v1/api-tokens/{clientId}/issue": {
       "post": {
         "tags": ["API tokens"],
-        "summary": "Mint a downstream API token using an Auth API token",
-        "description": "Requires an Auth API Bearer token issued to clientId. This credential has the fixed permission to mint tokens only for its own client. Requested downstream scopes must already be configured for that OIDC client; use POST /api/v1/api-tokens/{clientId}/scopes to append new scopes first. The returned opaque token is shown once.",
+        "summary": "Mint a downstream API token using an Admin key",
+        "description": "Requires an Admin key Bearer token issued to clientId. Requested downstream scopes must already be configured for that OIDC client; use POST /api/v1/api-tokens/{clientId}/scopes to append new scopes first. The returned opaque token is shown once.",
         "security": [
           {
             "bearerAuth": []
@@ -753,7 +753,7 @@
             "description": "Unknown client or invalid scope"
           },
           "401": {
-            "description": "Missing, invalid, expired, or revoked Auth API token"
+            "description": "Missing, invalid, expired, or revoked Admin key"
           }
         }
       }
@@ -762,7 +762,7 @@
       "post": {
         "tags": ["API tokens"],
         "summary": "Append downstream scopes for a client's own APIs",
-        "description": "Requires the fixed-purpose Auth API Bearer token issued to clientId. Adds scopes to that client's allowed downstream scope list without changing existing scopes. Duplicate additions are ignored. Send 1–100 canonical scope names per request; each name is at most 80 characters, and a client may have at most 500 scopes. This operation cannot remove or replace scopes; only an administrator can do that through OIDC client management.",
+        "description": "Requires the Admin key Bearer token issued to clientId. Adds scopes to that client's allowed downstream scope list without changing existing scopes. Duplicate additions are ignored. Send 1–100 canonical scope names per request; each name is at most 80 characters, and a client may have at most 500 scopes. This operation cannot remove or replace scopes; only an administrator can do that through OIDC client management.",
         "security": [
           {
             "bearerAuth": []
@@ -808,7 +808,7 @@
             "description": "Malformed scope list, unknown client, or client scope limit exceeded"
           },
           "401": {
-            "description": "Missing, invalid, expired, revoked, or wrong-client Auth API token"
+            "description": "Missing, invalid, expired, revoked, or wrong-client Admin key"
           }
         }
       }
@@ -826,7 +826,7 @@
       ],
       "get": {
         "tags": ["Admin-only APIs"],
-        "summary": "List Auth API tokens for a client (administrator only)",
+        "summary": "List Admin keys for a client (administrator only)",
         "security": [
           {
             "apiKeyAuth": []
@@ -843,7 +843,8 @@
       },
       "post": {
         "tags": ["Admin-only APIs"],
-        "summary": "Create an Auth API token for a client (administrator only)",
+        "summary": "Create an Admin key for a client (administrator only)",
+        "description": "Creates a fixed-permission bearer key to mint downstream API tokens, append this client's scopes, and manage Agents in the client owner's Agent tree. The key does not grant general server administrator access.",
         "security": [
           {
             "apiKeyAuth": []
@@ -859,7 +860,7 @@
                 "properties": {
                   "label": {
                     "type": "string",
-                    "description": "A label for this fixed-permission token"
+                    "description": "A label for this fixed-permission Admin key"
                   }
                 }
               }
@@ -882,7 +883,7 @@
     "/api/v1/auth-api-tokens/{clientId}/{tokenId}": {
       "delete": {
         "tags": ["Admin-only APIs"],
-        "summary": "Revoke an Auth API token (administrator only)",
+        "summary": "Revoke an Admin key (administrator only)",
         "security": [
           {
             "apiKeyAuth": []
@@ -1993,10 +1994,14 @@
     "/api/v1/agents": {
       "get": {
         "tags": ["Agents"],
-        "summary": "List Agents managed by the current account",
+        "summary": "List Agents managed by the current account or Admin key",
+        "description": "A client-bound Admin key is restricted to Agents in that OIDC app owner's Agent tree.",
         "security": [
           {
             "apiKeyAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "responses": {
@@ -2011,9 +2016,13 @@
       "post": {
         "tags": ["Agents"],
         "summary": "Create a child Agent and its initial one-time sign-in token",
+        "description": "A client-bound Admin key creates Agents under that OIDC app owner's account or Agent tree.",
         "security": [
           {
             "apiKeyAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "requestBody": {
@@ -2051,9 +2060,13 @@
       "delete": {
         "tags": ["Agents"],
         "summary": "Disable an Agent and all of its descendants",
+        "description": "Admin keys can disable only Agents in the owning OIDC app's Agent tree.",
         "security": [
           {
             "apiKeyAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "parameters": [
@@ -2080,9 +2093,13 @@
       "get": {
         "tags": ["Agents"],
         "summary": "List an Agent’s sign-in token metadata",
+        "description": "Admin keys can manage sign-in tokens only for Agents in the owning OIDC app's Agent tree.",
         "security": [
           {
             "apiKeyAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "parameters": [
@@ -2107,9 +2124,13 @@
       "post": {
         "tags": ["Agents"],
         "summary": "Create an additional one-time Agent sign-in token",
+        "description": "Admin keys can create sign-in tokens only for Agents in the owning OIDC app's Agent tree.",
         "security": [
           {
             "apiKeyAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "parameters": [
@@ -2156,9 +2177,13 @@
       "delete": {
         "tags": ["Agents"],
         "summary": "Revoke an Agent sign-in token",
+        "description": "Admin keys can revoke sign-in tokens only for Agents in the owning OIDC app's Agent tree.",
         "security": [
           {
             "apiKeyAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "parameters": [
@@ -2193,9 +2218,13 @@
       "post": {
         "tags": ["Agents"],
         "summary": "Rotate an Agent sign-in token and revoke the old token",
+        "description": "Admin keys can rotate sign-in tokens only for Agents in the owning OIDC app's Agent tree.",
         "security": [
           {
             "apiKeyAuth": []
+          },
+          {
+            "bearerAuth": []
           }
         ],
         "parameters": [

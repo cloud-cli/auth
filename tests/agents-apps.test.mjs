@@ -88,6 +88,26 @@ export const exec = async (sql) => database.exec(sql);
       parent.agent.userId,
       false,
     );
+    const adminKey = await apiTokens.createAuthApiToken(privateApp.id, 'Agent management key');
+    const adminKeyPrincipal = await apiTokens.authenticateAdminKey(adminKey.token);
+    assert.deepEqual(adminKeyPrincipal, {
+      clientId: privateApp.id,
+      ownerUserId: parent.agent.userId,
+      ownerRole: 'agent',
+    });
+    assert.equal(await agents.canManageAgentWithAdminKey(parent.agent.userId, 'agent', child.agent.userId), true);
+    assert.equal(await agents.canManageAgentWithAdminKey(parent.agent.userId, 'agent', parent.agent.userId), false);
+    assert.equal(await agents.canManageAgentWithAdminKey(other.userId, 'user', child.agent.userId), false);
+    assert.deepEqual(
+      (await agents.listAgentsForAdminKey(parent.agent.userId, 'agent')).map((agent) => agent.userId),
+      [child.agent.userId],
+    );
+    const adminKeyMetadata = (await apiTokens.listAuthApiTokens(privateApp.id)).find(
+      (item) => item.label === 'Agent management key',
+    );
+    assert.ok(adminKeyMetadata);
+    await apiTokens.revokeApiToken(privateApp.id, privateApp.id, adminKeyMetadata.tokenId);
+    assert.equal(await apiTokens.authenticateAdminKey(adminKey.token), null);
     const publishedApp = await oidc.createManagedClient(
       'Published app',
       ['https://published.example/callback'],

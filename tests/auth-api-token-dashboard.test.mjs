@@ -7,23 +7,23 @@ const component = source.split('<template component="dashboard-auth-api-tokens"'
 const dashboardKeysSource = await readFile(new URL('../assets/ui/dashboard-keys.html', import.meta.url), 'utf8');
 const dashboardKeysComponent = dashboardKeysSource.split('<template component="v2-keys"')[1];
 
-test('Auth API token overview loads metadata per OIDC app and identifies its app', () => {
+test('Admin key overview loads metadata per OIDC app and identifies its app', () => {
   assert.match(component, /apps\.value\.map\(async \(app\) =>/);
   assert.match(component, /getAuthApiTokens\(app\.id\)/);
   assert.match(component, /entry\.appId/);
   assert.match(component, /result\.tokens === null/);
 });
 
-test('Auth API token dashboard retains app-scoped create and revoke flows', () => {
+test('Admin key dashboard retains app-scoped create and revoke flows', () => {
   assert.match(component, /createAuthApiToken\(selected\.value, tokenLabel\.value\.trim\(\)\)/);
   assert.match(component, /revokeAuthApiToken\(entry\.appId, entry\.token\.tokenId\)/);
-  assert.match(component, /Copy this Auth API token now\. It is only shown once\./);
+  assert.match(component, /Copy this Admin key now\. It is only shown once\./);
   assert.doesNotMatch(component, /entry\.token\.token\b/);
   assert.equal((component.match(/for="entry of visibleTokens"/g) || []).length, 1);
-  assert.match(component, /No Auth API tokens exist for this app\./);
+  assert.match(component, /No Admin keys exist for this app\./);
 });
 
-test('Auth API token actions hide Revoke as soon as a token is revoked', () => {
+test('Admin key actions hide Revoke as soon as a key is revoked', () => {
   for (const template of [component, dashboardKeysComponent]) {
     assert.match(template, /hidden="false"\s+bind-hidden\.bool="entry\.token\.revokedAt"/);
     assert.match(template, /hidden="false"\s+bind-hidden\.bool="!entry\.token\.revokedAt"/);

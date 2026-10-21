@@ -31,6 +31,12 @@ test('OpenAPI splits authentication operations into readable sections', () => {
   assert.equal(spec.paths['/api/v1/oidc/clients'].get.tags[0], 'Admin-only APIs');
   assert.equal(spec.paths['/api/v1/oidc/apps'].get.tags[0], 'Applications');
   assert.equal(spec.paths['/api/v1/agents'].post.tags[0], 'Agents');
+  assert.deepEqual(spec.paths['/api/v1/agents'].post.security, [{ apiKeyAuth: [] }, { bearerAuth: [] }]);
+  assert.match(spec.paths['/api/v1/agents'].post.description, /owner's account or Agent tree/);
+  assert.deepEqual(spec.paths['/api/v1/agents/{agentId}/tokens/{tokenId}/rotate'].post.security, [
+    { apiKeyAuth: [] },
+    { bearerAuth: [] },
+  ]);
   assert.deepEqual(spec.paths['/api/v1/api-tokens/me'].get.security, [{ apiKeyAuth: [] }]);
   assert.deepEqual(spec.paths['/api/v1/api-tokens/{clientId}/{tokenId}/scopes'].put.security, [{ apiKeyAuth: [] }]);
   assert.equal(spec.paths['/api/v1/webauthn/credentials'].get.tags[0], 'UI-only APIs');
