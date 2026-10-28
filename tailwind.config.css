@@ -8,12 +8,12 @@
   --font-sans: Inter, system-ui, sans-serif;
 
   --color-app-bg: #eef2ec;
-  --color-brand: #1e3a2f;
+  --color-brand: #203b31;
   --color-brand-hover: #13271f;
-  --color-accent: #3b714b;
+  --color-accent: #547d42;
   --color-accent-hover: #2f563b;
   --color-text-main: #1c201e;
-  --color-nav-active: #1e3a2f;
+  --color-nav-active: #203b31;
   --color-nav-active-dark-bg: #1c2a20;
   --color-nav-active-dark-border: #416b48;
   --color-nav-active-dark-text: #d7edc8;
@@ -22,7 +22,7 @@
   --color-legacy-app-bg: #f4f7f6;
   --color-legacy-brand: #263d32;
   --color-legacy-brand-hover: #1a2a22;
-  --color-legacy-brand-focus: #376d46;
+  --color-legacy-brand-focus: #547d42;
   --color-legacy-brand-muted: #4b6b5a;
   --color-legacy-accent: #c8e6a8;
 
