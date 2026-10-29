@@ -27,6 +27,12 @@
         </template>
         <template for="app of apps">
           <li class="p-4 hover:bg-gray-50/80 transition-colors group relative dark:hover:bg-dark-hover">
+            <template if="app.secret">
+              <v2-copy-value-box
+                bind-token="app.secret"
+                message="Copy this OIDC client secret now. It is only shown once."
+              ></v2-copy-value-box>
+            </template>
             <details class="min-w-0" on-toggle="toggleApp(app, $event)">
               <summary
                 class="flex cursor-pointer list-none items-center gap-2 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
@@ -97,12 +103,6 @@
               hidden="false"
               bind-hidden.bool="!app.expanded"
             ></v2-app-editor>
-            <template if="app.secret">
-              <v2-copy-value-box
-                bind-token="app.secret"
-                message="Copy this OIDC client secret now. It is only shown once."
-              ></v2-copy-value-box>
-            </template>
           </li>
         </template>
       </ul>
